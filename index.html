@@ -465,7 +465,7 @@ input::placeholder{color:rgba(138,155,181,0.4)}
       <div class="card" style="margin-bottom:10px">
         <div class="ct">Quarter Setup</div>
         <div class="r2">
-          <div><label>총 경기시간(분)</label><input id="q-total" type="number" value="80" onchange="renderQView()"></div>
+          <div><label>총 경기시간(분)</label><input id="q-total" type="number" value="100" onchange="renderQView()"></div>
           <div><label>쿼터 수</label>
             <select id="q-cnt" onchange="renderQView()">
               <option value="4">4쿼터</option>
@@ -967,62 +967,45 @@ window.deleteGame=async function(id){
 };
 function renderGames(){
   const c=document.getElementById('game-list');
-  const today=new Date().toISOString().slice(0,10);
 
-  if(isAdmin()){
-    if(!games.length){c.innerHTML='<div style="color:var(--cl-silver);text-align:center;padding:16px;font-size:12px;letter-spacing:1px">등록된 경기가 없습니다</div>';return;}
-    c.innerHTML='<div class="ct">Match List · '+games.length+'경기</div>'+games.map(g=>{
-      const res=g.our>g.them?'승':g.our<g.them?'패':'무';
-      const rc=g.our>g.them?'bgg':g.our<g.them?'bgr':'bgy';
-      const cnt=Object.values(g.players||{}).filter(p=>p.played).length;
-      return`<div class="mi">
-        <div class="mrow">
-          <span class="badge ${rc}">${res}</span>
-          <span class="msc">${g.our}:${g.them}</span>
-          <span style="flex:1;font-size:13px;font-weight:700;color:var(--cl-white)">vs ${g.opp}</span>
-          <span style="font-size:10px;color:var(--cl-silver);letter-spacing:0.5px">${g.date}</span>
-        </div>
-        <div class="mme">출전 ${cnt}명</div>
-        <div class="mac">
-          <button class="bsm" style="background:rgba(201,168,76,0.1);color:var(--cl-gold);border:1px solid rgba(201,168,76,0.25)" onclick="selectGame('${g.id}')">기록 입력</button>
-          <button class="bsm" style="background:rgba(192,57,43,0.1);color:#e74c3c;border:1px solid rgba(192,57,43,0.25)" onclick="deleteGame('${g.id}')">삭제</button>
-        </div>
-      </div>`;
-    }).join('');
-  } else {
-    const todayGames=games.filter(g=>g.date===today);
-    if(!todayGames.length){
-      c.innerHTML=`<div style="text-align:center;padding:40px 16px">
-        <div style="font-family:var(--font-display);font-size:40px;letter-spacing:3px;color:rgba(201,168,76,0.15);margin-bottom:10px">NO MATCH</div>
-        <div style="font-size:11px;color:var(--cl-silver);letter-spacing:1px;text-transform:uppercase">오늘 예정된 경기가 없습니다</div>
-      </div>`;
-      return;
-    }
-    c.innerHTML=`<div class="ct">Today's Match</div>`+todayGames.map(g=>{
-      const res=g.our>g.them?'승':g.our<g.them?'패':'무';
-      const rc=g.our>g.them?'bgg':g.our<g.them?'bgr':'bgy';
-      const cnt=Object.values(g.players||{}).filter(p=>p.played).length;
-      const scorers=Object.entries(g.players||{})
-        .filter(([,p])=>p.goals>0)
-        .sort((a,b)=>b[1].goals-a[1].goals)
-        .map(([n,p])=>`<span class="badge bgg" style="margin:2px">⚽ ${n}${p.goals>1?' ×'+p.goals:''}</span>`).join('');
-      const assisters=Object.entries(g.players||{})
-        .filter(([,p])=>p.assists>0)
-        .sort((a,b)=>b[1].assists-a[1].assists)
-        .map(([n,p])=>`<span class="badge bgb" style="margin:2px">🅰 ${n}${p.assists>1?' ×'+p.assists:''}</span>`).join('');
-      return`<div class="mi">
-        <div class="mrow" style="margin-bottom:8px">
-          <span class="badge ${rc}" style="font-size:12px;padding:4px 10px">${res}</span>
-          <span class="msc" style="font-size:30px;letter-spacing:3px">${g.our}:${g.them}</span>
-          <span style="flex:1;font-size:14px;font-weight:700;color:var(--cl-white)">vs ${g.opp}</span>
-        </div>
-        <div class="mme" style="margin-bottom:10px">${g.date} · 출전 ${cnt}명</div>
-        ${scorers?`<div style="margin-bottom:5px;display:flex;flex-wrap:wrap;gap:3px">${scorers}</div>`:''}
-        ${assisters?`<div style="display:flex;flex-wrap:wrap;gap:3px">${assisters}</div>`:''}
-        ${!scorers&&!assisters?`<div style="font-size:11px;color:rgba(138,155,181,0.3);letter-spacing:0.5px;font-style:italic">공격 기록 없음</div>`:''}
-      </div>`;
-    }).join('');
+  if(!games.length){
+    c.innerHTML='<div style="color:var(--cl-silver);text-align:center;padding:16px;font-size:12px;letter-spacing:1px">등록된 경기가 없습니다</div>';
+    return;
   }
+
+  // 공통 카드 렌더링: 모두에게 골/어시스트 요약 표시
+  const renderCard=(g)=>{
+    const res=g.our>g.them?'승':g.our<g.them?'패':'무';
+    const rc=g.our>g.them?'bgg':g.our<g.them?'bgr':'bgy';
+    const cnt=Object.values(g.players||{}).filter(p=>p.played).length;
+    const scorers=Object.entries(g.players||{})
+      .filter(([,p])=>p.goals>0)
+      .sort((a,b)=>b[1].goals-a[1].goals)
+      .map(([n,p])=>`<span class="badge bgg" style="margin:2px">⚽ ${n}${p.goals>1?' ×'+p.goals:''}</span>`).join('');
+    const assisters=Object.entries(g.players||{})
+      .filter(([,p])=>p.assists>0)
+      .sort((a,b)=>b[1].assists-a[1].assists)
+      .map(([n,p])=>`<span class="badge bgb" style="margin:2px">🅰 ${n}${p.assists>1?' ×'+p.assists:''}</span>`).join('');
+    const adminBtns=isAdmin()?`<div class="mac">
+      <button class="bsm" style="background:rgba(201,168,76,0.1);color:var(--cl-gold);border:1px solid rgba(201,168,76,0.25)" onclick="selectGame('${g.id}')">기록 수정</button>
+      <button class="bsm" style="background:rgba(192,57,43,0.1);color:#e74c3c;border:1px solid rgba(192,57,43,0.25)" onclick="deleteGame('${g.id}')">삭제</button>
+    </div>`:'';
+    return`<div class="mi">
+      <div class="mrow" style="margin-bottom:6px">
+        <span class="badge ${rc}">${res}</span>
+        <span class="msc">${g.our}:${g.them}</span>
+        <span style="flex:1;font-size:13px;font-weight:700;color:var(--cl-white)">vs ${g.opp}</span>
+        <span style="font-size:10px;color:var(--cl-silver);letter-spacing:0.5px">${g.date}</span>
+      </div>
+      <div class="mme" style="margin-bottom:8px">출전 ${cnt}명</div>
+      ${scorers?`<div style="margin-bottom:5px;display:flex;flex-wrap:wrap;gap:3px">${scorers}</div>`:''}
+      ${assisters?`<div style="display:flex;flex-wrap:wrap;gap:3px">${assisters}</div>`:''}
+      ${!scorers&&!assisters?`<div style="font-size:11px;color:rgba(138,155,181,0.3);letter-spacing:0.5px;font-style:italic">공격 기록 없음</div>`:''}
+      ${adminBtns}
+    </div>`;
+  };
+
+  c.innerHTML='<div class="ct">Match List · '+games.length+'경기</div>'+games.map(renderCard).join('');
 }
 
 window.selectGame=function(id){
@@ -1132,7 +1115,7 @@ function getQSlots(q){
 function renderQView(){
   const q = currentQTab;
   const slots = getQSlots(q);
-  const totalMin = parseInt(document.getElementById('q-total')?.value)||80;
+  const totalMin = parseInt(document.getElementById('q-total')?.value)||100;
   const qCnt = parseInt(document.getElementById('q-cnt')?.value)||4;
   const qMin = Math.floor(totalMin/qCnt);
   const coach = isCoach();
