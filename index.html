@@ -231,7 +231,7 @@ input::placeholder{color:rgba(138,155,181,0.4)}
     <div class="sp-year">2026</div>
     <div class="sp-line"></div>
     <div class="sp-sub">Team Manager</div>
-    <button class="sp-btn" onclick="enterApp()"><span>Enter</span></button>
+    <button class="sp-btn" id="enter-btn" type="button"><span>Enter</span></button>
   </div>
 </div>
 
@@ -240,6 +240,28 @@ input::placeholder{color:rgba(138,155,181,0.4)}
   <div class="ld-spin"></div>
   <div style="font-size:11px;color:var(--cl-silver);letter-spacing:2px;text-transform:uppercase">Loading...</div>
 </div>
+
+<!-- Enter 버튼 Fallback: 모듈이 5초 내 로드 안되면 오류 표시 -->
+<script>
+(function(){
+  var ready=false;
+  // module script가 성공적으로 실행되면 window.enterApp이 할당됨
+  document.addEventListener('DOMContentLoaded',function(){
+    setTimeout(function(){
+      if(typeof window.enterApp!=='function'){
+        var btn=document.getElementById('enter-btn');
+        if(btn){
+          btn.innerHTML='<span>로드 실패 - 새로고침</span>';
+          btn.style.borderColor='#c0392b';
+          btn.style.color='#c0392b';
+          btn.onclick=function(){location.reload();};
+        }
+        console.error('Firebase 모듈 로드 실패. 네트워크 또는 CDN 문제일 수 있습니다.');
+      }
+    },5000);
+  });
+})();
+</script>
 
 <!-- NAME MODAL -->
 <div id="name-modal">
@@ -704,6 +726,12 @@ window.enterApp=function(){
     if(e.target===this) document.getElementById('q-player-modal').style.display='none';
   });
 };
+
+// ── Enter 버튼 이벤트 바인딩 (모듈 로드 완료 후 활성화) ──
+const _enterBtn = document.getElementById('enter-btn');
+if(_enterBtn){
+  _enterBtn.addEventListener('click', function(){ window.enterApp(); });
+}
 
 window.forceSync=function(){toast('실시간 자동 반영 중입니다');};
 
