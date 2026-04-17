@@ -300,8 +300,8 @@ const INIT_MEMBERS = [
   {id:'m15',name:'신병철',num:14,pos:'MF'},{id:'m16',name:'양현준',num:30,pos:'DF'},
   {id:'m17',name:'양희욱',num:25,pos:'DF'},{id:'m18',name:'원영선',num:10,pos:'MF'},
   {id:'m19',name:'유재완',num:17,pos:'FW'},{id:'m20',name:'윤세희',num:94,pos:'DF'},
-  {id:'m21',name:'윤종인',num:4,pos:'GK'},{id:'m22',name:'이동헌',num:24,pos:'DF'},
-  {id:'m23',name:'이두환',num:93,pos:'MF'},{id:'m24',name:'이동근',num:92,pos:'MF'},
+  {id:'m21',name:'윤종인',num:4,pos:'GK'},{id:'m22',name:'이동근',num:92,pos:'MF'},
+  {id:'m23',name:'이동헌',num:24,pos:'DF'},{id:'m24',name:'이두환',num:93,pos:'MF'},
   {id:'m25',name:'이무진',num:15,pos:'FW'},{id:'m26',name:'이석우',num:6,pos:'MF'},
   {id:'m27',name:'이시온',num:0,pos:'MF'},{id:'m28',name:'이지현',num:20,pos:'DF'},
   {id:'m29',name:'정재승',num:5,pos:'MF'},{id:'m30',name:'천명근',num:12,pos:'FW'},
@@ -602,7 +602,7 @@ window.calcQ=function(){
   const field=players.filter(p=>p.pos!=='GK');
   const fpq=Math.min(10,field.length);
   const tsl=qc*fpq,spp=Math.floor(tsl/field.length),extra=tsl%field.length;
-  const slots=field.map((p,i)=>{...p,qLeft:spp+(i<extra?1:0)});
+  const slots=field.map((p,i)=>({...p,qLeft:spp+(i<extra?1:0)}));
   const qs=Array.from({length:qc},(_,qi)=>{const ps=[];if(gks.length)ps.push({...gks[0]});return{num:qi+1,time:`${qi*qt+1}~${(qi+1)*qt}분`,players:ps};});
   const ord=[...Array(qc).keys()].sort(()=>Math.random()-0.5);
   slots.forEach(s=>{
