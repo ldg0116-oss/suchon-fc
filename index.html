@@ -446,6 +446,7 @@ input::placeholder{color:rgba(138,155,181,0.4)}
           <div><label>상대 득점</label><input id="g-them" type="number" value="0" min="0"></div>
         </div>
         <button class="btn btn-gold" onclick="addGame()">+ Add Match</button>
+        <button class="btn btn-outline" style="margin-top:8px" onclick="syncMatchRecord()">📋 기록표와 동기화 (스코어/상대팀/날짜만)</button>
       </div>
     </div>
     <div class="card" id="game-list"></div>
@@ -465,7 +466,7 @@ input::placeholder{color:rgba(138,155,181,0.4)}
       <div class="card" style="margin-bottom:10px">
         <div class="ct">Quarter Setup</div>
         <div class="r2">
-          <div><label>총 경기시간(분)</label><input id="q-total" type="number" value="100" onchange="renderQView()"></div>
+          <div><label>총 경기시간(분)</label><input id="q-total" type="number" value="120" onchange="renderQView()"></div>
           <div><label>쿼터 수</label>
             <select id="q-cnt" onchange="renderQView()">
               <option value="4">4쿼터</option>
@@ -600,18 +601,18 @@ const INIT_FEES = {
 
 const INIT_GAMES = [
   {id:'g1',date:'2026-01-04',opp:'FC BRO',our:12,them:3,players:{손우태:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:1},원영선:{played:true,goals:3,assists:1},유재완:{played:true,goals:3,assists:0},김다훈:{played:true,goals:0,assists:0},김종호:{played:true,goals:1,assists:3},천명근:{played:true,goals:1,assists:0},박승완:{played:true,goals:0,assists:0},이지현:{played:true,goals:1,assists:1},김홍근:{played:true,goals:0,assists:0},마승백:{played:true,goals:1,assists:1},최춘식:{played:true,goals:1,assists:0},황병학:{played:true,goals:1,assists:2},박민규:{played:true,goals:0,assists:0},이동근:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0}}},
-  {id:'g2',date:'2026-01-11',opp:'자체전',our:3,them:2,players:{손우태:{played:true,goals:0,assists:0},권지훈:{played:true,goals:1,assists:0},김다훈:{played:true,goals:0,assists:0},노준혁:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:0,assists:0},박지훈:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0},양현준:{played:true,goals:0,assists:0},원영선:{played:true,goals:0,assists:0},유재완:{played:true,goals:0,assists:0},이동근:{played:true,goals:0,assists:0},이두환:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},이지현:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},최춘식:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},마승백:{played:true,goals:0,assists:0}}},
+  {id:'g2',date:'2026-01-11',opp:'자체전 / A팀 승',our:3,them:2,players:{손우태:{played:true,goals:0,assists:0},권지훈:{played:true,goals:1,assists:0},김다훈:{played:true,goals:0,assists:0},노준혁:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:0,assists:0},박지훈:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0},양현준:{played:true,goals:0,assists:0},원영선:{played:true,goals:0,assists:0},유재완:{played:true,goals:0,assists:0},이동근:{played:true,goals:0,assists:0},이두환:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},이지현:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},최춘식:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},마승백:{played:true,goals:0,assists:0}}},
   {id:'g3',date:'2026-01-18',opp:'퓨쳐스(벽산)',our:5,them:17,players:{고석진:{played:true,goals:1,assists:0},권지훈:{played:true,goals:1,assists:2},김다훈:{played:true,goals:0,assists:0},김종호:{played:true,goals:1,assists:0},이두환:{played:true,goals:1,assists:1},이석우:{played:true,goals:0,assists:0}}},
   {id:'g4',date:'2026-02-01',opp:'한울fc',our:5,them:3,players:{권지훈:{played:true,goals:0,assists:0},김홍근:{played:true,goals:0,assists:0},노준혁:{played:true,goals:0,assists:1},손우태:{played:true,goals:1,assists:0},이동근:{played:true,goals:1,assists:0},이무진:{played:true,goals:1,assists:0},이석우:{played:true,goals:0,assists:2},이지현:{played:true,goals:0,assists:0},정재승:{played:true,goals:1,assists:0},최춘식:{played:true,goals:1,assists:0},박승완:{played:true,goals:0,assists:1},손성길:{played:true,goals:0,assists:0}}},
   {id:'g5',date:'2026-02-08',opp:'안양일번가',our:7,them:8,players:{권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:0,assists:1},원영선:{played:true,goals:1,assists:1},이두환:{played:true,goals:2,assists:0},이지현:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0},마승백:{played:true,goals:0,assists:1}}},
   {id:'g6',date:'2026-02-15',opp:'FC 피움',our:6,them:3,players:{고석진:{played:true,goals:1,assists:0},권지훈:{played:true,goals:0,assists:1},김다훈:{played:true,goals:0,assists:0},김종호:{played:true,goals:4,assists:0},김현준:{played:true,goals:0,assists:1},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:1,assists:0},이동근:{played:true,goals:0,assists:2},이석우:{played:true,goals:0,assists:1},이지현:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},손성길:{played:true,goals:0,assists:0}}},
   {id:'g7',date:'2026-02-22',opp:'FC NOM',our:11,them:5,players:{권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},김현준:{played:true,goals:0,assists:1},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:3,assists:1},유재완:{played:true,goals:3,assists:1},이석우:{played:true,goals:3,assists:3},최춘식:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0},김홍근:{played:true,goals:0,assists:0}}},
-  {id:'g8',date:'2026-03-08',opp:'하프',our:3,them:5,players:{원영선:{played:true,goals:0,assists:2},이석우:{played:true,goals:1,assists:0},박승완:{played:true,goals:0,assists:0},권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},김종호:{played:true,goals:1,assists:0},손우태:{played:true,goals:0,assists:0},손성길:{played:true,goals:0,assists:0},신병철:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},박지훈:{played:true,goals:0,assists:0}}},
+  {id:'g8',date:'2026-03-08',opp:'FC하프',our:3,them:5,players:{원영선:{played:true,goals:0,assists:2},이석우:{played:true,goals:1,assists:0},박승완:{played:true,goals:0,assists:0},권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},김종호:{played:true,goals:1,assists:0},손우태:{played:true,goals:0,assists:0},손성길:{played:true,goals:0,assists:0},신병철:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},박지훈:{played:true,goals:0,assists:0}}},
   {id:'g9',date:'2026-03-15',opp:'AT밀레니엄',our:8,them:6,players:{김종호:{played:true,goals:2,assists:0},김현준:{played:true,goals:0,assists:0},노준혁:{played:true,goals:0,assists:0},박민규:{played:true,goals:1,assists:0},박지훈:{played:true,goals:1,assists:1},박승완:{played:true,goals:1,assists:3},유재완:{played:true,goals:1,assists:0},이동근:{played:true,goals:0,assists:0},이동헌:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:2},정재승:{played:true,goals:0,assists:0},천명근:{played:true,goals:0,assists:0},최춘식:{played:true,goals:2,assists:1},황병학:{played:true,goals:0,assists:1},한재희:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0}}},
   {id:'g10',date:'2026-03-22',opp:'파란',our:2,them:2,players:{김다훈:{played:true,goals:0,assists:0},김현준:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:0,assists:1},박지훈:{played:true,goals:0,assists:0},유재완:{played:true,goals:1,assists:0},이동근:{played:true,goals:1,assists:0},이동헌:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},최태준:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0}}},
   {id:'g11',date:'2026-03-29',opp:'하루fc',our:2,them:3,players:{고석진:{played:true,goals:0,assists:0},권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:0,assists:1},이동근:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},이지현:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},최태준:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0},김현준:{played:true,goals:0,assists:0},노준혁:{played:false,goals:0,assists:1}}},
   {id:'g12',date:'2026-04-05',opp:'AT밀레니엄',our:4,them:5,players:{권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},김현준:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:1},박승완:{played:true,goals:0,assists:3},신병철:{played:true,goals:0,assists:0},이석우:{played:true,goals:1,assists:0},정재승:{played:true,goals:0,assists:0},최태준:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0}}},
-  {id:'g13',date:'2026-04-12',opp:'FC하프',our:1,them:7,players:{권지훈:{played:true,goals:0,assists:0},김홍근:{played:true,goals:0,assists:0},박승완:{played:true,goals:1,assists:0},신병철:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},최춘식:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0}}}
+  {id:'g13',date:'2026-04-12',opp:'FC하프',our:2,them:7,players:{권지훈:{played:true,goals:0,assists:0},김홍근:{played:true,goals:0,assists:0},박승완:{played:true,goals:1,assists:0},신병철:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},최춘식:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0}}}
 ];
 
 const INIT_SCHEDULES = [
@@ -965,6 +966,50 @@ window.deleteGame=async function(id){
   document.getElementById('record-wrap').style.display='none';
   toast('삭제 완료');
 };
+
+// ── 기록표 동기화: 스코어/상대팀/날짜만 이미지 기준으로 덮어쓰고 선수 기록은 보존 ──
+window.syncMatchRecord=async function(){
+  if(!isAdmin()){toast('관리자만 사용 가능');return;}
+  if(!confirm('경기 기록표(스코어·상대팀·날짜)를 기준값으로 덮어쓸까요?\n선수별 골/어시 기록은 그대로 유지됩니다.'))return;
+  // 기준 기록표 (이미지 기준)
+  const RECORD = [
+    {id:'g1', date:'2026-01-04', opp:'FC BRO',         our:12, them:3},
+    {id:'g2', date:'2026-01-11', opp:'자체전 / A팀 승', our:3,  them:2},
+    {id:'g3', date:'2026-01-18', opp:'퓨쳐스(벽산)',    our:5,  them:17},
+    {id:'g4', date:'2026-02-01', opp:'한울fc',          our:5,  them:3},
+    {id:'g5', date:'2026-02-08', opp:'안양일번가',      our:7,  them:8},
+    {id:'g6', date:'2026-02-15', opp:'FC 피움',         our:6,  them:3},
+    {id:'g7', date:'2026-02-22', opp:'FC NOM',          our:11, them:5},
+    {id:'g8', date:'2026-03-08', opp:'FC하프',          our:3,  them:5},
+    {id:'g9', date:'2026-03-15', opp:'AT밀레니엄',      our:8,  them:6},
+    {id:'g10',date:'2026-03-22', opp:'파란',            our:2,  them:2},
+    {id:'g11',date:'2026-03-29', opp:'하루fc',          our:2,  them:3},
+    {id:'g12',date:'2026-04-05', opp:'AT밀레니엄',      our:4,  them:5},
+    {id:'g13',date:'2026-04-12', opp:'FC하프',          our:2,  them:7}
+  ];
+  try{
+    let updated=0, created=0;
+    for(const rec of RECORD){
+      const existing=games.find(g=>g.id===rec.id);
+      if(existing){
+        // 선수 기록은 보존하고 스코어/상대/날짜만 업데이트
+        await update(ref(db,'suchon/games/'+rec.id),{
+          date:rec.date, opp:rec.opp, our:rec.our, them:rec.them
+        });
+        updated++;
+      }else{
+        // 없으면 새로 생성 (빈 players)
+        await set(ref(db,'suchon/games/'+rec.id),{...rec, players:{}});
+        created++;
+      }
+    }
+    toast(`동기화 완료: ${updated}개 수정, ${created}개 추가`);
+  }catch(e){
+    console.error(e);
+    toast('동기화 실패: '+e.message);
+  }
+};
+
 function renderGames(){
   const c=document.getElementById('game-list');
 
@@ -1115,7 +1160,7 @@ function getQSlots(q){
 function renderQView(){
   const q = currentQTab;
   const slots = getQSlots(q);
-  const totalMin = parseInt(document.getElementById('q-total')?.value)||100;
+  const totalMin = parseInt(document.getElementById('q-total')?.value)||120;
   const qCnt = parseInt(document.getElementById('q-cnt')?.value)||4;
   const qMin = Math.floor(totalMin/qCnt);
   const coach = isCoach();
