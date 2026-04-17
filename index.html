@@ -175,26 +175,6 @@ input::placeholder{color:rgba(138,155,181,0.4)}
 .vm-x{background:rgba(192,57,43,0.15);color:#e74c3c;border:0.5px solid rgba(192,57,43,0.3)}
 .vm-q{background:rgba(201,168,76,0.12);color:var(--cl-gold);border:0.5px solid rgba(201,168,76,0.3)}
 
-/* ── 쿼터 피치 ── */
-.pitch{width:100%;aspect-ratio:7/10;background:#1a4a1a;border-radius:4px;position:relative;border:2px solid rgba(255,255,255,0.15);overflow:hidden}
-.pitch-lines{position:absolute;inset:0;pointer-events:none}
-.pitch-lines::before{content:'';position:absolute;top:50%;left:5%;right:5%;height:1px;background:rgba(255,255,255,0.15)}
-.pitch-lines::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:60px;border-radius:50%;border:1px solid rgba(255,255,255,0.15)}
-.pitch-center-dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.3)}
-.pitch-goal-top{position:absolute;top:0;left:30%;width:40%;height:7%;border:1px solid rgba(255,255,255,0.15);border-top:none;background:rgba(255,255,255,0.03)}
-.pitch-goal-bot{position:absolute;bottom:0;left:30%;width:40%;height:7%;border:1px solid rgba(255,255,255,0.15);border-bottom:none;background:rgba(255,255,255,0.03)}
-.player-node{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;z-index:10}
-.player-circle{width:36px;height:36px;border-radius:50%;border:2px solid rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:14px;color:#fff;transition:all 0.2s;position:relative}
-.player-circle.empty{background:rgba(255,255,255,0.08);border:2px dashed rgba(255,255,255,0.3);color:rgba(255,255,255,0.3)}
-.player-circle.filled{background:rgba(201,168,76,0.3);border-color:var(--cl-gold)}
-.player-circle.gk{background:rgba(255,165,0,0.4);border-color:orange}
-.player-label{font-size:9px;font-weight:700;color:#fff;background:rgba(0,0,0,0.6);padding:1px 5px;border-radius:2px;white-space:nowrap;letter-spacing:0.3px;max-width:52px;text-align:center;overflow:hidden;text-overflow:ellipsis}
-.qtab.on{color:var(--cl-gold)!important;border-bottom-color:var(--cl-gold)!important}
-.playtime-item{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(201,168,76,0.06)}
-.playtime-item:last-child{border-bottom:none}
-.playtime-bar{flex:1;margin:0 10px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden}
-.playtime-fill{height:100%;background:linear-gradient(90deg,var(--cl-gold),rgba(201,168,76,0.5));border-radius:2px;transition:width 0.4s ease}
-
 /* ── 댓글 ── */
 .comment-wrap{margin-top:10px;border-top:1px solid rgba(201,168,76,0.08);padding-top:10px}
 .comment-item{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start}
@@ -640,31 +620,13 @@ async function initFirebase(){
   try{
     const snap=await get(ref(db,'suchon'));
     if(!snap.exists()){
+      // 최초 1회만 초기 데이터 세팅 (이후 Firebase 데이터 우선)
       const mo={};INIT_MEMBERS.forEach(m=>{mo[m.id]=m;});
       const go={};INIT_GAMES.forEach(g=>{go[g.id]=g;});
       const so={};INIT_SCHEDULES.forEach(s=>{so[s.id]=s;});
       await set(ref(db,'suchon'),{members:mo,games:go,fees:INIT_FEES,schedules:so});
-    } else {
-      // g13(FC하프) 기록 항상 최신으로 패치
-      const g13Snap=await get(ref(db,'suchon/games/g13'));
-      if(g13Snap.exists()){
-        const g13=g13Snap.val();
-        if(g13.our!==1){
-          await update(ref(db,'suchon/games/g13'),{our:1,them:7});
-        }
-        // 박승완만 득점으로 패치
-        const correctPlayers={
-          권지훈:{played:true,goals:0,assists:0},
-          김홍근:{played:true,goals:0,assists:0},
-          박승완:{played:true,goals:1,assists:0},
-          신병철:{played:true,goals:0,assists:0},
-          이석우:{played:true,goals:0,assists:0},
-          최춘식:{played:true,goals:0,assists:0},
-          한재희:{played:true,goals:0,assists:0}
-        };
-        await set(ref(db,'suchon/games/g13/players'),correctPlayers);
-      }
     }
+    // Firebase에 이미 데이터가 있으면 건드리지 않음 (관리자 수정 내용 보존)
     startListeners();
   }catch(e){setDot('off','연결 실패');toast('Firebase 연결 실패');}
 }
