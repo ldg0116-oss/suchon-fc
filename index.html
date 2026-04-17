@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>수촌 FC 2026</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#111;color:#fff;min-height:100vh;overscroll-behavior:none}
+#splash{position:fixed;inset:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;transition:opacity 0.6s}
+#splash.fade{opacity:0;pointer-events:none}
+.sp-stripe{position:absolute;inset:0;background:repeating-linear-gradient(170deg,#8b0000 0px,#8b0000 38px,#1a1a1a 38px,#1a1a1a 76px);opacity:0.18}
+.sp-wrap{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:18px}
+.sp-title{font-size:28px;font-weight:800;letter-spacing:4px;color:#fff}
+.sp-sub{font-size:13px;letter-spacing:2px;color:#c0a060;font-weight:600}
+.sp-btn{background:#8b0000;color:#fff;border:none;padding:13px 38px;border-radius:30px;font-size:15px;font-weight:700;letter-spacing:1px;cursor:pointer}
+.sp-btn:active{background:#a00}
+.sp-badge{font-size:11px;color:#555;letter-spacing:0.5px}
+#app{display:none;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;background:#181818}
+.hdr{background:#8b0000;padding:10px 14px 0;position:sticky;top:0;z-index:100}
+.hdr-top{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.hdr-title{flex:1;font-size:17px;font-weight:800;letter-spacing:1px;color:#fff}
+.rtpill{display:flex;align-items:center;gap:5px;background:rgba(0,0,0,0.3);border-radius:20px;padding:4px 10px;font-size:11px;color:#fff;cursor:pointer}
+.rtdot{width:7px;height:7px;border-radius:50%;background:#4caf50;flex-shrink:0}
+.rtdot.off{background:#f44336}
+.rtdot.sync{background:#ff9800;animation:spin 1s linear infinite}
+.rtdot.ok{animation:pulse 2s infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;padding:7px 14px;border-radius:16px 16px 0 0;font-size:13px;font-weight:700;border:none;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);cursor:pointer;white-space:nowrap}
+.tab.on{background:#fff;color:#8b0000}
+.sec{display:none;padding:12px 12px 90px;background:#181818;min-height:calc(100vh - 105px)}
+.sec.on{display:block}
+.card{background:#242424;border:0.5px solid rgba(255,255,255,0.09);border-radius:14px;padding:14px;margin-bottom:10px}
+.ct{font-size:11px;font-weight:700;letter-spacing:0.8px;color:#777;margin-bottom:10px;text-transform:uppercase}
+label{font-size:12px;color:#888;display:block;margin-bottom:3px;margin-top:8px}
+label:first-child{margin-top:0}
+input,select{width:100%;padding:9px 11px;font-size:14px;border:0.5px solid rgba(255,255,255,0.14);border-radius:8px;background:#2e2e2e;color:#fff;-webkit-appearance:none;appearance:none}
+input:focus,select:focus{outline:none;border-color:#c0392b}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.btn{width:100%;padding:12px;font-size:14px;font-weight:700;border:none;border-radius:10px;cursor:pointer;margin-top:10px}
+.btn-r{background:#8b0000;color:#fff}
+.btn-r:active{background:#a00}
+.bsm{padding:5px 11px;font-size:12px;font-weight:600;border:none;border-radius:6px;cursor:pointer;width:auto}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px}
+.bgr{background:#3a0000;color:#ff8080}
+.bgo{background:#2e1a00;color:#ffb74d}
+.bgb{background:#0a1e38;color:#64b5f6}
+.bgg{background:#0d2e0d;color:#81c784}
+.bgy{background:#2a2a2a;color:#999}
+.pi{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid rgba(255,255,255,0.06)}
+.pi:last-child{border-bottom:none}
+.av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0}
+.pn{flex:1;min-width:0}
+.pname{font-size:14px;font-weight:700;color:#fff}
+.pst{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.mi{padding:10px 0;border-bottom:0.5px solid rgba(255,255,255,0.06)}
+.mi:last-child{border-bottom:none}
+.mrow{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+.msc{font-size:18px;font-weight:800;color:#fff}
+.mme{font-size:12px;color:#666}
+.mac{display:flex;gap:6px;margin-top:6px}
+.fi{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,0.06)}
+.fi:last-child{border-bottom:none}
+.fn{font-size:14px;font-weight:600;color:#fff;min-width:55px}
+.fms{display:flex;gap:3px;flex-wrap:wrap;flex:1}
+.fb{width:26px;height:26px;border-radius:50%;border:0.5px solid rgba(255,255,255,0.12);background:#2e2e2e;color:#777;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fb.paid{background:#8b0000;color:#fff;border-color:#8b0000}
+.qc{padding:7px 12px;border-radius:20px;border:0.5px solid rgba(255,255,255,0.12);background:#2e2e2e;font-size:13px;cursor:pointer;color:#bbb;user-select:none}
+.qc.sel{background:#8b0000;color:#fff;border-color:#8b0000}
+.qrc{background:#2a2a2a;border-radius:10px;padding:10px;margin-bottom:8px}
+.qrt{font-size:11px;font-weight:700;color:#777;margin-bottom:6px;letter-spacing:0.5px}
+.qrp{display:flex;flex-wrap:wrap;gap:5px}
+.qrch{font-size:12px;padding:3px 9px;border-radius:10px;background:#333;color:#ccc}
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.sb{background:#242424;border-radius:10px;padding:12px;text-align:center}
+.sbv{font-size:22px;font-weight:800;color:#fff}
+.sbl{font-size:11px;color:#666;margin-top:2px}
+.rt{width:100%;font-size:13px;border-collapse:collapse}
+.rt th{font-size:11px;color:#666;text-align:left;padding:6px;border-bottom:0.5px solid rgba(255,255,255,0.07)}
+.rt td{padding:8px 6px;border-bottom:0.5px solid rgba(255,255,255,0.07);vertical-align:middle;color:#fff}
+.rt tr:last-child td{border-bottom:none}
+.ni{width:48px;padding:4px 6px;font-size:13px;border:0.5px solid rgba(255,255,255,0.13);border-radius:6px;text-align:center;background:#2e2e2e;color:#fff}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:rgba(20,20,20,0.96);color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;font-weight:600;pointer-events:none;opacity:0;transition:opacity 0.3s;z-index:9999;white-space:nowrap;border:0.5px solid rgba(255,255,255,0.15)}
+#toast.show{opacity:1}
+#loading{position:fixed;inset:0;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:998}
+.ld-spin{width:36px;height:36px;border:3px solid rgba(255,255,255,0.1);border-top-color:#8b0000;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:14px}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="sp-stripe"></div>
+  <div class="sp-wrap">
+    <img src="data:image/jpeg;base64,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" style="width:130px;height:130px;object-fit:contain" alt="수촌FC">
+    <div class="sp-title">SUCHON FC</div>
+    <div class="sp-sub">2026 시즌 팀 매니저</div>
+    <button class="sp-btn" onclick="enterApp()">입장하기</button>
+    <div class="sp-badge">실시간 멀티유저 · Firebase 동기화</div>
+  </div>
+</div>
+
+<div id="loading" style="display:none">
+  <div class="ld-spin"></div>
+  <div style="font-size:13px;color:#666">데이터 불러오는 중...</div>
+</div>
+
+<div id="toast"></div>
+
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-top">
+      <img src="data:image/jpeg;base64,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" style="width:32px;height:32px;object-fit:contain" alt="수촌FC">
+      <div class="hdr-title">수촌 FC 2026</div>
+      <div class="rtpill" onclick="forceSync()">
+        <div class="rtdot ok" id="rtdot"></div>
+        <span id="rttxt">연결 중</span>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab on" onclick="go('members',this)">선수</button>
+      <button class="tab" onclick="go('fee',this)">회비</button>
+      <button class="tab" onclick="go('match',this)">경기</button>
+      <button class="tab" onclick="go('quarter',this)">쿼터</button>
+      <button class="tab" onclick="go('stats',this)">통계</button>
+      <button class="tab" onclick="go('schedule',this)">일정</button>
+    </div>
+  </div>
+
+  <div id="s-members" class="sec on">
+    <div class="card">
+      <div class="ct">선수 추가</div>
+      <div class="r3">
+        <div><label>이름</label><input id="m-name" placeholder="홍길동"></div>
+        <div><label>번호</label><input id="m-num" type="number" placeholder="10"></div>
+        <div><label>포지션</label>
+          <select id="m-pos">
+            <option value="GK">GK</option><option value="DF">DF</option>
+            <option value="MF" selected>MF</option><option value="FW">FW</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-r" onclick="addMember()">+ 선수 추가</button>
+    </div>
+    <div class="card" id="member-list"></div>
+  </div>
+
+  <div id="s-fee" class="sec">
+    <div style="background:#1a2a1a;border:0.5px solid #2d5a2d;border-radius:10px;padding:10px 12px;font-size:12px;color:#81c784;margin-bottom:10px;display:flex;align-items:center;gap:7px">
+      &#128308; 실시간 동기화 — 버튼 클릭 즉시 모든 팀원 화면에 반영됩니다
+    </div>
+    <div class="card">
+      <div class="ct">월 회비 납부 현황</div>
+      <div id="fee-list"></div>
+    </div>
+  </div>
+
+  <div id="s-match" class="sec">
+    <div class="card">
+      <div class="ct">경기 추가</div>
+      <label>날짜</label><input id="g-date" type="date">
+      <label>상대팀</label><input id="g-opp" placeholder="FC 상대팀">
+      <div class="r2">
+        <div><label>우리 득점</label><input id="g-our" type="number" value="0" min="0"></div>
+        <div><label>상대 득점</label><input id="g-them" type="number" value="0" min="0"></div>
+      </div>
+      <button class="btn btn-r" onclick="addGame()">경기 추가</button>
+    </div>
+    <div class="card" id="game-list"></div>
+    <div id="record-wrap" style="display:none">
+      <div class="card">
+        <div class="ct" id="rec-title">출전·골·도움</div>
+        <div style="overflow-x:auto"><table class="rt" id="rec-table"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="s-quarter" class="sec">
+    <div class="card">
+      <div class="ct">쿼터 배분</div>
+      <div class="r2">
+        <div><label>총 경기시간(분)</label><input id="q-total" type="number" value="80"></div>
+        <div><label>쿼터 수</label>
+          <select id="q-cnt"><option value="4">4쿼터</option><option value="2">2쿼터</option></select>
+        </div>
+      </div>
+      <label>출전 선수 선택</label>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:6px;margin-bottom:10px" id="q-sel"></div>
+      <button class="btn btn-r" onclick="calcQ()">배분 계산</button>
+    </div>
+    <div id="q-result"></div>
+  </div>
+
+  <div id="s-stats" class="sec">
+    <div class="sg" id="sum-stats"></div>
+    <div class="card">
+      <div class="ct">시즌 기록 (득점순)</div>
+      <div style="overflow-x:auto">
+        <table class="rt">
+          <thead><tr><th>이름</th><th>포지션</th><th>출전</th><th>골</th><th>도움</th><th>회비</th></tr></thead>
+          <tbody id="stats-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="s-schedule" class="sec">
+    <div class="card">
+      <div class="ct">일정 추가</div>
+      <div class="r2">
+        <div><label>날짜</label><input id="sc-date" type="date"></div>
+        <div><label>구장</label><input id="sc-field" placeholder="자유공원"></div>
+      </div>
+      <label>상대팀</label><input id="sc-opp" placeholder="미정">
+      <div class="r2">
+        <div><label>시간</label><input id="sc-time" placeholder="15-17"></div>
+        <div><label>유니폼</label><input id="sc-uni" placeholder="흰색"></div>
+      </div>
+      <label>담당자</label><input id="sc-mgr" placeholder="이석우">
+      <button class="btn btn-r" onclick="addSchedule()">일정 추가</button>
+    </div>
+    <div class="card" id="schedule-list"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, update, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC28taFbGmv4N5J2DThVUNCQ1DAfpLunQo",
+  authDomain: "suchon-bcec9.firebaseapp.com",
+  databaseURL: "https://suchon-bcec9-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "suchon-bcec9",
+  storageBucket: "suchon-bcec9.firebasestorage.app",
+  messagingSenderId: "816204981372",
+  appId: "1:816204981372:web:19847d473f2991c86a95f9"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+
+const PC = {GK:['#2e1a00','#ffb74d'],DF:['#0a1e38','#64b5f6'],MF:['#0d2e0d','#81c784'],FW:['#3a0000','#ff8080']};
+const PCB = {GK:'bgo',DF:'bgb',MF:'bgg',FW:'bgr'};
+
+const INIT_MEMBERS = [
+  {id:'m1',name:'손우태',num:2,pos:'DF'},{id:'m2',name:'김다훈',num:3,pos:'GK'},
+  {id:'m3',name:'윤종인',num:4,pos:'GK'},{id:'m4',name:'정재승',num:5,pos:'MF'},
+  {id:'m5',name:'이석우',num:6,pos:'MF'},{id:'m6',name:'박승완',num:7,pos:'FW'},
+  {id:'m7',name:'손성길',num:8,pos:'MF'},{id:'m8',name:'원영선',num:10,pos:'MF'},
+  {id:'m9',name:'노준혁',num:11,pos:'FW'},{id:'m10',name:'천명근',num:12,pos:'FW'},
+  {id:'m11',name:'신병철',num:14,pos:'MF'},{id:'m12',name:'이무진',num:15,pos:'FW'},
+  {id:'m13',name:'권지훈',num:16,pos:'MF'},{id:'m14',name:'유재완',num:17,pos:'FW'},
+  {id:'m15',name:'고석진',num:18,pos:'FW'},{id:'m16',name:'김종호',num:19,pos:'FW'},
+  {id:'m17',name:'이지현',num:20,pos:'DF'},{id:'m18',name:'최춘식',num:21,pos:'DF'},
+  {id:'m19',name:'박민규',num:23,pos:'MF'},{id:'m20',name:'이동헌',num:24,pos:'DF'},
+  {id:'m21',name:'양희욱',num:25,pos:'DF'},{id:'m22',name:'김현준',num:26,pos:'DF'},
+  {id:'m23',name:'양현준',num:30,pos:'DF'},{id:'m24',name:'한재희',num:34,pos:'DF'},
+  {id:'m25',name:'김주호',num:60,pos:'DF'},{id:'m26',name:'황병학',num:66,pos:'DF'},
+  {id:'m27',name:'김홍근',num:88,pos:'DF'},{id:'m28',name:'박지훈',num:91,pos:'MF'},
+  {id:'m29',name:'이동근',num:92,pos:'MF'},{id:'m30',name:'이두환',num:93,pos:'MF'},
+  {id:'m31',name:'윤세희',num:94,pos:'DF'},{id:'m32',name:'마승백',num:97,pos:'FW'},
+  {id:'m33',name:'최태준',num:99,pos:'DF'},{id:'m34',name:'이시온',num:0,pos:'MF'}
+];
+const INIT_FEES = {
+  고석진:{1:false,2:false,3:false,4:false},권지훈:{1:true,2:true,3:true,4:false},
+  김다훈:{1:true,2:true,3:true,4:true},김종호:{1:true,2:true,3:true,4:true},
+  김주호:{1:true,2:true,3:true,4:true},김현준:{1:true,2:true,3:true,4:true},
+  김홍근:{1:true,2:true,3:true,4:true},노준혁:{1:true,2:true,3:true,4:true},
+  박민규:{1:true,2:true,3:true,4:false},박승완:{1:true,2:true,3:true,4:true},
+  박지훈:{1:true,2:true,3:true,4:true},손성길:{1:true,2:true,3:true,4:true},
+  손우태:{1:true,2:true,3:true,4:true},신병철:{1:false,2:false,3:false,4:false},
+  양현준:{1:false,2:false,3:false,4:false},양희욱:{1:true,2:true,3:true,4:true},
+  원영선:{1:true,2:true,3:true,4:true},유재완:{1:true,2:true,3:true,4:true},
+  윤세희:{1:false,2:false,3:false,4:false},윤종인:{1:true,2:true,3:true,4:true},
+  이동헌:{1:false,2:false,3:false,4:false},이두환:{1:false,2:false,3:false,4:false},
+  이동근:{1:true,2:true,3:true,4:true},이무진:{1:true,2:true,3:true,4:true},
+  이석우:{1:true,2:true,3:true,4:true},이시온:{1:false,2:false,3:false,4:false},
+  이지현:{1:true,2:true,3:true,4:true},정재승:{1:true,2:true,3:true,4:true},
+  천명근:{1:true,2:true,3:true,4:false},최춘식:{1:true,2:true,3:true,4:false},
+  최태준:{1:true,2:true,3:true,4:false},한재희:{1:true,2:true,3:true,4:false},
+  황병학:{1:true,2:true,3:true,4:true},마승백:{1:false,2:false,3:false,4:false}
+};
+const INIT_GAMES = [
+  {id:'g1',date:'2026-01-04',opp:'FC BRO',our:12,them:3,players:{손우태:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:1},원영선:{played:true,goals:3,assists:1},유재완:{played:true,goals:3,assists:0},김다훈:{played:true,goals:0,assists:0},김종호:{played:true,goals:1,assists:3},천명근:{played:true,goals:1,assists:0},박승완:{played:true,goals:0,assists:0},이지현:{played:true,goals:1,assists:1},김홍근:{played:true,goals:0,assists:0},마승백:{played:true,goals:1,assists:1},최춘식:{played:true,goals:1,assists:0},황병학:{played:true,goals:1,assists:2},박민규:{played:true,goals:0,assists:0},이동근:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0}}},
+  {id:'g2',date:'2026-01-11',opp:'자체전',our:3,them:2,players:{손우태:{played:true,goals:0,assists:0},권지훈:{played:true,goals:1,assists:0},김다훈:{played:true,goals:0,assists:0},노준혁:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:0,assists:0},박지훈:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0},양현준:{played:true,goals:0,assists:0},원영선:{played:true,goals:0,assists:0},유재완:{played:true,goals:0,assists:0},이동근:{played:true,goals:0,assists:0},이두환:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},이지현:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},최춘식:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},마승백:{played:true,goals:0,assists:0}}},
+  {id:'g3',date:'2026-01-18',opp:'퓨쳐스(벽산)',our:5,them:17,players:{고석진:{played:true,goals:1,assists:0},권지훈:{played:true,goals:1,assists:2},김다훈:{played:true,goals:0,assists:0},김종호:{played:true,goals:1,assists:0},이두환:{played:true,goals:1,assists:1},이석우:{played:true,goals:0,assists:0}}},
+  {id:'g4',date:'2026-02-01',opp:'한울fc',our:5,them:3,players:{권지훈:{played:true,goals:0,assists:0},김홍근:{played:true,goals:0,assists:0},노준혁:{played:true,goals:0,assists:1},손우태:{played:true,goals:1,assists:0},이동근:{played:true,goals:1,assists:0},이무진:{played:true,goals:1,assists:0},이석우:{played:true,goals:0,assists:2},이지현:{played:true,goals:0,assists:0},정재승:{played:true,goals:1,assists:0},최춘식:{played:true,goals:1,assists:0},박승완:{played:true,goals:0,assists:1},손성길:{played:true,goals:0,assists:0}}},
+  {id:'g5',date:'2026-02-08',opp:'안양일번가',our:7,them:8,players:{권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:0,assists:1},원영선:{played:true,goals:1,assists:1},이두환:{played:true,goals:2,assists:0},이지현:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0},마승백:{played:true,goals:0,assists:1}}},
+  {id:'g6',date:'2026-02-15',opp:'FC 피움',our:6,them:3,players:{고석진:{played:true,goals:1,assists:0},권지훈:{played:true,goals:0,assists:1},김다훈:{played:true,goals:0,assists:0},김종호:{played:true,goals:4,assists:0},김현준:{played:true,goals:0,assists:1},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:1,assists:0},이동근:{played:true,goals:0,assists:2},이석우:{played:true,goals:0,assists:1},이지현:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},손성길:{played:true,goals:0,assists:0}}},
+  {id:'g7',date:'2026-02-22',opp:'FC NOM',our:11,them:5,players:{권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},김현준:{played:true,goals:0,assists:1},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:3,assists:1},유재완:{played:true,goals:3,assists:1},이석우:{played:true,goals:3,assists:3},최춘식:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0},김홍근:{played:true,goals:0,assists:0}}},
+  {id:'g8',date:'2026-03-08',opp:'하프',our:3,them:5,players:{원영선:{played:true,goals:0,assists:2},이석우:{played:true,goals:1,assists:0},박승완:{played:true,goals:0,assists:0},권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},김종호:{played:true,goals:1,assists:0},손우태:{played:true,goals:0,assists:0},손성길:{played:true,goals:0,assists:0},신병철:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},박지훈:{played:true,goals:0,assists:0}}},
+  {id:'g9',date:'2026-03-15',opp:'AT밀레니엄',our:8,them:6,players:{김종호:{played:true,goals:2,assists:0},김현준:{played:true,goals:0,assists:0},노준혁:{played:true,goals:0,assists:0},박민규:{played:true,goals:1,assists:0},박지훈:{played:true,goals:1,assists:1},박승완:{played:true,goals:1,assists:3},유재완:{played:true,goals:1,assists:0},이동근:{played:true,goals:0,assists:0},이동헌:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:2},정재승:{played:true,goals:0,assists:0},천명근:{played:true,goals:0,assists:0},최춘식:{played:true,goals:2,assists:1},황병학:{played:true,goals:0,assists:1},한재희:{played:true,goals:0,assists:0},양희욱:{played:true,goals:0,assists:0}}},
+  {id:'g10',date:'2026-03-22',opp:'파란',our:2,them:2,players:{김다훈:{played:true,goals:0,assists:0},김현준:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:0,assists:1},박지훈:{played:true,goals:0,assists:0},유재완:{played:true,goals:1,assists:0},이동근:{played:true,goals:1,assists:0},이동헌:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},최태준:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0}}},
+  {id:'g11',date:'2026-03-29',opp:'하루fc',our:2,them:3,players:{고석진:{played:true,goals:0,assists:0},권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:0},박승완:{played:true,goals:0,assists:1},이동근:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},이지현:{played:true,goals:0,assists:0},정재승:{played:true,goals:0,assists:0},최태준:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0},김현준:{played:true,goals:0,assists:0},노준혁:{played:false,goals:0,assists:1}}},
+  {id:'g12',date:'2026-04-05',opp:'AT밀레니엄',our:4,them:5,players:{권지훈:{played:true,goals:0,assists:0},김다훈:{played:true,goals:0,assists:0},김현준:{played:true,goals:0,assists:0},박민규:{played:true,goals:0,assists:1},박승완:{played:true,goals:0,assists:3},신병철:{played:true,goals:0,assists:0},이석우:{played:true,goals:1,assists:0},정재승:{played:true,goals:0,assists:0},최태준:{played:true,goals:0,assists:0},황병학:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0}}},
+  {id:'g13',date:'2026-04-12',opp:'FC하프',our:2,them:7,players:{권지훈:{played:true,goals:0,assists:0},김홍근:{played:true,goals:0,assists:0},박승완:{played:true,goals:1,assists:0},신병철:{played:true,goals:0,assists:0},이석우:{played:true,goals:0,assists:0},최춘식:{played:true,goals:0,assists:0},한재희:{played:true,goals:0,assists:0}}}
+];
+const INIT_SCHEDULES = [
+  {id:'s1',date:'2026-04-18',field:'새물공원',opp:'야유회',time:'15-17',uniform:'노란색',mgr:'이석우',note:'야유회 겸 회식'},
+  {id:'s2',date:'2026-04-26',field:'자유공원',opp:'미정',time:'13-15',uniform:'',mgr:'김다훈',note:''},
+  {id:'s3',date:'2026-05-17',field:'자유공원',opp:'미정',time:'15-17',uniform:'',mgr:'한재희',note:''},
+  {id:'s4',date:'2026-05-24',field:'석수공원',opp:'미정',time:'17-19',uniform:'',mgr:'한재희',note:''}
+];
+
+let members=[],games=[],fees={},schedules=[],qSel=new Set(),appReady=false;
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function setDot(s,txt){document.getElementById('rtdot').className='rtdot '+s;document.getElementById('rttxt').textContent=txt;}
+function posB(p){return PCB[p]||'bgy';}
+
+async function initFirebase(){
+  try{
+    const snap=await get(ref(db,'suchon'));
+    if(!snap.exists()){
+      const mo={};INIT_MEMBERS.forEach(m=>{mo[m.id]=m;});
+      const go={};INIT_GAMES.forEach(g=>{go[g.id]=g;});
+      const so={};INIT_SCHEDULES.forEach(s=>{so[s.id]=s;});
+      await set(ref(db,'suchon'),{members:mo,games:go,fees:INIT_FEES,schedules:so});
+    }
+    startListeners();
+  }catch(e){setDot('off','연결 실패');toast('Firebase 연결 실패');}
+}
+
+function startListeners(){
+  onValue(ref(db,'suchon/members'),snap=>{
+    const v=snap.val()||{};
+    members=Object.values(v).sort((a,b)=>a.num-b.num);
+    if(appReady){renderMembers();renderQSel();}
+  });
+  onValue(ref(db,'suchon/games'),snap=>{
+    const v=snap.val()||{};
+    games=Object.values(v).sort((a,b)=>b.date.localeCompare(a.date));
+    if(appReady)renderGames();
+  });
+  onValue(ref(db,'suchon/fees'),snap=>{
+    fees=snap.val()||{};
+    if(appReady&&document.getElementById('s-fee').classList.contains('on'))renderFee();
+  });
+  onValue(ref(db,'suchon/schedules'),snap=>{
+    const v=snap.val()||{};
+    schedules=Object.values(v).sort((a,b)=>a.date.localeCompare(b.date));
+    if(appReady&&document.getElementById('s-schedule').classList.contains('on'))renderSchedule();
+  });
+  setDot('ok','실시간 연결됨');
+  appReady=true;
+}
+
+window.enterApp=function(){
+  document.getElementById('splash').classList.add('fade');
+  document.getElementById('loading').style.display='flex';
+  setTimeout(()=>{
+    document.getElementById('splash').style.display='none';
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('g-date').valueAsDate=new Date();
+    document.getElementById('sc-date').valueAsDate=new Date();
+    renderAll();
+    initFirebase();
+  },600);
+};
+window.forceSync=function(){toast('실시간 연결 중 — 자동 반영됩니다');};
+window.go=function(tab,btn){
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('s-'+tab).classList.add('on');
+  btn.classList.add('on');
+  if(tab==='fee')renderFee();
+  if(tab==='stats')renderStats();
+  if(tab==='quarter')renderQSel();
+  if(tab==='schedule')renderSchedule();
+};
+
+window.addMember=async function(){
+  const name=document.getElementById('m-name').value.trim();
+  const num=parseInt(document.getElementById('m-num').value)||0;
+  const pos=document.getElementById('m-pos').value;
+  if(!name){toast('이름을 입력하세요');return;}
+  if(members.find(m=>m.name===name)){toast('이미 등록된 선수');return;}
+  const id='m'+Date.now();
+  await set(ref(db,'suchon/members/'+id),{id,name,num,pos});
+  await set(ref(db,'suchon/fees/'+name),{1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false,11:false,12:false});
+  document.getElementById('m-name').value='';document.getElementById('m-num').value='';
+  toast(name+' 등록 완료');
+};
+window.deleteMember=async function(id){
+  const m=members.find(m=>m.id===id);
+  if(!m||!confirm(m.name+' 삭제?'))return;
+  await remove(ref(db,'suchon/members/'+id));
+  toast(m.name+' 삭제 완료');
+};
+function renderMembers(){
+  const c=document.getElementById('member-list');
+  if(!members.length){c.innerHTML='<div style="color:#666;text-align:center;padding:20px">선수를 추가해주세요</div>';return;}
+  c.innerHTML='<div class="ct">등록 선수 '+members.length+'명</div>'+members.map(m=>{
+    const s=getStats(m.name);const [bg,tc]=PC[m.pos]||['#2e2e2e','#aaa'];
+    const pc=Object.values(fees[m.name]||{}).filter(Boolean).length;
+    const curM=new Date().getMonth()+1;
+    return`<div class="pi">
+      <div class="av" style="background:${bg};color:${tc}">${m.name[0]}</div>
+      <div class="pn">
+        <div class="pname">${m.num?'#'+m.num+' ':''} ${m.name}</div>
+        <div class="pst">
+          <span class="badge ${posB(m.pos)}">${m.pos}</span>
+          <span class="badge bgy">출전${s.played}</span>
+          <span class="badge bgg">&#9917;${s.goals} A${s.assists}</span>
+          <span class="badge ${pc>=curM?'bgg':'bgo'}">회비${pc}/${curM}</span>
+        </div>
+      </div>
+      <button class="bsm" style="background:#3a0000;color:#ff8080;font-size:11px" onclick="deleteMember('${m.id}')">삭제</button>
+    </div>`;
+  }).join('');
+}
+
+window.toggleFee=async function(name,month){
+  const cur=fees[name]?fees[name][month]:false;
+  await update(ref(db,'suchon/fees/'+name),{[month]:!cur});
+};
+function renderFee(){
+  const list=document.getElementById('fee-list');
+  const curM=new Date().getMonth()+1;
+  const sorted=[...members].sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  list.innerHTML=sorted.map(m=>{
+    const paid=fees[m.name]||{};
+    const ms=Array.from({length:curM},(_,i)=>{
+      const p=!!paid[i+1];
+      return`<button class="fb${p?' paid':''}" onclick="toggleFee('${m.name}',${i+1})">${i+1}</button>`;
+    }).join('');
+    const cnt=Object.values(paid).filter(Boolean).length;
+    return`<div class="fi"><span class="fn">${m.name}</span><div class="fms">${ms}</div><span class="badge ${cnt>=curM?'bgg':'bgo'}" style="flex-shrink:0">${cnt}/${curM}</span></div>`;
+  }).join('');
+}
+
+window.addGame=async function(){
+  const date=document.getElementById('g-date').value;
+  const opp=document.getElementById('g-opp').value.trim();
+  const our=parseInt(document.getElementById('g-our').value)||0;
+  const them=parseInt(document.getElementById('g-them').value)||0;
+  if(!date||!opp){toast('날짜와 상대팀 입력');return;}
+  const id='g'+Date.now();
+  await set(ref(db,'suchon/games/'+id),{id,date,opp,our,them,players:{}});
+  toast('경기 추가 완료');
+};
+window.deleteGame=async function(id){
+  if(!confirm('경기 삭제?'))return;
+  await remove(ref(db,'suchon/games/'+id));
+  document.getElementById('record-wrap').style.display='none';
+};
+function renderGames(){
+  const c=document.getElementById('game-list');
+  if(!games.length){c.innerHTML='<div style="color:#666;text-align:center;padding:16px">경기를 추가해주세요</div>';return;}
+  c.innerHTML='<div class="ct">경기 목록 '+games.length+'경기</div>'+games.map(g=>{
+    const res=g.our>g.them?'승':g.our<g.them?'패':'무';
+    const rc=g.our>g.them?'bgg':g.our<g.them?'bgr':'bgy';
+    const cnt=Object.values(g.players||{}).filter(p=>p.played).length;
+    return`<div class="mi">
+      <div class="mrow"><span class="badge ${rc}">${res}</span><span class="msc">${g.our}:${g.them}</span><span style="flex:1;font-size:14px;font-weight:700;color:#fff">vs ${g.opp}</span></div>
+      <div class="mme">${g.date} · 출전 ${cnt}명</div>
+      <div class="mac">
+        <button class="bsm" style="background:#0a1e38;color:#64b5f6" onclick="selectGame('${g.id}')">기록 입력</button>
+        <button class="bsm" style="background:#3a0000;color:#ff8080" onclick="deleteGame('${g.id}')">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+window.selectGame=function(id){
+  const g=games.find(g=>g.id===id);
+  document.getElementById('record-wrap').style.display='block';
+  document.getElementById('rec-title').textContent=g.date+' vs '+g.opp;
+  const rows=members.map(m=>{
+    const p=(g.players||{})[m.name]||{};
+    return`<tr>
+      <td style="font-weight:700;white-space:nowrap;color:#fff">${m.name}</td>
+      <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${m.pos}</span></td>
+      <td><input type="checkbox" ${p.played?'checked':''} style="width:18px;height:18px;cursor:pointer" onchange="updRec('${id}','${m.name}','played',this.checked)"></td>
+      <td><input type="number" class="ni" value="${p.goals||0}" min="0" onchange="updRec('${id}','${m.name}','goals',+this.value)"></td>
+      <td><input type="number" class="ni" value="${p.assists||0}" min="0" onchange="updRec('${id}','${m.name}','assists',+this.value)"></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('rec-table').innerHTML='<thead><tr><th>이름</th><th>포지션</th><th>출전</th><th>골</th><th>도움</th></tr></thead><tbody>'+rows+'</tbody>';
+  document.getElementById('record-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+};
+window.updRec=async function(gid,name,field,val){
+  await update(ref(db,'suchon/games/'+gid+'/players/'+name),{[field]:val});
+};
+
+function renderQSel(){
+  document.getElementById('q-sel').innerHTML=members.map(m=>
+    `<div class="qc${qSel.has(m.name)?' sel':''}" onclick="toggleQ('${m.name}',this)">${m.name} <span style="font-size:10px;opacity:0.6">${m.pos}</span></div>`
+  ).join('');
+}
+window.toggleQ=function(name,el){
+  if(qSel.has(name)){qSel.delete(name);el.classList.remove('sel');}
+  else{qSel.add(name);el.classList.add('sel');}
+};
+window.calcQ=function(){
+  const players=members.filter(m=>qSel.has(m.name));
+  if(players.length<2){toast('2명 이상 선택');return;}
+  const total=parseInt(document.getElementById('q-total').value)||80;
+  const qc=parseInt(document.getElementById('q-cnt').value)||4;
+  const qt=Math.floor(total/qc);
+  const gks=players.filter(p=>p.pos==='GK');const field=players.filter(p=>p.pos!=='GK');
+  const fpq=Math.min(10,field.length);const tsl=qc*fpq,spp=Math.floor(tsl/field.length),extra=tsl%field.length;
+  const slots=field.map((p,i)=>({...p,qLeft:spp+(i<extra?1:0)}));
+  const qs=Array.from({length:qc},(_,qi)=>{const ps=[];if(gks.length)ps.push({...gks[0]});return{num:qi+1,time:`${qi*qt+1}~${(qi+1)*qt}분`,players:ps};});
+  const ord=[...Array(qc).keys()].sort(()=>Math.random()-0.5);
+  slots.forEach(s=>{
+    let a=0;
+    for(const qi of ord){if(a>=s.qLeft)break;if(qs[qi].players.filter(p=>p.id!==gks[0]?.id).length<fpq){qs[qi].players.push(s);a++;}}
+    for(let qi=0;qi<qc&&a<s.qLeft;qi++){if(qs[qi].players.filter(p=>p.id!==gks[0]?.id).length<fpq){qs[qi].players.push(s);a++;}}
+  });
+  const po={GK:0,DF:1,MF:2,FW:3};
+  qs.forEach(q=>q.players.sort((a,b)=>(po[a.pos]||0)-(po[b.pos]||0)));
+  const mins={};slots.forEach(s=>{mins[s.name]=s.qLeft*qt;});if(gks[0])mins[gks[0].name]=total;
+  document.getElementById('q-result').innerHTML=`<div class="card">
+    <div class="ct">${total}분 / ${qc}쿼터 / ${players.length}명</div>
+    ${qs.map(q=>`<div class="qrc"><div class="qrt">Q${q.num} &nbsp;${q.time}</div><div class="qrp">${q.players.map(p=>`<span class="qrch">${p.pos} ${p.name}</span>`).join('')}</div></div>`).join('')}
+    <div style="margin-top:10px;font-size:11px;font-weight:700;color:#777;margin-bottom:6px">출전 시간</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px">${Object.entries(mins).map(([n,m])=>`<span class="badge bgg">${n} ${m}분</span>`).join('')}</div>
+  </div>`;
+};
+
+function getStats(name){
+  let played=0,goals=0,assists=0;
+  games.forEach(g=>{const p=g.players&&g.players[name];if(p){if(p.played)played++;goals+=p.goals||0;assists+=p.assists||0;}});
+  return{played,goals,assists};
+}
+function renderStats(){
+  const total=games.length,wins=games.filter(g=>g.our>g.them).length;
+  const draws=games.filter(g=>g.our===g.them).length;
+  const goals=games.reduce((a,g)=>a+g.our,0);
+  document.getElementById('sum-stats').innerHTML=`
+    <div class="sb"><div class="sbv">${total}</div><div class="sbl">총 경기</div></div>
+    <div class="sb"><div class="sbv">${wins}승${draws}무${total-wins-draws}패</div><div class="sbl">전적</div></div>
+    <div class="sb"><div class="sbv">${goals}</div><div class="sbl">총 득점</div></div>
+    <div class="sb"><div class="sbv">${members.length}</div><div class="sbl">등록 선수</div></div>`;
+  const curM=new Date().getMonth()+1;
+  const rows=[...members].map(m=>({m,s:getStats(m.name),paid:Object.values(fees[m.name]||{}).filter(Boolean).length}))
+    .sort((a,b)=>b.s.goals-a.s.goals||b.s.assists-a.s.assists);
+  document.getElementById('stats-body').innerHTML=rows.map(({m,s,paid})=>`<tr>
+    <td style="font-weight:700;color:#fff">${m.name}</td>
+    <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${m.pos}</span></td>
+    <td style="color:#ccc">${s.played}</td>
+    <td><span class="badge bgg">${s.goals}</span></td>
+    <td><span class="badge bgb">${s.assists}</span></td>
+    <td><span class="badge ${paid>=curM?'bgg':'bgo'}">${paid}/${curM}</span></td>
+  </tr>`).join('');
+}
+
+window.addSchedule=async function(){
+  const date=document.getElementById('sc-date').value;
+  if(!date){toast('날짜 입력');return;}
+  const id='s'+Date.now();
+  await set(ref(db,'suchon/schedules/'+id),{id,date,field:document.getElementById('sc-field').value.trim()||'미정',opp:document.getElementById('sc-opp').value.trim()||'미정',time:document.getElementById('sc-time').value.trim(),uniform:document.getElementById('sc-uni').value.trim(),mgr:document.getElementById('sc-mgr').value.trim(),note:''});
+  toast('일정 추가 완료');
+};
+window.deleteSchedule=async function(id){
+  if(!confirm('일정 삭제?'))return;
+  await remove(ref(db,'suchon/schedules/'+id));
+};
+function renderSchedule(){
+  const c=document.getElementById('schedule-list');
+  const today=new Date().toISOString().slice(0,10);
+  c.innerHTML='<div class="ct">경기 일정</div>'+schedules.map(s=>{
+    const past=s.date<today;
+    return`<div style="padding:10px 0;border-bottom:0.5px solid rgba(255,255,255,0.06);${past?'opacity:0.45':''}">
+      <div class="mrow">
+        <span class="badge ${past?'bgy':'bgg'}">${past?'완료':'예정'}</span>
+        <span style="font-size:14px;font-weight:700;color:#fff">${s.date}</span>
+        ${s.opp&&s.opp!=='미정'?`<span class="badge bgy">vs ${s.opp}</span>`:''}
+      </div>
+      <div class="mme">${s.field}${s.time?' · '+s.time:''}${s.uniform?' · '+s.uniform:''}${s.mgr?' · 담당: '+s.mgr:''}</div>
+      <button class="bsm" style="background:#3a0000;color:#ff8080;margin-top:5px" onclick="deleteSchedule('${s.id}')">삭제</button>
+    </div>`;
+  }).join('');
+}
+function renderAll(){renderMembers();renderGames();}
+</script>
+</body>
+</html>
