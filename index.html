@@ -601,8 +601,6 @@ const INIT_SCHEDULES = [
 
 let members=[],games=[],fees={},schedules=[],statOverrides={},qSel=new Set(),appReady=false;
 let sortCol='goals',sortAsc=false;
-let currentQTab=1;
-let formationData={}; // {q1:{formation:'4-2-3-1', slots:[{pos,name}...]}, ...}
 let commentsData={};
 let myName = localStorage.getItem('suchon_myname')||'';
 const ADMINS = ['이동근'];
@@ -972,7 +970,7 @@ function renderGames(){
       </div>`;
       return;
     }
-    c.innerHTML='<div class="ct">Today's Match</div>'+todayGames.map(g=>{
+    c.innerHTML=`<div class="ct">Today's Match</div>`+todayGames.map(g=>{
       const res=g.our>g.them?'승':g.our<g.them?'패':'무';
       const rc=g.our>g.them?'bgg':g.our<g.them?'bgr':'bgy';
       const cnt=Object.values(g.players||{}).filter(p=>p.played).length;
@@ -1065,8 +1063,6 @@ let qFormation = {}; // {q1:{GK:[],DF:[],MF:[],FW:[]}, q2:...}
 let pendingPos = null;
 let pendingQ = null;
 
-const COACHES = ['이동근'];
-function isCoach(){ return COACHES.includes(myName)||isAdmin(); }
 
 // Firebase에서 쿼터 데이터 로드
 function startQListener(){
