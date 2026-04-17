@@ -93,6 +93,12 @@ input:focus,select:focus{outline:none;border-color:#c0392b}
 
 /* 참석 투표 */
 .vote-card{background:#242424;border:0.5px solid rgba(255,255,255,0.09);border-radius:14px;padding:14px;margin-bottom:12px}
+
+/* 일정 수정 모달 */
+#edit-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:997;align-items:flex-end;justify-content:center}
+#edit-modal.show{display:flex}
+.edit-sheet{background:#242424;border-radius:18px 18px 0 0;padding:20px 16px 36px;width:100%;max-width:480px;border-top:0.5px solid rgba(255,255,255,0.12)}
+.edit-sheet-title{font-size:16px;font-weight:800;color:#fff;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
 .vote-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
 .vote-date{font-size:16px;font-weight:800;color:#fff}
 .vote-info{font-size:12px;color:#888;margin-top:2px}
@@ -150,6 +156,51 @@ input:focus,select:focus{outline:none;border-color:#c0392b}
 </div>
 
 <div id="toast"></div>
+
+<!-- 선수 수정 모달 -->
+<div id="member-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:997;align-items:flex-end;justify-content:center">
+  <div class="edit-sheet">
+    <div class="edit-sheet-title">
+      <span>선수 정보 수정</span>
+      <button onclick="closeMemberEdit()" style="background:rgba(255,255,255,0.08);border:none;border-radius:8px;color:#aaa;font-size:13px;padding:5px 12px;cursor:pointer">닫기</button>
+    </div>
+    <input type="hidden" id="edit-mid">
+    <input type="hidden" id="edit-mname-orig">
+    <div class="r3">
+      <div><label>이름</label><input id="edit-mname" placeholder="홍길동"></div>
+      <div><label>등번호</label><input id="edit-mnum" type="number" placeholder="10"></div>
+      <div><label>포지션</label>
+        <select id="edit-mpos">
+          <option value="GK">GK</option><option value="DF">DF</option>
+          <option value="MF">MF</option><option value="FW">FW</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-r" style="margin-top:14px" onclick="saveMemberEdit()">수정 완료</button>
+  </div>
+</div>
+
+<!-- 일정 수정 모달 -->
+<div id="edit-modal">
+  <div class="edit-sheet">
+    <div class="edit-sheet-title">
+      <span>일정 수정</span>
+      <button onclick="closeEditModal()" style="background:rgba(255,255,255,0.08);border:none;border-radius:8px;color:#aaa;font-size:13px;padding:5px 12px;cursor:pointer">닫기</button>
+    </div>
+    <input type="hidden" id="edit-sid">
+    <div class="r2" style="margin-bottom:0">
+      <div><label>날짜</label><input id="edit-date" type="date"></div>
+      <div><label>구장</label><input id="edit-field" placeholder="자유공원"></div>
+    </div>
+    <label>상대팀</label><input id="edit-opp" placeholder="미정">
+    <div class="r2">
+      <div><label>시간</label><input id="edit-time" placeholder="15-17"></div>
+      <div><label>유니폼</label><input id="edit-uni" placeholder="흰색"></div>
+    </div>
+    <label>담당자</label><input id="edit-mgr" placeholder="이석우">
+    <button class="btn btn-r" style="margin-top:14px" onclick="saveScheduleEdit()">수정 완료</button>
+  </div>
+</div>
 
 <div id="app">
   <div class="hdr">
@@ -463,6 +514,13 @@ window.enterApp=function(){
       setTimeout(()=>{ fillNameSelect(); document.getElementById('name-modal').style.display='flex'; },800);
     }
   },600);
+  // 수정 모달 바깥 클릭 닫기
+  document.getElementById('edit-modal').addEventListener('click',function(e){
+    if(e.target===this) closeEditModal();
+  });
+  document.getElementById('member-edit-modal').addEventListener('click',function(e){
+    if(e.target===this) closeMemberEdit();
+  });
 };
 
 window.forceSync=function(){toast('실시간 자동 반영 중입니다');};
@@ -538,17 +596,59 @@ window.addMember=async function(){
   if(!name){toast('이름을 입력하세요');return;}
   if(members.find(m=>m.name===name)){toast('이미 등록된 선수');return;}
   const id='m'+Date.now();
+  // 선수 등록
   await set(ref(db,'suchon/members/'+id),{id,name,num,pos});
+  // 회비 초기화 (12개월)
   await set(ref(db,'suchon/fees/'+name),{1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false,11:false,12:false});
+  // 기존 모든 경기에 해당 선수 미출전으로 추가
+  const gameSnap=await get(ref(db,'suchon/games'));
+  if(gameSnap.exists()){
+    const gData=gameSnap.val();
+    const updates={};
+    Object.keys(gData).forEach(gid=>{
+      if(!gData[gid].players||!gData[gid].players[name]){
+        updates['suchon/games/'+gid+'/players/'+name]={played:false,goals:0,assists:0};
+      }
+    });
+    if(Object.keys(updates).length>0) await update(ref(db),updates);
+  }
   document.getElementById('m-name').value='';document.getElementById('m-num').value='';
-  toast(name+' 등록 완료');
+  toast(name+' 등록 완료 — 기존 경기 기록에도 추가되었습니다');
 };
 window.deleteMember=async function(id){
   if(!isSuperAdmin()){toast('이동근만 선수를 삭제할 수 있습니다');return;}
   const m=members.find(m=>m.id===id);
-  if(!m||!confirm(m.name+' 삭제?'))return;
+  if(!m||!confirm(m.name+' 삭제 시 회비·경기 기록도 함께 삭제됩니다. 계속할까요?'))return;
+  // 선수 삭제
   await remove(ref(db,'suchon/members/'+id));
-  toast(m.name+' 삭제 완료');
+  // 회비 데이터 삭제
+  await remove(ref(db,'suchon/fees/'+m.name));
+  // 모든 경기에서 해당 선수 기록 삭제
+  const gameSnap=await get(ref(db,'suchon/games'));
+  if(gameSnap.exists()){
+    const gData=gameSnap.val();
+    const updates={};
+    Object.keys(gData).forEach(gid=>{
+      if(gData[gid].players&&gData[gid].players[m.name]){
+        updates['suchon/games/'+gid+'/players/'+m.name]=null;
+      }
+    });
+    if(Object.keys(updates).length>0) await update(ref(db),updates);
+  }
+  // 일정 투표에서도 삭제
+  const schedSnap=await get(ref(db,'suchon/schedules'));
+  if(schedSnap.exists()){
+    const sData=schedSnap.val();
+    const nk=m.name.replace(/[^a-zA-Z0-9가-힣]/g,'_');
+    const updates2={};
+    Object.keys(sData).forEach(sid=>{
+      if(sData[sid].votes&&sData[sid].votes[nk]){
+        updates2['suchon/schedules/'+sid+'/votes/'+nk]=null;
+      }
+    });
+    if(Object.keys(updates2).length>0) await update(ref(db),updates2);
+  }
+  toast(m.name+' 선수 및 관련 데이터 삭제 완료');
 };
 function renderMembers(){
   const c=document.getElementById('member-list');
@@ -568,7 +668,10 @@ function renderMembers(){
           <span class="badge ${pc>=12?'bgg':pc>0?'bgo':'bgr'}">회비${pc}/12</span>
         </div>
       </div>
-      ${isSuperAdmin()?`<button class="bsm" style="background:#3a0000;color:#ff8080;font-size:11px" onclick="deleteMember('${m.id}')">삭제</button>`:''}
+      ${isSuperAdmin()?`<div style="display:flex;gap:4px">
+        <button class="bsm" style="background:#1a2a3a;color:#64b5f6;font-size:11px" onclick="openMemberEdit('${m.id}','${m.name}',${m.num},'${m.pos}')">수정</button>
+        <button class="bsm" style="background:#3a0000;color:#ff8080;font-size:11px" onclick="deleteMember('${m.id}')">삭제</button>
+      </div>`:''}
     </div>`;
   }).join('');
 }
@@ -642,7 +745,8 @@ window.addGame=async function(){
   toast('경기 추가 완료');
 };
 window.deleteGame=async function(id){
-  if(!confirm('경기 삭제?'))return;
+  if(!confirm('경기 기록을 삭제할까요?'))return;
+  // 연결된 일정 scheduleId 확인 후 게임 삭제
   await remove(ref(db,'suchon/games/'+id));
   document.getElementById('record-wrap').style.display='none';
   toast('삭제 완료');
@@ -672,18 +776,33 @@ window.selectGame=function(id){
   const g=games.find(g=>g.id===id);
   document.getElementById('record-wrap').style.display='block';
   document.getElementById('rec-title').textContent=g.date+' vs '+g.opp;
+  // 스코어 입력 행 (관리자만)
+  const scoreRow=isAdmin()?`<tr style="background:#1e1e1e">
+    <td colspan="2" style="font-size:11px;color:#888;font-weight:700;letter-spacing:0.5px">스코어</td>
+    <td colspan="2"><input type="number" class="ni" value="${g.our||0}" min="0" placeholder="우리" onchange="updScore('${id}','our',+this.value)" style="width:44px"> : <input type="number" class="ni" value="${g.them||0}" min="0" placeholder="상대" onchange="updScore('${id}','them',+this.value)" style="width:44px"></td>
+    <td></td>
+  </tr><tr><td colspan="5" style="padding:0;height:6px;border:none"></td></tr>`:'';
   const rows=members.map(m=>{
     const p=(g.players||{})[m.name]||{};
+    const inGame=p.played!==undefined||p.goals||p.assists;
+    // 관리자: 출전 체크박스 활성 / 일반: 비활성
+    const chk=isAdmin()
+      ?`<input type="checkbox" ${p.played?'checked':''} style="width:18px;height:18px;cursor:pointer" onchange="updRec('${id}','${m.name}','played',this.checked)">`
+      :`<input type="checkbox" ${p.played?'checked':''} style="width:18px;height:18px;opacity:0.4" disabled>`;
     return`<tr>
       <td style="font-weight:700;white-space:nowrap;color:#fff">${m.name}</td>
       <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${m.pos}</span></td>
-      <td><input type="checkbox" ${p.played?'checked':''} style="width:18px;height:18px;cursor:pointer" onchange="updRec('${id}','${m.name}','played',this.checked)"></td>
+      <td>${chk}</td>
       <td><input type="number" class="ni" value="${p.goals||0}" min="0" onchange="updRec('${id}','${m.name}','goals',+this.value)"></td>
       <td><input type="number" class="ni" value="${p.assists||0}" min="0" onchange="updRec('${id}','${m.name}','assists',+this.value)"></td>
     </tr>`;
   }).join('');
-  document.getElementById('rec-table').innerHTML='<thead><tr><th>이름</th><th>포지션</th><th>출전</th><th>골</th><th>도움</th></tr></thead><tbody>'+rows+'</tbody>';
+  document.getElementById('rec-table').innerHTML=`<thead><tr><th>이름</th><th>포지션</th><th>${isAdmin()?'출전':'출전'}</th><th>골</th><th>도움</th></tr></thead><tbody>${scoreRow}${rows}</tbody>`;
   document.getElementById('record-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+};
+window.updScore=async function(gid,field,val){
+  if(!isAdmin()){toast('관리자만 스코어를 수정할 수 있습니다');return;}
+  await update(ref(db,'suchon/games/'+gid),{[field]:val});
 };
 window.updRec=async function(gid,name,field,val){
   await update(ref(db,'suchon/games/'+gid+'/players/'+name),{[field]:val});
@@ -783,6 +902,131 @@ function renderStats(){
 }
 
 // ── 일정 & 참석 투표 ──
+window.createGameFromSchedule=async function(sid){
+  if(!isAdmin()){toast('관리자만 가능합니다');return;}
+  const s=schedules.find(sc=>sc.id===sid);
+  if(!s) return;
+  // 참석 투표자를 출전 선수 초기값으로
+  const votes=s.votes||{};
+  const attendNames=Object.values(votes).filter(v=>v.vote==='o').map(v=>v.name);
+  const initPlayers={};
+  attendNames.forEach(n=>{initPlayers[n]={played:true,goals:0,assists:0};});
+  const id='g'+Date.now();
+  await set(ref(db,'suchon/games/'+id),{
+    id, scheduleId:sid,
+    date:s.date, opp:s.opp||'미정',
+    our:0, them:0,
+    players:initPlayers
+  });
+  toast('경기 생성 완료! 경기 탭으로 이동합니다');
+  setTimeout(()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('.sec').forEach(sc=>sc.classList.remove('on'));
+    document.getElementById('s-match').classList.add('on');
+    document.querySelectorAll('.tab')[3].classList.add('on');
+    setTimeout(()=>selectGame(id),400);
+  },600);
+};
+window.goToGame=function(gid){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.sec').forEach(sc=>sc.classList.remove('on'));
+  document.getElementById('s-match').classList.add('on');
+  document.querySelectorAll('.tab')[3].classList.add('on');
+  setTimeout(()=>selectGame(gid),300);
+};
+window.openMemberEdit=function(id,name,num,pos){
+  if(!isSuperAdmin()){toast('이동근만 수정할 수 있습니다');return;}
+  document.getElementById('edit-mid').value=id;
+  document.getElementById('edit-mname-orig').value=name;
+  document.getElementById('edit-mname').value=name;
+  document.getElementById('edit-mnum').value=num;
+  document.getElementById('edit-mpos').value=pos;
+  document.getElementById('member-edit-modal').style.display='flex';
+};
+window.closeMemberEdit=function(){
+  document.getElementById('member-edit-modal').style.display='none';
+};
+window.saveMemberEdit=async function(){
+  const id=document.getElementById('edit-mid').value;
+  const origName=document.getElementById('edit-mname-orig').value;
+  const newName=document.getElementById('edit-mname').value.trim();
+  const num=parseInt(document.getElementById('edit-mnum').value)||0;
+  const pos=document.getElementById('edit-mpos').value;
+  if(!newName){toast('이름을 입력하세요');return;}
+  // 이름이 변경된 경우 회비·경기기록 키도 이전
+  if(newName!==origName){
+    // 회비 이전
+    const feeSnap=await get(ref(db,'suchon/fees/'+origName));
+    if(feeSnap.exists()){
+      await set(ref(db,'suchon/fees/'+newName),feeSnap.val());
+      await remove(ref(db,'suchon/fees/'+origName));
+    }
+    // 경기 기록 이전
+    const gameSnap=await get(ref(db,'suchon/games'));
+    if(gameSnap.exists()){
+      const gData=gameSnap.val();
+      const updates={};
+      Object.keys(gData).forEach(gid=>{
+        if(gData[gid].players&&gData[gid].players[origName]){
+          updates['suchon/games/'+gid+'/players/'+newName]=gData[gid].players[origName];
+          updates['suchon/games/'+gid+'/players/'+origName]=null;
+        }
+      });
+      if(Object.keys(updates).length>0) await update(ref(db),updates);
+    }
+    // 일정 투표 이전
+    const schedSnap=await get(ref(db,'suchon/schedules'));
+    if(schedSnap.exists()){
+      const sData=schedSnap.val();
+      const origNk=origName.replace(/[^a-zA-Z0-9가-힣]/g,'_');
+      const newNk=newName.replace(/[^a-zA-Z0-9가-힣]/g,'_');
+      const updates2={};
+      Object.keys(sData).forEach(sid=>{
+        if(sData[sid].votes&&sData[sid].votes[origNk]){
+          updates2['suchon/schedules/'+sid+'/votes/'+newNk]={name:newName,vote:sData[sid].votes[origNk].vote};
+          updates2['suchon/schedules/'+sid+'/votes/'+origNk]=null;
+        }
+      });
+      if(Object.keys(updates2).length>0) await update(ref(db),updates2);
+    }
+  }
+  // 선수 정보 업데이트
+  await update(ref(db,'suchon/members/'+id),{name:newName,num,pos});
+  closeMemberEdit();
+  toast(origName+(newName!==origName?' → '+newName:'')+'  수정 완료');
+};
+window.openEditModal=function(sid){
+  if(!isAdmin()){toast('관리자만 수정할 수 있습니다');return;}
+  const s=schedules.find(sc=>sc.id===sid);
+  if(!s) return;
+  document.getElementById('edit-sid').value=sid;
+  document.getElementById('edit-date').value=s.date||'';
+  document.getElementById('edit-field').value=s.field||'';
+  document.getElementById('edit-opp').value=s.opp||'';
+  document.getElementById('edit-time').value=s.time||'';
+  document.getElementById('edit-uni').value=s.uniform||'';
+  document.getElementById('edit-mgr').value=s.mgr||'';
+  document.getElementById('edit-modal').classList.add('show');
+};
+window.closeEditModal=function(){
+  document.getElementById('edit-modal').classList.remove('show');
+};
+window.saveScheduleEdit=async function(){
+  const sid=document.getElementById('edit-sid').value;
+  if(!sid){toast('오류: 일정 ID 없음');return;}
+  const date=document.getElementById('edit-date').value;
+  if(!date){toast('날짜를 입력하세요');return;}
+  await update(ref(db,'suchon/schedules/'+sid),{
+    date,
+    field:document.getElementById('edit-field').value.trim()||'미정',
+    opp:document.getElementById('edit-opp').value.trim()||'미정',
+    time:document.getElementById('edit-time').value.trim(),
+    uniform:document.getElementById('edit-uni').value.trim(),
+    mgr:document.getElementById('edit-mgr').value.trim(),
+  });
+  closeEditModal();
+  toast('일정이 수정되었습니다');
+};
 window.addSchedule=async function(){
   if(!isAdmin()){toast('관리자만 일정을 추가할 수 있습니다');return;}
   const date=document.getElementById('sc-date').value;
@@ -827,14 +1071,18 @@ function renderSchedule(){
     const absent=vList.filter(v=>v.vote==='x');
     const maybe=vList.filter(v=>v.vote==='?');
     const myVote=myName?votes[nameKey(myName)]?.vote:null;
-    return`<div class="vote-card" style="${isPast?'opacity:0.5':''}">
+    const linked=games.find(g=>g.scheduleId===s.id);
+    return`<div class="vote-card" style="${isPast?'opacity:0.7':''}">
       <div class="vote-header">
         <div>
           <div class="vote-date">${s.date} <span style="font-size:12px;color:#888;font-weight:400">${s.field}</span></div>
           ${s.time?`<div class="vote-info">${s.time}${s.uniform?' · '+s.uniform:''}${s.mgr?' · 담당: '+s.mgr:''}</div>`:''}
           ${s.opp&&s.opp!=='미정'?`<div class="vote-opp">vs ${s.opp}</div>`:''}
         </div>
-        ${isAdmin()?`<button class="bsm" style="background:#3a0000;color:#ff8080;flex-shrink:0" onclick="deleteSchedule('${s.id}')">삭제</button>`:''}
+        ${isAdmin()?`<div style="display:flex;gap:5px;flex-shrink:0">
+          <button class="bsm" style="background:#1a2a3a;color:#64b5f6" onclick="openEditModal('${s.id}')">수정</button>
+          <button class="bsm" style="background:#3a0000;color:#ff8080" onclick="deleteSchedule('${s.id}')">삭제</button>
+        </div>`:''}
       </div>
       ${!isPast?`<div class="vote-btns">
         <button class="vbtn attend ${myVote==='o'?'active':''}" onclick="castVote('${s.id}','o')">참석 ✓ ${attend.length}</button>
@@ -852,6 +1100,12 @@ function renderSchedule(){
         ${maybe.map(v=>`<span class="vm-chip vm-q">${v.name}</span>`).join('')}
         ${absent.map(v=>`<span class="vm-chip vm-x">${v.name}</span>`).join('')}
       </div>`:'<div style="font-size:12px;color:#555">아직 투표한 팀원이 없습니다</div>'}
+      ${isPast&&isAdmin()?`<div style="margin-top:10px">
+        ${linked
+          ?`<button onclick="goToGame('${linked.id}')" style="width:100%;padding:9px;background:#0a1e38;border:0.5px solid #1a3a6a;border-radius:8px;color:#64b5f6;font-size:13px;font-weight:700;cursor:pointer">📋 경기 기록 보기 / 수정</button>`
+          :`<button onclick="createGameFromSchedule('${s.id}')" style="width:100%;padding:9px;background:#1b3a1b;border:0.5px solid #2d5a2d;border-radius:8px;color:#81c784;font-size:13px;font-weight:700;cursor:pointer">⚽ 경기 결과 입력하기</button>`
+        }
+      </div>`:''}
     </div>`;
   };
   let html='';
