@@ -1530,7 +1530,7 @@ function renderStats(){
       return sortAsc?av-bv:bv-av;
     });
   document.getElementById('stats-body').innerHTML=rows.map(({m,s,paid})=>`<tr>
-    <td style="font-weight:700;color:var(--cl-white)">${m.name}${statOverrides[m.name]?'<span style="font-size:9px;color:var(--cl-gold);margin-left:4px">✎</span>':''}</td>
+    <td style="font-weight:700;color:var(--cl-white)">${m.name}</td>
     <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${m.pos}</span></td>
     <td style="color:var(--cl-silver)">${s.played}</td>
     <td><span class="badge bgg">${s.goals}</span></td>
@@ -1735,9 +1735,9 @@ function renderSchedule(){
         </div>`:''}
       </div>
       ${!isPast?`<div class="vote-btns">
-        <button class="vbtn attend ${myVote==='o'?'active':''}" onclick="castVote('${s.id}','o')">참석 ✓ ${attend.length}</button>
-        <button class="vbtn maybe ${myVote==='?'?'active':''}" onclick="castVote('${s.id}','?')">미정 ? ${maybe.length}</button>
-        <button class="vbtn absent ${myVote==='x'?'active':''}" onclick="castVote('${s.id}','x')">불참 ✗ ${absent.length}</button>
+        <button class="vbtn attend ${myVote==='o'?'active':''}" onclick="castVote('${s.id}','o')">참석</button>
+        <button class="vbtn maybe ${myVote==='?'?'active':''}" onclick="castVote('${s.id}','?')">미정</button>
+        <button class="vbtn absent ${myVote==='x'?'active':''}" onclick="castVote('${s.id}','x')">불참</button>
       </div>`:''}
       <div class="vote-counts">
         <div class="vc"><div class="vc-num" style="color:#81c784">${attend.length}</div><div class="vc-lbl">참석</div></div>
