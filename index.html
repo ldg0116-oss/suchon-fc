@@ -552,6 +552,7 @@ const INIT_SCHEDULES = [
 ];
 
 let members=[],games=[],fees={},schedules=[],statOverrides={},qSel=new Set(),appReady=false;
+let sortCol='goals',sortAsc=false;
 let myName = localStorage.getItem('suchon_myname')||'';
 const ADMINS = ['이동근'];
 function isAdmin(){ return ADMINS.includes(myName); }
@@ -584,11 +585,18 @@ function startListeners(){
   onValue(ref(db,'suchon/games'),snap=>{
     const v=snap.val()||{};
     games=Object.values(v).sort((a,b)=>b.date.localeCompare(a.date));
-    if(appReady)renderGames();
+    if(appReady){
+      renderGames();
+      renderMembers(); // 경기 기록 변경 → 선수탭 스탯 자동 갱신
+      if(document.getElementById('s-stats').classList.contains('on')) renderStats();
+    }
   });
   onValue(ref(db,'suchon/fees'),snap=>{
     fees=snap.val()||{};
-    if(appReady&&document.getElementById('s-fee').classList.contains('on'))renderFee();
+    if(appReady){
+      if(document.getElementById('s-fee').classList.contains('on')) renderFee();
+      renderMembers(); // 회비 변경 → 선수탭 자동 갱신
+    }
   });
   onValue(ref(db,'suchon/schedules'),snap=>{
     const v=snap.val()||{};
@@ -597,7 +605,10 @@ function startListeners(){
   });
   onValue(ref(db,'suchon/statOverrides'),snap=>{
     statOverrides=snap.val()||{};
-    if(appReady&&document.getElementById('s-stats').classList.contains('on'))renderStats();
+    if(appReady){
+      renderMembers(); // 스탯 오버라이드 → 선수탭 자동 갱신
+      if(document.getElementById('s-stats').classList.contains('on')) renderStats();
+    }
   });
   setDot('ok','실시간 연결됨');
   appReady=true;
@@ -1014,18 +1025,53 @@ window.saveStatEdit=async function(){
   closeStatEdit();
   toast(name+' 기록 수정 완료');
 };
+window.setSort=function(col){
+  if(sortCol===col) sortAsc=!sortAsc;
+  else{sortCol=col;sortAsc=false;}
+  renderStats();
+};
 function renderStats(){
   const total=games.length,wins=games.filter(g=>g.our>g.them).length;
   const draws=games.filter(g=>g.our===g.them).length;
   const goals=games.reduce((a,g)=>a+g.our,0);
   const conceded=games.reduce((a,g)=>a+g.them,0);
+
+  // 득점왕 / 어시왕 계산
+  const allStats=members.map(m=>({m,s:getStats(m.name)}));
+  const topGoal=allStats.reduce((a,b)=>b.s.goals>a.s.goals?b:a,allStats[0]);
+  const topAssist=allStats.reduce((a,b)=>b.s.assists>a.s.assists?b:a,allStats[0]);
+
   document.getElementById('sum-stats').innerHTML=`
     <div class="sb"><div class="sbv">${total}</div><div class="sbl">총 경기</div></div>
     <div class="sb"><div class="sbv">${wins}승${draws}무${total-wins-draws}패</div><div class="sbl">전적</div></div>
     <div class="sb"><div class="sbv">${goals}</div><div class="sbl">총 득점</div></div>
-    <div class="sb"><div class="sbv">${conceded}</div><div class="sbl">총 실점</div></div>`;
+    <div class="sb"><div class="sbv">${conceded}</div><div class="sbl">총 실점</div></div>
+    <div class="sb" style="grid-column:span 2;background:rgba(201,168,76,0.06);border-color:rgba(201,168,76,0.3)">
+      <div style="display:flex;justify-content:space-around;align-items:center">
+        <div style="text-align:center">
+          <div style="font-size:9px;color:var(--cl-gold);letter-spacing:2px;font-weight:700;margin-bottom:4px">⚽ 득점왕</div>
+          <div style="font-family:var(--font-display);font-size:20px;letter-spacing:1px;color:var(--cl-white)">${topGoal?topGoal.m.name:'—'}</div>
+          <div style="font-size:11px;color:var(--cl-gold);font-weight:700">${topGoal?topGoal.s.goals:0} 골</div>
+        </div>
+        <div style="width:1px;height:40px;background:var(--cl-border)"></div>
+        <div style="text-align:center">
+          <div style="font-size:9px;color:#5dade2;letter-spacing:2px;font-weight:700;margin-bottom:4px">🅰 어시왕</div>
+          <div style="font-family:var(--font-display);font-size:20px;letter-spacing:1px;color:var(--cl-white)">${topAssist?topAssist.m.name:'—'}</div>
+          <div style="font-size:11px;color:#5dade2;font-weight:700">${topAssist?topAssist.s.assists:0} 도움</div>
+        </div>
+      </div>
+    </div>`;
   const rows=[...members].map(m=>{const s=getStats(m.name);const paid=Object.values(fees[m.name]||{}).filter(Boolean).length;return{m,s,paid};})
-    .sort((a,b)=>b.s.goals-a.s.goals||b.s.assists-a.s.assists);
+    .sort((a,b)=>{
+      let av,bv;
+      if(sortCol==='name'){av=a.m.name;bv=b.m.name;return sortAsc?av.localeCompare(bv,'ko'):bv.localeCompare(av,'ko');}
+      if(sortCol==='played'){av=a.s.played;bv=b.s.played;}
+      else if(sortCol==='goals'){av=a.s.goals;bv=b.s.goals;}
+      else if(sortCol==='assists'){av=a.s.assists;bv=b.s.assists;}
+      else if(sortCol==='fee'){av=a.paid;bv=b.paid;}
+      else{av=a.s.goals;bv=b.s.goals;}
+      return sortAsc?av-bv:bv-av;
+    });
   document.getElementById('stats-body').innerHTML=rows.map(({m,s,paid})=>`<tr>
     <td style="font-weight:700;color:var(--cl-white)">${m.name}${statOverrides[m.name]?'<span style="font-size:9px;color:var(--cl-gold);margin-left:4px">✎</span>':''}</td>
     <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${m.pos}</span></td>
@@ -1036,7 +1082,16 @@ function renderStats(){
     ${isAdmin()?`<td><button class="bsm" style="background:rgba(201,168,76,0.12);color:var(--cl-gold);border:1px solid rgba(201,168,76,0.3)" onclick="openStatEdit('${m.name}',${s.played},${s.goals},${s.assists})">수정</button></td>`:'<td></td>'}
   </tr>`).join('');
   const thead=document.querySelector('#s-stats .rt thead tr');
-  if(thead) thead.innerHTML=`<th>이름</th><th>POS</th><th>출전</th><th>G</th><th>A</th><th>회비</th>${isAdmin()?'<th></th>':''}`;
+  const thStyle=(col)=>`style="cursor:pointer;user-select:none;color:${sortCol===col?'var(--cl-gold)':'var(--cl-silver)'};white-space:nowrap"`;
+  const arr=(col)=>sortCol===col?(sortAsc?'↑':'↓'):'';
+  if(thead) thead.innerHTML=`
+    <th ${thStyle('name')} onclick="setSort('name')">이름 ${arr('name')}</th>
+    <th style="color:var(--cl-silver)">POS</th>
+    <th ${thStyle('played')} onclick="setSort('played')">출전 ${arr('played')}</th>
+    <th ${thStyle('goals')} onclick="setSort('goals')">G ${arr('goals')}</th>
+    <th ${thStyle('assists')} onclick="setSort('assists')">A ${arr('assists')}</th>
+    <th ${thStyle('fee')} onclick="setSort('fee')">회비 ${arr('fee')}</th>
+    ${isAdmin()?'<th></th>':''}`;
 }
 
 // ── 일정 & 참석 투표 ──
