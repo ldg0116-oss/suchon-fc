@@ -644,6 +644,26 @@ async function initFirebase(){
       const go={};INIT_GAMES.forEach(g=>{go[g.id]=g;});
       const so={};INIT_SCHEDULES.forEach(s=>{so[s.id]=s;});
       await set(ref(db,'suchon'),{members:mo,games:go,fees:INIT_FEES,schedules:so});
+    } else {
+      // g13(FC하프) 기록 항상 최신으로 패치
+      const g13Snap=await get(ref(db,'suchon/games/g13'));
+      if(g13Snap.exists()){
+        const g13=g13Snap.val();
+        if(g13.our!==1){
+          await update(ref(db,'suchon/games/g13'),{our:1,them:7});
+        }
+        // 박승완만 득점으로 패치
+        const correctPlayers={
+          권지훈:{played:true,goals:0,assists:0},
+          김홍근:{played:true,goals:0,assists:0},
+          박승완:{played:true,goals:1,assists:0},
+          신병철:{played:true,goals:0,assists:0},
+          이석우:{played:true,goals:0,assists:0},
+          최춘식:{played:true,goals:0,assists:0},
+          한재희:{played:true,goals:0,assists:0}
+        };
+        await set(ref(db,'suchon/games/g13/players'),correctPlayers);
+      }
     }
     startListeners();
   }catch(e){setDot('off','연결 실패');toast('Firebase 연결 실패');}
