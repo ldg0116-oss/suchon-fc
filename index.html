@@ -387,6 +387,20 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
     <button class="btn btn-gold" style="margin-top:14px" onclick="saveStatEdit()">Save Stats</button>
   </div>
 </div>
+
+<!-- 투표 관리 모달 (관리자 전용) -->
+<div id="vote-admin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);backdrop-filter:blur(6px);z-index:997;align-items:flex-end;justify-content:center">
+  <div class="edit-sheet" style="max-height:80vh;overflow-y:auto">
+    <div class="edit-sheet-title">
+      <span id="vote-admin-title">투표 관리</span>
+      <button onclick="closeVoteAdmin()" style="background:rgba(255,255,255,0.06);border:1px solid var(--cl-border);border-radius:2px;color:var(--cl-silver);font-size:11px;padding:5px 12px;cursor:pointer;letter-spacing:1px">CLOSE</button>
+    </div>
+    <input type="hidden" id="vote-admin-sid">
+    <div style="font-size:10px;color:var(--cl-silver);margin-bottom:14px;letter-spacing:0.5px">▸ 각 회원의 투표를 직접 변경할 수 있습니다 · 즉시 반영</div>
+    <div id="vote-admin-list"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- APP -->
@@ -733,7 +747,13 @@ function startListeners(){
   onValue(ref(db,'suchon/schedules'),snap=>{
     const v=snap.val()||{};
     schedules=Object.values(v).sort((a,b)=>a.date.localeCompare(b.date));
-    if(appReady)renderSchedule();
+    if(appReady){
+      renderSchedule();
+      // 투표 관리 모달이 열려있으면 같이 갱신
+      if(document.getElementById('vote-admin-modal')?.style.display==='flex'){
+        renderVoteAdminList();
+      }
+    }
   });
   onValue(ref(db,'suchon/comments'),snap=>{
     commentsData=snap.val()||{};
@@ -781,6 +801,9 @@ window.enterApp=function(){
   });
   document.getElementById('q-player-modal').addEventListener('click',function(e){
     if(e.target===this) document.getElementById('q-player-modal').style.display='none';
+  });
+  document.getElementById('vote-admin-modal').addEventListener('click',function(e){
+    if(e.target===this) closeVoteAdmin();
   });
 };
 
@@ -1709,6 +1732,55 @@ window.castVote=async function(sid,vote){
     await update(ref(db,'suchon/schedules/'+sid+'/votes'),{[nk]:{name:myName,vote:newVote}});
   }
 };
+
+// ── 관리자 투표 관리 ──
+window.openVoteAdmin=function(sid){
+  if(!isAdmin()){toast('관리자만 가능합니다');return;}
+  const s=schedules.find(x=>x.id===sid);
+  if(!s){toast('일정을 찾을 수 없습니다');return;}
+  document.getElementById('vote-admin-sid').value=sid;
+  document.getElementById('vote-admin-title').textContent=`${s.date} 투표 관리`;
+  renderVoteAdminList();
+  document.getElementById('vote-admin-modal').style.display='flex';
+};
+window.closeVoteAdmin=function(){
+  document.getElementById('vote-admin-modal').style.display='none';
+};
+function renderVoteAdminList(){
+  const sid=document.getElementById('vote-admin-sid').value;
+  const s=schedules.find(x=>x.id===sid);
+  if(!s)return;
+  const votes=s.votes||{};
+  const c=document.getElementById('vote-admin-list');
+  c.innerHTML=members.map(m=>{
+    const nk=nameKey(m.name);
+    const cur=votes[nk]?.vote||null;
+    const btn=(v,label,activeColor,activeBg)=>{
+      const active=cur===v;
+      return`<button onclick="adminSetVote('${sid}','${m.name}','${v}')" style="flex:1;padding:7px 0;font-size:11px;font-weight:700;border-radius:3px;cursor:pointer;letter-spacing:1px;font-family:var(--font-body);transition:all 0.15s;${active?`background:${activeBg};color:${activeColor};border:1px solid ${activeColor};box-shadow:0 0 10px ${activeBg}`:`background:rgba(0,0,0,0.25);color:var(--cl-silver);border:1px solid rgba(160,176,202,0.2)`}">${label}</button>`;
+    };
+    return`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(212,175,55,0.08)">
+      <div style="flex:0 0 70px;font-size:13px;font-weight:700;color:var(--cl-white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div>
+      <div style="flex:1;display:flex;gap:5px">
+        ${btn('o','참석','#4cd983','rgba(46,204,113,0.2)')}
+        ${btn('?','미정','#d4af37','rgba(212,175,55,0.2)')}
+        ${btn('x','불참','#ff6b6b','rgba(214,69,69,0.2)')}
+        ${btn('null','미응답','#a0b0ca','rgba(160,176,202,0.15)')}
+      </div>
+    </div>`;
+  }).join('');
+}
+window.adminSetVote=async function(sid,name,vote){
+  if(!isAdmin()){toast('관리자만 가능합니다');return;}
+  const nk=nameKey(name);
+  if(vote==='null'){
+    await remove(ref(db,'suchon/schedules/'+sid+'/votes/'+nk));
+  }else{
+    await update(ref(db,'suchon/schedules/'+sid+'/votes'),{[nk]:{name,vote}});
+  }
+  // Firebase 리스너가 자동 갱신해주지만, 모달은 즉시 새로고침
+  setTimeout(renderVoteAdminList,150);
+};
 function renderSchedule(){
   const c=document.getElementById('schedule-list');
   const today=new Date().toISOString().slice(0,10);
@@ -1729,9 +1801,12 @@ function renderSchedule(){
           ${s.time?`<div class="vote-info">${s.time}${s.uniform?' · '+s.uniform:''}${s.mgr?' · 담당: '+s.mgr:''}</div>`:''}
           ${s.opp&&s.opp!=='미정'?`<div class="vote-opp">vs ${s.opp}</div>`:''}
         </div>
-        ${isAdmin()?`<div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="bsm" style="background:rgba(93,173,226,0.12);color:#7fc1eb;border:1px solid rgba(93,173,226,0.35)" onclick="openEditModal('${s.id}')">수정</button>
-          <button class="bsm" style="background:rgba(214,69,69,0.12);color:#ff6b6b;border:1px solid rgba(214,69,69,0.35)" onclick="deleteSchedule('${s.id}')">삭제</button>
+        ${isAdmin()?`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end">
+          <button class="bsm" style="background:linear-gradient(135deg,rgba(212,175,55,0.18),rgba(212,175,55,0.06));color:var(--cl-gold);border:1px solid rgba(212,175,55,0.4);white-space:nowrap" onclick="openVoteAdmin('${s.id}')">👥 투표 관리</button>
+          <div style="display:flex;gap:6px">
+            <button class="bsm" style="background:rgba(93,173,226,0.12);color:#7fc1eb;border:1px solid rgba(93,173,226,0.35)" onclick="openEditModal('${s.id}')">수정</button>
+            <button class="bsm" style="background:rgba(214,69,69,0.12);color:#ff6b6b;border:1px solid rgba(214,69,69,0.35)" onclick="deleteSchedule('${s.id}')">삭제</button>
+          </div>
         </div>`:''}
       </div>
       ${!isPast?`<div class="vote-btns">
