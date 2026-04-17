@@ -240,7 +240,7 @@ input:focus,select:focus{outline:none;border-color:#c0392b}
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div class="ct" style="margin-bottom:0">월 회비 납부 현황</div>
-        <div style="font-size:12px;color:#888">월 20,000원 · 연 240,000원</div>
+        <div style="font-size:12px;color:#888">월 20,000원 · 완납 220,000원</div>
       </div>
       <div id="fee-list"></div>
     </div>
@@ -402,10 +402,9 @@ const INIT_SCHEDULES = [
 
 let members=[],games=[],fees={},schedules=[],qSel=new Set(),appReady=false;
 let myName = localStorage.getItem('suchon_myname')||'';
-const ADMINS = ['이동근','이석우','한재희']; // 일정 관리자
-const SUPER_ADMINS = ['이동근'];              // 선수 관리자
+const ADMINS = ['이동근'];
 function isAdmin(){ return ADMINS.includes(myName); }
-function isSuperAdmin(){ return SUPER_ADMINS.includes(myName); }
+function isSuperAdmin(){ return ADMINS.includes(myName); }
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 function setDot(s,txt){document.getElementById('rtdot').className='rtdot '+s;document.getElementById('rttxt').textContent=txt;}
@@ -495,7 +494,7 @@ function updateNameBanner(){
     banner.style.display='flex';
     empty.style.display='none';
     if(display){
-      display.textContent=myName+(isSuperAdmin()?' 👑':isAdmin()?' ⭐':'');
+      display.textContent=myName+(isAdmin()?' 👑':'');
     }
     if(adminForm) adminForm.style.display=isAdmin()?'block':'none';
     if(superForm) superForm.style.display=isSuperAdmin()?'block':'none';
@@ -575,6 +574,22 @@ function renderMembers(){
 }
 
 // ── 회비 (12개월 기준) ──
+window.payFull=async function(name){
+  if(!isSuperAdmin()){toast('회비 관리는 이동근만 가능합니다');return;}
+  if(!confirm(name+' 완납 처리(220,000원)하시겠습니까?'))return;
+  const fullPay={};
+  for(let i=1;i<=12;i++) fullPay[i]=true;
+  await update(ref(db,'suchon/fees/'+name),fullPay);
+  toast(name+' 완납 처리 완료 (220,000원)');
+};
+window.resetFee=async function(name){
+  if(!isSuperAdmin()){toast('회비 관리는 이동근만 가능합니다');return;}
+  if(!confirm(name+' 회비를 전액 초기화하시겠습니까?'))return;
+  const reset={};
+  for(let i=1;i<=12;i++) reset[i]=false;
+  await update(ref(db,'suchon/fees/'+name),reset);
+  toast(name+' 회비 초기화 완료');
+};
 window.toggleFee=async function(name,month){
   if(!isSuperAdmin()){toast('회비 관리는 이동근만 가능합니다');return;}
   const cur=fees[name]?fees[name][month]:false;
@@ -583,21 +598,34 @@ window.toggleFee=async function(name,month){
 function renderFee(){
   const list=document.getElementById('fee-list');
   const sorted=[...members];
+  // 완납=22만원, 미납=월 2만원씩 계산
+  const calcAmt=(cnt)=> cnt>=12 ? 220000 : cnt*20000;
   list.innerHTML=sorted.map(m=>{
     const paid=fees[m.name]||{};
+    const cnt=Object.values(paid).filter(Boolean).length;
+    const allPaid=cnt>=12;
     const ms=Array.from({length:12},(_,i)=>{
       const p=!!paid[i+1];
       return`<button class="fb${p?' paid':''}" onclick="toggleFee('${m.name}',${i+1})">${i+1}</button>`;
     }).join('');
-    const cnt=Object.values(paid).filter(Boolean).length;
-    const amt=(cnt*20000).toLocaleString();
-    return`<div class="fi">
-      <span class="fn">${m.name}</span>
-      <div class="fms">${ms}</div>
-      <div style="text-align:right;flex-shrink:0;min-width:60px">
-        <span class="badge ${cnt>=12?'bgg':cnt>0?'bgo':'bgr'}">${cnt}/12</span>
-        <div style="font-size:10px;color:#666;margin-top:2px">${amt}원</div>
+    const amt=calcAmt(cnt).toLocaleString();
+    return`<div class="fi" style="flex-wrap:wrap;gap:6px">
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <span class="fn">${m.name}</span>
+        <div class="fms">${ms}</div>
+        <div style="text-align:right;flex-shrink:0;min-width:68px">
+          <span class="badge ${allPaid?'bgg':cnt>0?'bgo':'bgr'}">${allPaid?'완납':cnt+'/12'}</span>
+          <div style="font-size:10px;color:#666;margin-top:2px">${amt}원</div>
+        </div>
       </div>
+      ${isAdmin()?`<div style="display:flex;gap:6px;width:100%;padding-left:2px">
+        <button onclick="payFull('${m.name}')" style="flex:1;padding:5px 0;font-size:11px;font-weight:700;background:${allPaid?'#0d2e0d':'#1b4d1b'};color:${allPaid?'#81c784':'#a8d5a8'};border:0.5px solid ${allPaid?'#2d5a2d':'#2d6a2d'};border-radius:6px;cursor:pointer">
+          ${allPaid?'✓ 완납됨':'완납 처리'}
+        </button>
+        <button onclick="resetFee('${m.name}')" style="flex:1;padding:5px 0;font-size:11px;font-weight:700;background:#2a1a1a;color:#ff8080;border:0.5px solid #3a2020;border-radius:6px;cursor:pointer">
+          초기화
+        </button>
+      </div>`:''}
     </div>`;
   }).join('');
 }
