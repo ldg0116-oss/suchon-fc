@@ -129,6 +129,21 @@ input:focus,select:focus{outline:none;border-color:#c0392b}
   </div>
 </div>
 
+
+<!-- 이름 선택 모달 -->
+<div id="name-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:997;align-items:center;justify-content:center;padding:24px">
+  <div style="background:#242424;border-radius:18px;padding:24px;width:100%;max-width:360px;border:0.5px solid rgba(255,255,255,0.12)">
+    <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#c0a060;margin-bottom:6px;text-transform:uppercase">처음 오셨나요?</div>
+    <div style="font-size:20px;font-weight:800;color:#fff;margin-bottom:4px">내 이름을 선택해주세요</div>
+    <div style="font-size:13px;color:#666;margin-bottom:20px">한번만 선택하면 다음부터 자동으로 적용됩니다</div>
+    <select id="modal-name-sel" style="width:100%;padding:12px 14px;font-size:16px;font-weight:600;border:0.5px solid rgba(255,255,255,0.2);border-radius:10px;background:#2e2e2e;color:#fff;margin-bottom:12px;-webkit-appearance:none;appearance:none">
+      <option value="">-- 이름 선택 --</option>
+    </select>
+    <button onclick="confirmMyName()" style="width:100%;padding:13px;background:#8b0000;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.5px">확인</button>
+    <button onclick="skipNameModal()" style="width:100%;padding:10px;background:transparent;color:#555;border:none;border-radius:10px;font-size:13px;cursor:pointer;margin-top:6px">나중에 선택하기</button>
+  </div>
+</div>
+
 <div id="loading" style="display:none">
   <div class="ld-spin"></div>
   <div style="font-size:13px;color:#666">데이터 불러오는 중...</div>
@@ -158,26 +173,36 @@ input:focus,select:focus{outline:none;border-color:#c0392b}
 
   <!-- 일정·투표 (첫 화면) -->
   <div id="s-schedule" class="sec on">
-    <div class="card">
-      <div class="ct">일정 추가</div>
-      <div class="r2">
-        <div><label>날짜</label><input id="sc-date" type="date"></div>
-        <div><label>구장</label><input id="sc-field" placeholder="자유공원"></div>
+    <div id="admin-schedule-form" style="display:none">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <div class="ct" style="margin-bottom:0">일정 추가</div>
+          <span class="badge bgo" style="font-size:10px">관리자</span>
+        </div>
+        <div class="r2">
+          <div><label>날짜</label><input id="sc-date" type="date"></div>
+          <div><label>구장</label><input id="sc-field" placeholder="자유공원"></div>
+        </div>
+        <label>상대팀</label><input id="sc-opp" placeholder="미정">
+        <div class="r2">
+          <div><label>시간</label><input id="sc-time" placeholder="15-17"></div>
+          <div><label>유니폼</label><input id="sc-uni" placeholder="흰색"></div>
+        </div>
+        <label>담당자</label><input id="sc-mgr" placeholder="이석우">
+        <button class="btn btn-r" onclick="addSchedule()">+ 일정 추가</button>
       </div>
-      <label>상대팀</label><input id="sc-opp" placeholder="미정">
-      <div class="r2">
-        <div><label>시간</label><input id="sc-time" placeholder="15-17"></div>
-        <div><label>유니폼</label><input id="sc-uni" placeholder="흰색"></div>
-      </div>
-      <label>담당자</label><input id="sc-mgr" placeholder="이석우">
-      <button class="btn btn-r" onclick="addSchedule()">+ 일정 추가</button>
     </div>
 
-    <div style="margin-bottom:8px">
-      <div style="font-size:11px;font-weight:700;color:#777;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px">내 이름 선택</div>
-      <select id="my-name" style="background:#242424;border-color:rgba(255,255,255,0.15);font-size:14px;font-weight:600" onchange="saveMyName()">
-        <option value="">-- 이름 선택 --</option>
-      </select>
+    <div id="my-name-banner" style="display:none;background:#1a1a2e;border:0.5px solid rgba(100,180,255,0.2);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:none;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:11px;color:#64b5f6;font-weight:700;letter-spacing:0.5px">참여 중</div>
+        <div style="font-size:16px;font-weight:800;color:#fff" id="my-name-display"></div>
+      </div>
+      <button onclick="changeMyName()" style="background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.15);border-radius:8px;color:#aaa;font-size:12px;padding:5px 10px;cursor:pointer">변경</button>
+    </div>
+    <div id="my-name-empty" style="background:#242424;border:0.5px solid rgba(255,255,255,0.09);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:13px;color:#888">내 이름을 먼저 선택해주세요</div>
+      <button onclick="showNameModal()" style="background:#8b0000;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;padding:6px 12px;cursor:pointer">선택하기</button>
     </div>
 
     <div id="schedule-list"></div>
@@ -185,19 +210,24 @@ input:focus,select:focus{outline:none;border-color:#c0392b}
 
   <!-- 선수 -->
   <div id="s-members" class="sec">
-    <div class="card">
-      <div class="ct">선수 추가</div>
-      <div class="r3">
-        <div><label>이름</label><input id="m-name" placeholder="홍길동"></div>
-        <div><label>번호</label><input id="m-num" type="number" placeholder="10"></div>
-        <div><label>포지션</label>
-          <select id="m-pos">
-            <option value="GK">GK</option><option value="DF">DF</option>
-            <option value="MF" selected>MF</option><option value="FW">FW</option>
-          </select>
+    <div id="super-admin-member-form" style="display:none">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <div class="ct" style="margin-bottom:0">선수 추가</div>
+          <span class="badge bgr" style="font-size:10px">슈퍼관리자</span>
         </div>
+        <div class="r3">
+          <div><label>이름</label><input id="m-name" placeholder="홍길동"></div>
+          <div><label>번호</label><input id="m-num" type="number" placeholder="10"></div>
+          <div><label>포지션</label>
+            <select id="m-pos">
+              <option value="GK">GK</option><option value="DF">DF</option>
+              <option value="MF" selected>MF</option><option value="FW">FW</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-r" onclick="addMember()">+ 선수 추가</button>
       </div>
-      <button class="btn btn-r" onclick="addMember()">+ 선수 추가</button>
     </div>
     <div class="card" id="member-list"></div>
   </div>
@@ -248,7 +278,8 @@ input:focus,select:focus{outline:none;border-color:#c0392b}
         </div>
       </div>
       <label>출전 선수 선택</label>
-      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:6px;margin-bottom:10px" id="q-sel"></div>
+      <button onclick="loadTodayAttendees()" style="width:100%;padding:9px;background:#1a2a1a;border:0.5px solid #2d5a2d;border-radius:8px;color:#81c784;font-size:13px;font-weight:600;cursor:pointer;margin-top:6px;margin-bottom:8px">📋 당일 참석 투표자 자동 불러오기</button>
+      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px" id="q-sel"></div>
       <button class="btn btn-r" onclick="calcQ()">배분 계산</button>
     </div>
     <div id="q-result"></div>
@@ -371,6 +402,10 @@ const INIT_SCHEDULES = [
 
 let members=[],games=[],fees={},schedules=[],qSel=new Set(),appReady=false;
 let myName = localStorage.getItem('suchon_myname')||'';
+const ADMINS = ['이동근','이석우','한재희']; // 일정 관리자
+const SUPER_ADMINS = ['이동근'];              // 선수 관리자
+function isAdmin(){ return ADMINS.includes(myName); }
+function isSuperAdmin(){ return SUPER_ADMINS.includes(myName); }
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 function setDot(s,txt){document.getElementById('rtdot').className='rtdot '+s;document.getElementById('rttxt').textContent=txt;}
@@ -394,7 +429,7 @@ function startListeners(){
   onValue(ref(db,'suchon/members'),snap=>{
     const v=snap.val()||{};
     members=Object.values(v).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
-    if(appReady){renderMembers();renderQSel();fillNameSelect();}
+    if(appReady){renderMembers();renderQSel();fillNameSelect();updateNameBanner();}
   });
   onValue(ref(db,'suchon/games'),snap=>{
     const v=snap.val()||{};
@@ -425,6 +460,9 @@ window.enterApp=function(){
     document.getElementById('sc-date').valueAsDate=new Date();
     renderAll();
     initFirebase();
+    if(!myName){
+      setTimeout(()=>{ fillNameSelect(); document.getElementById('name-modal').style.display='flex'; },800);
+    }
   },600);
 };
 
@@ -442,20 +480,59 @@ window.go=function(tab,btn){
 
 // ── 내 이름 선택 ──
 function fillNameSelect(){
-  const sel=document.getElementById('my-name');
-  const cur=sel.value||myName;
+  const sel=document.getElementById('modal-name-sel');
+  if(!sel) return;
   sel.innerHTML='<option value="">-- 이름 선택 --</option>'+
-    members.map(m=>`<option value="${m.name}" ${m.name===cur?'selected':''}>${m.name}</option>`).join('');
-  if(cur) sel.value=cur;
+    members.map(m=>`<option value="${m.name}" ${m.name===myName?'selected':''}>${m.name}</option>`).join('');
 }
-window.saveMyName=function(){
-  myName=document.getElementById('my-name').value;
-  localStorage.setItem('suchon_myname',myName);
-  renderSchedule();
+function updateNameBanner(){
+  const banner=document.getElementById('my-name-banner');
+  const empty=document.getElementById('my-name-empty');
+  const display=document.getElementById('my-name-display');
+  const adminForm=document.getElementById('admin-schedule-form');
+  const superForm=document.getElementById('super-admin-member-form');
+  if(myName){
+    banner.style.display='flex';
+    empty.style.display='none';
+    if(display){
+      display.textContent=myName+(isSuperAdmin()?' 👑':isAdmin()?' ⭐':'');
+    }
+    if(adminForm) adminForm.style.display=isAdmin()?'block':'none';
+    if(superForm) superForm.style.display=isSuperAdmin()?'block':'none';
+  }else{
+    banner.style.display='none';
+    empty.style.display='flex';
+    if(adminForm) adminForm.style.display='none';
+    if(superForm) superForm.style.display='none';
+  }
+}
+window.showNameModal=function(){
+  fillNameSelect();
+  document.getElementById('name-modal').style.display='flex';
 };
+window.confirmMyName=function(){
+  const sel=document.getElementById('modal-name-sel');
+  if(!sel.value){toast('이름을 선택해주세요');return;}
+  myName=sel.value;
+  localStorage.setItem('suchon_myname',myName);
+  document.getElementById('name-modal').style.display='none';
+  updateNameBanner();
+  renderSchedule();
+  const adminMsg=isAdmin()?' (관리자)':'';
+  toast(myName+adminMsg+'님 환영합니다!');
+};
+window.skipNameModal=function(){
+  document.getElementById('name-modal').style.display='none';
+};
+window.changeMyName=function(){
+  fillNameSelect();
+  document.getElementById('name-modal').style.display='flex';
+};
+window.saveMyName=function(){};
 
 // ── 선수 ──
 window.addMember=async function(){
+  if(!isSuperAdmin()){toast('이동근만 선수를 추가할 수 있습니다');return;}
   const name=document.getElementById('m-name').value.trim();
   const num=parseInt(document.getElementById('m-num').value)||0;
   const pos=document.getElementById('m-pos').value;
@@ -468,6 +545,7 @@ window.addMember=async function(){
   toast(name+' 등록 완료');
 };
 window.deleteMember=async function(id){
+  if(!isSuperAdmin()){toast('이동근만 선수를 삭제할 수 있습니다');return;}
   const m=members.find(m=>m.id===id);
   if(!m||!confirm(m.name+' 삭제?'))return;
   await remove(ref(db,'suchon/members/'+id));
@@ -491,13 +569,14 @@ function renderMembers(){
           <span class="badge ${pc>=12?'bgg':pc>0?'bgo':'bgr'}">회비${pc}/12</span>
         </div>
       </div>
-      <button class="bsm" style="background:#3a0000;color:#ff8080;font-size:11px" onclick="deleteMember('${m.id}')">삭제</button>
+      ${isSuperAdmin()?`<button class="bsm" style="background:#3a0000;color:#ff8080;font-size:11px" onclick="deleteMember('${m.id}')">삭제</button>`:''}
     </div>`;
   }).join('');
 }
 
 // ── 회비 (12개월 기준) ──
 window.toggleFee=async function(name,month){
+  if(!isSuperAdmin()){toast('회비 관리는 이동근만 가능합니다');return;}
   const cur=fees[name]?fees[name][month]:false;
   await update(ref(db,'suchon/fees/'+name),{[month]:!cur});
 };
@@ -592,6 +671,32 @@ window.toggleQ=function(name,el){
   if(qSel.has(name)){qSel.delete(name);el.classList.remove('sel');}
   else{qSel.add(name);el.classList.add('sel');}
 };
+window.loadTodayAttendees=function(){
+  const today=new Date().toISOString().slice(0,10);
+  // 오늘 날짜 일정 중 참석(o) 투표한 선수 찾기
+  const todaySchedules=schedules.filter(s=>s.date===today);
+  if(!todaySchedules.length){
+    // 오늘 일정 없으면 가장 가까운 미래 일정
+    const upcoming=schedules.filter(s=>s.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
+    if(!upcoming.length){toast('등록된 일정이 없습니다');return;}
+    const next=upcoming[0];
+    const votes=next.votes||{};
+    const attendNames=Object.values(votes).filter(v=>v.vote==='o').map(v=>v.name);
+    if(!attendNames.length){toast(`${next.date} 경기 참석 투표자가 없습니다`);return;}
+    qSel=new Set(attendNames);
+    renderQSel();
+    toast(`${next.date} 참석자 ${attendNames.length}명 불러왔습니다`);
+    return;
+  }
+  const sc=todaySchedules[0];
+  const votes=sc.votes||{};
+  const attendNames=Object.values(votes).filter(v=>v.vote==='o').map(v=>v.name);
+  if(!attendNames.length){toast('오늘 경기 참석 투표자가 없습니다');return;}
+  qSel=new Set(attendNames);
+  renderQSel();
+  toast(`오늘 참석자 ${attendNames.length}명 불러왔습니다`);
+};
+
 window.calcQ=function(){
   const players=members.filter(m=>qSel.has(m.name));
   if(players.length<2){toast('2명 이상 선택');return;}
@@ -631,11 +736,12 @@ function renderStats(){
   const total=games.length,wins=games.filter(g=>g.our>g.them).length;
   const draws=games.filter(g=>g.our===g.them).length;
   const goals=games.reduce((a,g)=>a+g.our,0);
+  const conceded=games.reduce((a,g)=>a+g.them,0);
   document.getElementById('sum-stats').innerHTML=`
     <div class="sb"><div class="sbv">${total}</div><div class="sbl">총 경기</div></div>
     <div class="sb"><div class="sbv">${wins}승${draws}무${total-wins-draws}패</div><div class="sbl">전적</div></div>
     <div class="sb"><div class="sbv">${goals}</div><div class="sbl">총 득점</div></div>
-    <div class="sb"><div class="sbv">${members.length}</div><div class="sbl">등록 선수</div></div>`;
+    <div class="sb"><div class="sbv">${conceded}</div><div class="sbl">총 실점</div></div>`;
   const rows=[...members].map(m=>{const s=getStats(m.name);const paid=Object.values(fees[m.name]||{}).filter(Boolean).length;return{m,s,paid};})
     .sort((a,b)=>b.s.goals-a.s.goals||b.s.assists-a.s.assists);
   document.getElementById('stats-body').innerHTML=rows.map(({m,s,paid})=>`<tr>
@@ -650,6 +756,7 @@ function renderStats(){
 
 // ── 일정 & 참석 투표 ──
 window.addSchedule=async function(){
+  if(!isAdmin()){toast('관리자만 일정을 추가할 수 있습니다');return;}
   const date=document.getElementById('sc-date').value;
   if(!date){toast('날짜 입력');return;}
   const id='s'+Date.now();
@@ -665,6 +772,7 @@ window.addSchedule=async function(){
   toast('일정 추가 완료');
 };
 window.deleteSchedule=async function(id){
+  if(!isAdmin()){toast('관리자만 삭제할 수 있습니다');return;}
   if(!confirm('일정 삭제?'))return;
   await remove(ref(db,'suchon/schedules/'+id));
 };
@@ -698,7 +806,7 @@ function renderSchedule(){
           ${s.time?`<div class="vote-info">${s.time}${s.uniform?' · '+s.uniform:''}${s.mgr?' · 담당: '+s.mgr:''}</div>`:''}
           ${s.opp&&s.opp!=='미정'?`<div class="vote-opp">vs ${s.opp}</div>`:''}
         </div>
-        <button class="bsm" style="background:#3a0000;color:#ff8080;flex-shrink:0" onclick="deleteSchedule('${s.id}')">삭제</button>
+        ${isAdmin()?`<button class="bsm" style="background:#3a0000;color:#ff8080;flex-shrink:0" onclick="deleteSchedule('${s.id}')">삭제</button>`:''}
       </div>
       ${!isPast?`<div class="vote-btns">
         <button class="vbtn attend ${myVote==='o'?'active':''}" onclick="castVote('${s.id}','o')">참석 ✓ ${attend.length}</button>
@@ -731,7 +839,7 @@ function renderSchedule(){
   c.innerHTML=html;
 }
 
-function renderAll(){renderMembers();renderGames();renderSchedule();fillNameSelect();}
+function renderAll(){renderMembers();renderGames();renderSchedule();fillNameSelect();updateNameBanner();}
 </script>
 </body>
 </html>
