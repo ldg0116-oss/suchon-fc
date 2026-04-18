@@ -1157,12 +1157,30 @@ window.selectGame=function(id){
   document.getElementById('record-wrap').style.display='block';
   document.getElementById('rec-title').textContent=g.date+' vs '+g.opp;
 
-  const scoreRow=isAdmin()?`<tr style="background:rgba(201,168,76,0.04);border-bottom:1px solid var(--cl-border)">
-    <td colspan="2" style="font-size:10px;color:var(--cl-gold);font-weight:700;letter-spacing:1px;text-transform:uppercase">Score</td>
+  // 경기 정보 수정 폼 (관리자 전용)
+  const infoForm=`<div style="background:rgba(0,0,0,0.25);border:1px solid var(--cl-border2);border-radius:4px;padding:14px;margin-bottom:14px">
+    <div style="font-size:10px;color:var(--cl-gold);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">▸ 경기 정보</div>
+    <div class="r2">
+      <div><label>날짜</label><input type="date" value="${g.date||''}" onchange="updGameInfo('${id}','date',this.value)"></div>
+      <div><label>상대팀</label><input type="text" value="${(g.opp||'').replace(/"/g,'&quot;')}" onchange="updGameInfo('${id}','opp',this.value)"></div>
+    </div>
+    <div class="r2">
+      <div><label>구장</label><input type="text" placeholder="자유공원" value="${(g.field||'').replace(/"/g,'&quot;')}" onchange="updGameInfo('${id}','field',this.value)"></div>
+      <div><label>시간</label><input type="text" placeholder="15-17" value="${(g.time||'').replace(/"/g,'&quot;')}" onchange="updGameInfo('${id}','time',this.value)"></div>
+    </div>
+    <div class="r2">
+      <div><label>유니폼</label><input type="text" placeholder="흰색" value="${(g.uniform||'').replace(/"/g,'&quot;')}" onchange="updGameInfo('${id}','uniform',this.value)"></div>
+      <div><label>담당자</label><input type="text" placeholder="이석우" value="${(g.mgr||'').replace(/"/g,'&quot;')}" onchange="updGameInfo('${id}','mgr',this.value)"></div>
+    </div>
+    <div style="font-size:9px;color:var(--cl-silver);margin-top:10px;letter-spacing:0.5px;opacity:0.7">※ 변경 즉시 저장됩니다</div>
+  </div>`;
+
+  const scoreRow=isAdmin()?`<tr style="background:rgba(212,175,55,0.05);border-bottom:1px solid var(--cl-border2)">
+    <td colspan="2" style="font-size:10px;color:var(--cl-gold);font-weight:700;letter-spacing:2px;text-transform:uppercase">Score</td>
     <td colspan="2">
-      <input type="number" class="ni" value="${g.our||0}" min="0" placeholder="우리" onchange="updScore('${id}','our',+this.value)" style="width:44px">
+      <input type="number" class="ni" value="${g.our||0}" min="0" placeholder="우리" onchange="updScore('${id}','our',+this.value)" style="width:48px">
       <span style="color:var(--cl-silver);margin:0 4px">:</span>
-      <input type="number" class="ni" value="${g.them||0}" min="0" placeholder="상대" onchange="updScore('${id}','them',+this.value)" style="width:44px">
+      <input type="number" class="ni" value="${g.them||0}" min="0" placeholder="상대" onchange="updScore('${id}','them',+this.value)" style="width:48px">
     </td>
     <td></td>
   </tr><tr><td colspan="5" style="padding:0;height:4px;border:none"></td></tr>`:'';
@@ -1194,6 +1212,19 @@ window.selectGame=function(id){
 
   const emptyMsg=!isAdmin()&&!rows?`<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--cl-silver);font-size:12px;letter-spacing:0.5px">출전 기록이 없습니다</td></tr>`:'';
 
+  // 경기 정보 폼을 테이블 상단에 별도 컨테이너로 삽입
+  const recWrap=document.getElementById('record-wrap');
+  // 기존 infoForm 컨테이너 있으면 교체
+  let infoContainer=document.getElementById('rec-info-form');
+  if(!infoContainer){
+    infoContainer=document.createElement('div');
+    infoContainer.id='rec-info-form';
+    // rec-table 위에 삽입
+    const table=document.getElementById('rec-table');
+    table.parentNode.insertBefore(infoContainer, table);
+  }
+  infoContainer.innerHTML=infoForm;
+
   document.getElementById('rec-table').innerHTML=`
     <thead><tr>
       <th>이름</th><th>POS</th><th>출전</th><th>G</th><th>A</th>
@@ -1209,6 +1240,11 @@ window.updScore=async function(gid,field,val){
 window.updRec=async function(gid,name,field,val){
   if(!isAdmin()){toast('기록 수정은 관리자만 가능합니다');return;}
   await update(ref(db,'suchon/games/'+gid+'/players/'+name),{[field]:val});
+};
+window.updGameInfo=async function(gid,field,val){
+  if(!isAdmin()){toast('관리자만 수정 가능');return;}
+  await update(ref(db,'suchon/games/'+gid),{[field]:typeof val==='string'?val.trim():val});
+  toast(`${field==='date'?'날짜':field==='opp'?'상대팀':field==='field'?'구장':field==='time'?'시간':field==='uniform'?'유니폼':'담당자'} 수정됨`);
 };
 
 // ── 쿼터 ──
@@ -1252,7 +1288,9 @@ window.switchQTab = function(q){
 
 function getQSlots(q){
   const k='q'+q;
-  if(!qFormation[k]) qFormation[k]={GK:[],DF:[],MF:[],FW:[]};
+  if(!qFormation[k]) qFormation[k]={GK:[],DF:[],MF:[],FW:[],SUB:[]};
+  // 기존 데이터에 SUB이 없으면 추가 (하위 호환)
+  if(!qFormation[k].SUB) qFormation[k].SUB=[];
   return qFormation[k];
 }
 
@@ -1265,39 +1303,45 @@ function renderQView(){
   const coach = isCoach();
 
   const posGroups = [
-    {key:'GK', label:'GK', color:'rgba(255,165,0,0.15)', borderColor:'rgba(255,165,0,0.4)', textColor:'#ffb74d'},
-    {key:'DF', label:'DF', color:'rgba(52,152,219,0.1)', borderColor:'rgba(52,152,219,0.25)', textColor:'#5dade2'},
-    {key:'MF', label:'MF', color:'rgba(39,174,96,0.1)', borderColor:'rgba(39,174,96,0.25)', textColor:'#2ecc71'},
-    {key:'FW', label:'FW', color:'rgba(192,57,43,0.1)', borderColor:'rgba(192,57,43,0.25)', textColor:'#e74c3c'},
+    {key:'GK', label:'GK', color:'rgba(255,165,0,0.1)', borderColor:'rgba(255,165,0,0.35)', textColor:'#ffb74d'},
+    {key:'DF', label:'DF', color:'rgba(93,173,226,0.08)', borderColor:'rgba(93,173,226,0.3)', textColor:'#7fc1eb'},
+    {key:'MF', label:'MF', color:'rgba(46,204,113,0.08)', borderColor:'rgba(46,204,113,0.3)', textColor:'#4cd983'},
+    {key:'FW', label:'FW', color:'rgba(214,69,69,0.08)', borderColor:'rgba(214,69,69,0.3)', textColor:'#ff6b6b'},
+    {key:'SUB', label:'SUB · 교체', color:'rgba(160,176,202,0.06)', borderColor:'rgba(160,176,202,0.3)', textColor:'#a0b0ca'},
   ];
 
   const html = posGroups.map(pg=>{
     const assigned = slots[pg.key]||[];
     // 선수 칩들
     const chips = assigned.map((name,i)=>`
-      <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:2px;padding:6px 10px">
+      <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:3px;padding:6px 10px">
         <span style="font-size:13px;font-weight:700;color:var(--cl-white)">${name}</span>
-        ${coach?`<button onclick="removeQPlayer('${pg.key}',${i})" style="background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-size:14px;line-height:1;padding:0;margin-left:2px">×</button>`:''}
+        ${coach?`<button onclick="removeQPlayer('${pg.key}',${i})" style="background:none;border:none;color:rgba(255,255,255,0.35);cursor:pointer;font-size:15px;line-height:1;padding:0;margin-left:2px">×</button>`:''}
       </div>`).join('');
 
     // 추가 버튼 (관리자/감독만)
-    const addBtn = coach?`<button onclick="openQModal('${pg.key}')" style="padding:6px 12px;background:rgba(201,168,76,0.08);border:1px dashed rgba(201,168,76,0.3);border-radius:2px;color:var(--cl-gold);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">+ 추가</button>`:'';
+    const addBtn = coach?`<button onclick="openQModal('${pg.key}')" style="padding:6px 12px;background:rgba(212,175,55,0.08);border:1px dashed rgba(212,175,55,0.35);border-radius:3px;color:var(--cl-gold);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1.5px">+ 추가</button>`:'';
 
-    return `<div style="background:${pg.color};border:1px solid ${pg.borderColor};border-radius:4px;padding:12px;margin-bottom:8px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-family:var(--font-display);font-size:16px;letter-spacing:2px;color:${pg.textColor}">${pg.label}</div>
-        <div style="font-size:10px;color:var(--cl-silver)">${assigned.length}명</div>
+    const subNote = pg.key==='SUB'?`<span style="font-size:9px;color:rgba(160,176,202,0.6);letter-spacing:1px;margin-left:6px">· 출전시간 ½ 계산</span>`:'';
+
+    return `<div style="background:${pg.color};border:1px solid ${pg.borderColor};border-radius:5px;padding:13px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center">
+          <div style="font-family:var(--font-display);font-size:16px;letter-spacing:2px;color:${pg.textColor}">${pg.label}</div>
+          ${subNote}
+        </div>
+        <div style="font-size:10px;color:var(--cl-silver);letter-spacing:1px">${assigned.length}명</div>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
         ${chips}
         ${addBtn}
-        ${!assigned.length&&!coach?'<span style="font-size:11px;color:rgba(138,155,181,0.3);letter-spacing:0.5px">배정 없음</span>':''}
+        ${!assigned.length&&!coach?'<span style="font-size:11px;color:rgba(160,176,202,0.35);letter-spacing:0.5px">배정 없음</span>':''}
       </div>
     </div>`;
   }).join('');
 
   document.getElementById('q-content').innerHTML = `
-    <div style="font-size:10px;color:var(--cl-silver);letter-spacing:1px;margin-bottom:10px;text-align:right">Q${q} · ${qMin}분</div>
+    <div style="font-size:10px;color:var(--cl-silver);letter-spacing:1.5px;margin-bottom:10px;text-align:right">Q${q} · ${qMin}분</div>
     ${html}`;
 
   renderPlayTime(totalMin, qCnt);
@@ -1308,9 +1352,9 @@ window.openQModal = function(posKey){
   pendingPos = posKey;
   pendingQ = currentQTab;
 
-  const posLabels = {GK:'골키퍼',DF:'수비수',MF:'미드필더',FW:'공격수'};
-  document.getElementById('q-modal-title').textContent = `${posKey} 선수 선택 — Q${pendingQ}`;
-  document.getElementById('q-modal-sub').textContent = `${posLabels[posKey]} 포지션 · 여러 명 한번에 선택 가능 · 완료 버튼을 누르면 닫힙니다`;
+  const posLabels = {GK:'골키퍼',DF:'수비수',MF:'미드필더',FW:'공격수',SUB:'교체'};
+  document.getElementById('q-modal-title').textContent = `${posKey==='SUB'?'SUB (교체)':posKey} 선수 선택 — Q${pendingQ}`;
+  document.getElementById('q-modal-sub').textContent = `${posLabels[posKey]} · 여러 명 한번에 선택 가능 · 완료 버튼을 누르면 닫힙니다`;
 
   renderQModalList();
   document.getElementById('q-player-modal').style.display='flex';
@@ -1362,7 +1406,7 @@ window.closeQModal = function(){
 
 window.addQPlayer = function(posKey, name){
   const k = 'q'+pendingQ;
-  if(!qFormation[k]) qFormation[k]={GK:[],DF:[],MF:[],FW:[]};
+  if(!qFormation[k]) qFormation[k]={GK:[],DF:[],MF:[],FW:[],SUB:[]};
   if(!qFormation[k][posKey]) qFormation[k][posKey]=[];
   if(!qFormation[k][posKey].includes(name)){
     qFormation[k][posKey].push(name);
@@ -1398,8 +1442,8 @@ window.clearQFormation = async function(){
   if(!isCoach()){return;}
   const k = 'q'+currentQTab;
   if(!confirm(`Q${currentQTab} 배치를 초기화할까요?`))return;
-  qFormation[k]={GK:[],DF:[],MF:[],FW:[]};
-  await set(ref(db,'suchon/qFormation/'+k),{GK:[],DF:[],MF:[],FW:[]});
+  qFormation[k]={GK:[],DF:[],MF:[],FW:[],SUB:[]};
+  await set(ref(db,'suchon/qFormation/'+k),{GK:[],DF:[],MF:[],FW:[],SUB:[]});
   renderQView();
   toast(`Q${currentQTab} 초기화 완료`);
 };
@@ -1407,25 +1451,36 @@ window.clearQFormation = async function(){
 function renderPlayTime(totalMin, qCnt){
   const qMin = Math.floor(totalMin/(qCnt||4));
   const playMap = {};
+  const subSet = {};
   [1,2,3,4].slice(0,qCnt||4).forEach(q=>{
     const slots = getQSlots(q);
-    Object.values(slots).flat().forEach(name=>{
-      if(name) playMap[name]=(playMap[name]||0)+qMin;
+    // 선발 (GK, DF, MF, FW)은 쿼터 시간 100%
+    ['GK','DF','MF','FW'].forEach(pos=>{
+      (slots[pos]||[]).forEach(name=>{
+        if(name) playMap[name]=(playMap[name]||0)+qMin;
+      });
+    });
+    // 교체는 쿼터 시간의 절반으로 추정
+    (slots.SUB||[]).forEach(name=>{
+      if(name){
+        playMap[name]=(playMap[name]||0)+Math.round(qMin/2);
+        subSet[name]=true;
+      }
     });
   });
   const sorted = Object.entries(playMap).sort((a,b)=>b[1]-a[1]);
   const maxMin = sorted[0]?.[1]||1;
   document.getElementById('q-playtime').innerHTML = sorted.length?`
-    <div style="font-family:var(--font-display);font-size:11px;letter-spacing:2px;color:var(--cl-silver);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--cl-border)">PLAY TIME</div>
+    <div style="font-family:var(--font-display);font-size:12px;letter-spacing:2.5px;color:var(--cl-silver);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--cl-border2)">PLAY TIME</div>
     ${sorted.map(([name,min])=>`
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(201,168,76,0.05)">
-        <div style="font-size:12px;font-weight:700;color:var(--cl-white);min-width:52px">${name}</div>
-        <div style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden">
-          <div style="height:100%;width:${Math.round(min/maxMin*100)}%;background:linear-gradient(90deg,var(--cl-gold),rgba(201,168,76,0.4));border-radius:2px"></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.06)">
+        <div style="font-size:12px;font-weight:700;color:var(--cl-white);min-width:58px">${name}${subSet[name]?' <span style="font-size:9px;color:var(--cl-silver);font-weight:500">(교체 포함)</span>':''}</div>
+        <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(min/maxMin*100)}%;background:linear-gradient(90deg,var(--cl-gold),rgba(212,175,55,0.4));border-radius:3px"></div>
         </div>
-        <div style="font-size:11px;color:var(--cl-gold);font-weight:700;min-width:32px;text-align:right">${min}분</div>
+        <div style="font-size:11px;color:var(--cl-gold);font-weight:700;min-width:36px;text-align:right;font-family:var(--font-display);letter-spacing:1px">${min}분</div>
       </div>`).join('')}
-  `:'<div style="font-size:11px;color:rgba(138,155,181,0.3);text-align:center;padding:14px;letter-spacing:0.5px">선수를 배치하면 출전 시간이 표시됩니다</div>';
+  `:'<div style="font-size:11px;color:rgba(160,176,202,0.35);text-align:center;padding:16px;letter-spacing:0.5px">선수를 배치하면 출전 시간이 표시됩니다</div>';
 }
 
 // 참석자 불러오기 (쿼터용)
@@ -1610,6 +1665,7 @@ window.createGameFromSchedule=async function(sid){
   await set(ref(db,'suchon/games/'+id),{
     id, scheduleId:sid,
     date:s.date, opp:s.opp||'미정',
+    field:s.field||'', time:s.time||'', uniform:s.uniform||'', mgr:s.mgr||'',
     our:0, them:0,
     players:initPlayers
   });
@@ -1823,8 +1879,11 @@ window.adminSetVote=async function(sid,name,vote){
 function renderSchedule(){
   const c=document.getElementById('schedule-list');
   const today=new Date().toISOString().slice(0,10);
-  const upcoming=schedules.filter(s=>s.date>=today);
-  const past=schedules.filter(s=>s.date<today);
+  // 경기 기록으로 이관된(linked) 일정은 투표 탭에서 완전히 제거
+  const linkedSids = new Set(games.filter(g=>g.scheduleId).map(g=>g.scheduleId));
+  const activeSchedules = schedules.filter(s=>!linkedSids.has(s.id));
+  const upcoming=activeSchedules.filter(s=>s.date>=today);
+  const past=activeSchedules.filter(s=>s.date<today);
   const renderCard=(s,isPast)=>{
     const votes=s.votes||{};
     const vList=Object.values(votes);
