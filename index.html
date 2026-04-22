@@ -700,6 +700,7 @@ const INIT_SCHEDULES = [
 ];
 
 let members=[],games=[],fees={},schedules=[],statOverrides={},qSel=new Set(),appReady=false;
+let currentRecordGid=null; // 현재 경기 기록 화면에서 열려있는 게임 id
 let sortCol='goals',sortAsc=false;
 let commentsData={};
 let myName = localStorage.getItem('suchon_myname')||'';
@@ -744,6 +745,22 @@ function startListeners(){
       renderGames();
       renderMembers(); // 경기 기록 변경 → 선수탭 스탯 자동 갱신
       if(document.getElementById('s-stats').classList.contains('on')) renderStats();
+      // 현재 경기 기록 수정 화면이 열려있으면 자동 재렌더
+      const rw=document.getElementById('record-wrap');
+      if(currentRecordGid && rw && rw.style.display!=='none'){
+        if(games.find(g=>g.id===currentRecordGid)){
+          // G/A 등 input에 포커스가 있으면 입력 중 → 재렌더 스킵
+          const ae=document.activeElement;
+          const isEditing=ae && rw.contains(ae) && (ae.tagName==='INPUT'||ae.tagName==='SELECT'||ae.tagName==='TEXTAREA');
+          if(!isEditing){
+            selectGame(currentRecordGid, false); // 스크롤 없이 재렌더
+          }
+        } else {
+          // 해당 경기가 삭제됨
+          rw.style.display='none';
+          currentRecordGid=null;
+        }
+      }
     }
   });
   onValue(ref(db,'suchon/fees'),snap=>{
@@ -1152,9 +1169,11 @@ function renderGames(){
   c.innerHTML=adminHeader+games.map(renderCard).join('');
 }
 
-window.selectGame=function(id){
+window.selectGame=function(id, scroll=true){
   if(!isAdmin()){toast('기록 수정은 관리자만 가능합니다');return;}
   const g=games.find(g=>g.id===id);
+  if(!g) return;
+  currentRecordGid=id; // 현재 보고 있는 경기 추적 → onValue 자동 갱신용
   document.getElementById('record-wrap').style.display='block';
   document.getElementById('rec-title').textContent=g.date+' vs '+g.opp;
 
@@ -1240,7 +1259,7 @@ window.selectGame=function(id){
       <th>이름</th><th>POS</th><th>출전</th><th>G</th><th>A</th>
     </tr></thead>
     <tbody>${scoreRow}${rows}${emptyMsg}</tbody>`;
-  document.getElementById('record-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+  if(scroll) document.getElementById('record-wrap').scrollIntoView({behavior:'smooth',block:'start'});
 };
 
 window.updScore=async function(gid,field,val){
