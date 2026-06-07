@@ -718,6 +718,17 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 function setDot(s,txt){document.getElementById('rtdot').className='rtdot '+s;document.getElementById('rttxt').textContent=txt;}
 function posB(p){return PCB[p]||'bgy';}
 function nameKey(n){return n.replace(/[^a-zA-Z0-9가-힣]/g,'_');}
+function getDayStr(dateStr){
+  if(!dateStr) return '';
+  const days=['일','월','화','수','목','금','토'];
+  const d=new Date(dateStr+'T00:00:00');
+  return days[d.getDay()];
+}
+function formatDate(dateStr){
+  if(!dateStr) return dateStr;
+  const [y,m,d]=dateStr.split('-');
+  return y+'.'+m+'.'+d+' ('+getDayStr(dateStr)+')';
+}
 
 async function initFirebase(){
   try{
@@ -2097,12 +2108,12 @@ function renderSchedule(){
         <div>
           <div class="vote-date">${formatDate(s.date)}</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
-            ${s.field&&s.field!=='미정'?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:700;color:var(--cl-gold);letter-spacing:0.3px">📍 ${s.field}</span>`:''}
-            ${s.time?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(93,173,226,0.1);border:1px solid rgba(93,173,226,0.25);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:700;color:#7fc1eb;letter-spacing:0.3px">⏰ ${s.time}</span>`:''}
+            ${s.field&&s.field!=='미정'?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:700;color:var(--cl-gold)">📍 ${s.field}</span>`:''}
+            ${s.time?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(93,173,226,0.1);border:1px solid rgba(93,173,226,0.25);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:700;color:#7fc1eb">⏰ ${s.time}</span>`:''}
             ${s.uniform?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:600;color:var(--cl-silver)">👕 ${s.uniform}</span>`:''}
             ${s.mgr?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:600;color:var(--cl-silver)">🙋 ${s.mgr}</span>`:''}
           </div>
-          ${s.opp&&s.opp!=='미정'?`<div class="vote-opp" style="margin-top:8px">vs ${s.opp}</div>`:''}
+          ${s.opp&&s.opp!=='미정'?`<div class="vote-opp">vs ${s.opp}</div>`:''}
           ${isClosed?`<div style="display:inline-block;margin-top:6px;padding:3px 8px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.25);border-radius:3px;font-size:10px;color:var(--cl-silver);letter-spacing:1.5px">🔒 투표 마감됨</div>`:''}
         </div>
         ${isAdmin()?`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end">
