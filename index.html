@@ -191,7 +191,7 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
 .vote-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cl-gold),transparent);opacity:0.6}
 .vote-card::after{content:'';position:absolute;top:0;left:0;width:3px;height:50px;background:linear-gradient(180deg,var(--cl-gold),transparent);box-shadow:0 0 8px rgba(212,175,55,0.4)}
 .vote-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
-.vote-date{font-family:var(--font-display);font-size:20px;letter-spacing:3px;color:var(--cl-white);text-shadow:0 0 15px rgba(212,175,55,0.2)}
+.vote-date{font-family:var(--font-display);font-size:17px;letter-spacing:2px;color:var(--cl-white);text-shadow:0 0 15px rgba(212,175,55,0.2)}
 .vote-field{font-size:11px;color:var(--cl-silver);margin-top:3px;letter-spacing:0.8px}
 .vote-info{font-size:11px;color:var(--cl-silver);margin-top:3px;letter-spacing:0.5px}
 .vote-opp{font-size:13px;color:var(--cl-gold);font-weight:700;margin-top:4px;letter-spacing:2px;text-transform:uppercase}
@@ -2095,9 +2095,14 @@ function renderSchedule(){
     return`<div class="vote-card" style="${isPast?'opacity:0.7':''}">
       <div class="vote-header">
         <div>
-          <div class="vote-date">${s.date} <span style="font-size:12px;color:#888;font-weight:400">${s.field}</span></div>
-          ${s.time?`<div class="vote-info">${s.time}${s.uniform?' · '+s.uniform:''}${s.mgr?' · 담당: '+s.mgr:''}</div>`:''}
-          ${s.opp&&s.opp!=='미정'?`<div class="vote-opp">vs ${s.opp}</div>`:''}
+          <div class="vote-date">${formatDate(s.date)}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
+            ${s.field&&s.field!=='미정'?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:700;color:var(--cl-gold);letter-spacing:0.3px">📍 ${s.field}</span>`:''}
+            ${s.time?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(93,173,226,0.1);border:1px solid rgba(93,173,226,0.25);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:700;color:#7fc1eb;letter-spacing:0.3px">⏰ ${s.time}</span>`:''}
+            ${s.uniform?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:600;color:var(--cl-silver)">👕 ${s.uniform}</span>`:''}
+            ${s.mgr?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:600;color:var(--cl-silver)">🙋 ${s.mgr}</span>`:''}
+          </div>
+          ${s.opp&&s.opp!=='미정'?`<div class="vote-opp" style="margin-top:8px">vs ${s.opp}</div>`:''}
           ${isClosed?`<div style="display:inline-block;margin-top:6px;padding:3px 8px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.25);border-radius:3px;font-size:10px;color:var(--cl-silver);letter-spacing:1.5px">🔒 투표 마감됨</div>`:''}
         </div>
         ${isAdmin()?`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end">
