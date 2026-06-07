@@ -2103,15 +2103,26 @@ function renderSchedule(){
     const myVote=myName?votes[nameKey(myName)]?.vote:null;
     const linked=games.find(g=>g.scheduleId===s.id);
     const isClosed=!!linked; // 투표 마감 (경기 기록 생성) 여부
-    return`<div class="vote-card" style="${isPast?'opacity:0.7':''}">
+    return`<div class="vote-card" style="${isPast?'opacity:0.6':(isClosed?'border-color:rgba(255,255,255,0.08);opacity:0.85':'')}"><div style="${isClosed?'position:absolute;top:0;left:0;right:0;height:2px;background:rgba(138,155,181,0.3)':''}"></div>
       <div class="vote-header">
         <div>
-          <div class="vote-date">${formatDate(s.date)}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
-            ${s.field&&s.field!=='미정'?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.25);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:700;color:var(--cl-gold)">📍 ${s.field}</span>`:''}
-            ${s.time?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(93,173,226,0.1);border:1px solid rgba(93,173,226,0.25);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:700;color:#7fc1eb">⏰ ${s.time}</span>`:''}
-            ${s.uniform?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:600;color:var(--cl-silver)">👕 ${s.uniform}</span>`:''}
-            ${s.mgr?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:3px;padding:4px 9px;font-size:12px;font-weight:600;color:var(--cl-silver)">🙋 ${s.mgr}</span>`:''}
+          <!-- EPL 스타일 날짜/시간/장소 헤더 -->
+          <div style="margin-bottom:4px">
+            <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+              <span style="font-family:var(--font-display);font-size:20px;letter-spacing:2px;color:var(--cl-white)">${formatDate(s.date)}</span>
+              ${s.time?`<span style="font-family:var(--font-display);font-size:15px;letter-spacing:1px;color:var(--cl-gold)">${s.time}</span>`:''}
+            </div>
+            <div style="display:flex;gap:8px;margin-top:7px;flex-wrap:wrap;align-items:center">
+              ${s.field&&s.field!=='미정'?`<div style="display:flex;align-items:center;gap:5px">
+                <svg width="11" height="14" viewBox="0 0 11 14" fill="none" style="flex-shrink:0"><path d="M5.5 0C2.46 0 0 2.46 0 5.5c0 3.85 5.5 8.5 5.5 8.5S11 9.35 11 5.5C11 2.46 8.54 0 5.5 0zm0 7.5A2 2 0 1 1 5.5 3.5a2 2 0 0 1 0 4z" fill="rgba(201,168,76,0.8)"/></svg>
+                <span style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:0.3px">${s.field}</span>
+              </div>`:''}
+              ${s.field&&s.field!=='미정'&&s.uniform?`<span style="color:rgba(255,255,255,0.2);font-size:11px">|</span>`:''}
+              ${s.uniform?`<div style="display:flex;align-items:center;gap:5px">
+                <svg width="14" height="12" viewBox="0 0 14 12" fill="none" style="flex-shrink:0"><path d="M5 0L3 2H0v3l2 1v6h10V6l2-1V2h-3L9 0H5z" fill="rgba(93,173,226,0.7)"/></svg>
+                <span style="font-size:13px;font-weight:700;color:rgba(255,255,255,0.75);letter-spacing:0.3px">${s.uniform}</span>
+              </div>`:''}
+            </div>
           </div>
           ${s.opp&&s.opp!=='미정'?`<div class="vote-opp">vs ${s.opp}</div>`:''}
           ${isClosed?`<div style="display:inline-block;margin-top:6px;padding:3px 8px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.25);border-radius:3px;font-size:10px;color:var(--cl-silver);letter-spacing:1.5px">🔒 투표 마감됨</div>`:''}
@@ -2173,10 +2184,15 @@ function renderSchedule(){
       </div>`:''}
     </div>`;
   };
+  // 마감(경기 기록 생성된) 일정 → 예정 목록 맨 아래
+  const upcomingOpen   = upcoming.filter(s=>!games.some(g=>g.scheduleId===s.id));
+  const upcomingClosed = upcoming.filter(s=> games.some(g=>g.scheduleId===s.id));
+  const upcomingSorted = [...upcomingOpen, ...upcomingClosed];
+
   let html='';
-  if(upcoming.length){
+  if(upcomingSorted.length){
     html+='<div style="font-size:11px;font-weight:700;color:#777;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px">예정 경기</div>';
-    html+=upcoming.map(s=>renderCard({...s,comments:commentsData[s.id]||{}},false)).join('');
+    html+=upcomingSorted.map(s=>renderCard({...s,comments:commentsData[s.id]||{}},false)).join('');
   }
   if(past.length){
     html+=`<div style="font-size:11px;font-weight:700;color:#555;letter-spacing:0.8px;text-transform:uppercase;margin:16px 0 8px">지난 경기</div>`;
