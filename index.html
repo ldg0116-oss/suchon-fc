@@ -322,7 +322,19 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
     <input id="modal-name-sel" list="member-list-dl" placeholder="이름 입력 또는 선택..." style="margin-bottom:12px" autocomplete="off">
     <datalist id="member-list-dl"></datalist>
     <button onclick="confirmMyName()" class="btn btn-gold">확인</button>
-    
+
+  </div>
+</div>
+
+<!-- 미납 안내 팝업 -->
+<div id="overdue-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(6px);z-index:998;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--grad-card);border:1px solid var(--cl-red2);border-radius:8px;padding:22px 20px;width:100%;max-width:380px;box-shadow:0 0 40px rgba(214,69,69,0.35),0 10px 40px rgba(0,0,0,0.7);position:relative;overflow:hidden;max-height:82vh;overflow-y:auto">
+    <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cl-red2),transparent)"></div>
+    <div style="font-size:34px;text-align:center;margin-bottom:6px">🔔</div>
+    <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--cl-white);text-align:center;margin-bottom:2px">미납 안내</div>
+    <div id="overdue-hi" style="font-size:12px;color:var(--cl-gold);text-align:center;margin-bottom:16px;letter-spacing:0.5px;font-weight:700"></div>
+    <div id="overdue-body"></div>
+    <button onclick="closeOverdue()" class="btn btn-gold" style="margin-top:18px">확인했습니다</button>
   </div>
 </div>
 
@@ -426,6 +438,7 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
       <button class="tab on" onclick="go('schedule',this)">일정·투표</button>
       <button class="tab" onclick="go('members',this)">선수</button>
       <button class="tab" onclick="go('fee',this)">회비</button>
+      <button class="tab" onclick="go('late',this)">지각</button>
       <button class="tab" onclick="go('match',this)">경기</button>
       <button class="tab" onclick="go('quarter',this)">쿼터</button>
       <button class="tab" onclick="go('stats',this)">통계</button>
@@ -497,6 +510,36 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
         <div style="font-size:10px;color:var(--cl-silver);letter-spacing:1px">월 20,000원 · 완납 220,000원</div>
       </div>
       <div id="fee-list"></div>
+    </div>
+  </div>
+
+  <!-- 지각 -->
+  <div id="s-late" class="sec">
+    <div style="background:linear-gradient(135deg,rgba(214,69,69,0.1),rgba(214,69,69,0.02));border:1px solid rgba(214,69,69,0.3);border-radius:4px;padding:11px 16px;font-size:10px;color:#ff8080;margin-bottom:12px;display:flex;align-items:center;gap:9px;letter-spacing:1.5px;font-weight:700">
+      <div style="width:7px;height:7px;border-radius:50%;background:#e74c3c;animation:pulse 2s infinite;box-shadow:0 0 8px rgba(231,76,60,0.8)"></div>
+      지각 벌금 5,000원 · 경기 당일 미납 시 하루당 +1,000원
+    </div>
+
+    <!-- 관리자: 지각 등록 -->
+    <div id="late-admin-form" style="display:none">
+      <div class="card">
+        <div class="ct">Add Late</div>
+        <div class="r2">
+          <div><label>경기 날짜</label><input id="lt-date" type="date"></div>
+          <div><label>지각 회원</label><input id="lt-name" list="member-list-dl2" placeholder="이름 선택..." autocomplete="off"></div>
+        </div>
+        <datalist id="member-list-dl2"></datalist>
+        <button class="btn btn-gold" onclick="addLate()">+ Add Late</button>
+      </div>
+    </div>
+
+    <div class="sg" id="late-sum"></div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="ct" style="margin-bottom:0">Late Fines</div>
+        <div style="font-size:10px;color:var(--cl-silver);letter-spacing:1px">미납 우선 정렬</div>
+      </div>
+      <div id="late-list"></div>
     </div>
   </div>
 
@@ -702,6 +745,11 @@ const INIT_SCHEDULES = [
 ];
 
 let members=[],games=[],fees={},schedules=[],statOverrides={},qSel=new Set(),appReady=false;
+let lates={}; // 지각 벌금 기록 {id:{date,name,paid,paidDate,ts}}
+let overdueShown=false; // 로그인 후 미납 팝업 1회 노출 가드
+const MONTH_FEE=20000;        // 월 회비
+const LATE_BASE=5000;         // 지각 기본 벌금
+const LATE_PER_DAY=1000;      // 미납 시 하루당 증액
 let currentRecordGid=null; // 현재 경기 기록 화면에서 열려있는 게임 id
 let sortCol='goals',sortAsc=false;
 let commentsData={};
@@ -781,6 +829,15 @@ function startListeners(){
     if(appReady){
       if(document.getElementById('s-fee').classList.contains('on')) renderFee();
       renderMembers(); // 회비 변경 → 선수탭 자동 갱신
+      maybeShowOverdue(); // 미납 팝업(로그인 후 1회)
+    }
+  });
+  onValue(ref(db,'suchon/lates'),snap=>{
+    lates=snap.val()||{};
+    if(appReady){
+      if(document.getElementById('s-late').classList.contains('on')) renderLate();
+      renderMembers(); // 지각 벌금 변경 → 선수탭 배지 갱신
+      maybeShowOverdue();
     }
   });
   onValue(ref(db,'suchon/schedules'),snap=>{
@@ -822,6 +879,7 @@ window.enterApp=function(){
     document.getElementById('app').style.display='flex';
     document.getElementById('g-date').valueAsDate=new Date();
     document.getElementById('sc-date').valueAsDate=new Date();
+    const ltd=document.getElementById('lt-date'); if(ltd) ltd.valueAsDate=new Date();
     renderAll();
     initFirebase();
     if(!myName){
@@ -863,6 +921,7 @@ window.go=function(tab,btn){
   document.getElementById('s-'+tab).classList.add('on');
   btn.classList.add('on');
   if(tab==='fee')renderFee();
+  if(tab==='late')renderLate();
   if(tab==='stats')renderStats();
   if(tab==='quarter'){updateQAdminPanel();renderQView();}
 };
@@ -871,7 +930,10 @@ window.go=function(tab,btn){
 function fillNameSelect(){
   const dl=document.getElementById('member-list-dl');
   if(!dl) return;
-  dl.innerHTML=members.map(m=>`<option value="${m.name}">`).join('');
+  const opts=members.map(m=>`<option value="${m.name}">`).join('');
+  dl.innerHTML=opts;
+  const dl2=document.getElementById('member-list-dl2');
+  if(dl2) dl2.innerHTML=opts;
   const inp=document.getElementById('modal-name-sel');
   if(inp&&myName) inp.value=myName;
 }
@@ -891,12 +953,16 @@ function updateNameBanner(){
     if(superForm) superForm.style.display=isSuperAdmin()?'block':'none';
   const gameForm=document.getElementById('admin-game-form');
   if(gameForm) gameForm.style.display=isAdmin()?'block':'none';
+  const lateForm=document.getElementById('late-admin-form');
+  if(lateForm) lateForm.style.display=isAdmin()?'block':'none';
   updateQAdminPanel();
   }else{
     banner.style.display='none';
     empty.style.display='flex';
     if(adminForm) adminForm.style.display='none';
     if(superForm) superForm.style.display='none';
+    const lateForm=document.getElementById('late-admin-form');
+    if(lateForm) lateForm.style.display='none';
   }
 }
 window.showNameModal=function(){
@@ -918,6 +984,9 @@ window.confirmMyName=function(){
   if(document.getElementById('s-quarter').classList.contains('on')) renderQView();
   const adminMsg=isAdmin()?' ★ ADMIN':'';
   toast(myName+adminMsg+'님 환영합니다!');
+  // 로그인 시 미납 안내 팝업(새 이름 확정 → 재확인)
+  overdueShown=false;
+  setTimeout(maybeShowOverdue,700);
 };
 
 window.changeMyName=function(){
@@ -996,6 +1065,7 @@ function renderMembers(){
     const s=getStats(m.name);
     const [bg,tc]=PC[m.pos]||['#2e2e2e','#aaa'];
     const pc=Object.values(fees[m.name]||{}).filter(Boolean).length;
+    const lo=lateOwed(m.name);
     return`<div class="pi">
       <div class="av" style="background:${bg};color:${tc}">${m.name[0]}</div>
       <div class="pn">
@@ -1005,6 +1075,7 @@ function renderMembers(){
           <span class="badge bgy">출전${s.played}</span>
           <span class="badge bgg">⚽${s.goals} 🅰${s.assists}</span>
           <span class="badge ${pc>=12?'bgg':pc>0?'bgo':'bgr'}">회비${pc}/12</span>
+          ${lo.total>0?`<span class="badge bgr">지각 ${lo.total.toLocaleString()}원</span>`:''}
         </div>
       </div>
       ${isSuperAdmin()?`<div style="display:flex;gap:5px">
@@ -1071,6 +1142,183 @@ function renderFee(){
     </div>`;
   }).join('');
 }
+
+// ── 지각 벌금 ──
+// 오늘 날짜(자정 기준) 문자열
+function todayStr(){
+  const t=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  return t.getFullYear()+'-'+p(t.getMonth()+1)+'-'+p(t.getDate());
+}
+// 두 YYYY-MM-DD 사이 경과 일수
+function daysBetween(from,to){
+  const a=new Date(from+'T00:00:00'), b=new Date(to+'T00:00:00');
+  return Math.floor((b-a)/86400000);
+}
+// 지각 벌금 계산: 기본 5000 + 경기일 이후 미납 일수 × 1000
+// 납부 완료면 납부일 기준으로 금액 고정, 미납이면 오늘 기준으로 계속 증액
+function lateFine(rec){
+  const end = (rec.paid && rec.paidDate) ? rec.paidDate : todayStr();
+  const days = Math.max(0, daysBetween(rec.date, end));
+  return { fine: LATE_BASE + days*LATE_PER_DAY, days };
+}
+// 특정 회원의 미납 지각 합계
+function lateOwed(name){
+  let total=0, cnt=0;
+  Object.values(lates).forEach(r=>{
+    if(r.name===name && !r.paid){ total+=lateFine(r).fine; cnt++; }
+  });
+  return { total, cnt };
+}
+
+window.addLate=async function(){
+  if(!isAdmin()){toast('관리자만 등록할 수 있습니다');return;}
+  const date=document.getElementById('lt-date').value;
+  const name=document.getElementById('lt-name').value.trim();
+  if(!date){toast('경기 날짜를 선택해주세요');return;}
+  if(!name){toast('지각 회원을 선택해주세요');return;}
+  if(!members.some(m=>m.name===name)){toast('등록된 선수 중에서 선택해주세요');return;}
+  const id='L'+Date.now()+Math.floor(Math.random()*1000);
+  await set(ref(db,'suchon/lates/'+id),{date,name,paid:false,paidDate:'',ts:Date.now()});
+  document.getElementById('lt-name').value='';
+  toast(name+' 지각 등록 완료');
+};
+window.toggleLatePaid=async function(id){
+  if(!isAdmin()){toast('관리자만 처리할 수 있습니다');return;}
+  const r=lates[id]; if(!r) return;
+  if(r.paid){
+    // 미납으로 되돌리기
+    await update(ref(db,'suchon/lates/'+id),{paid:false,paidDate:''});
+    toast(r.name+' 미납 처리');
+  }else{
+    await update(ref(db,'suchon/lates/'+id),{paid:true,paidDate:todayStr()});
+    toast(r.name+' 납부 완료');
+  }
+};
+window.deleteLate=async function(id){
+  if(!isAdmin()){toast('관리자만 삭제할 수 있습니다');return;}
+  const r=lates[id]; if(!r) return;
+  if(!confirm(r.name+' ('+r.date+') 지각 기록을 삭제하시겠습니까?'))return;
+  await remove(ref(db,'suchon/lates/'+id));
+  toast('삭제되었습니다');
+};
+
+function renderLate(){
+  const list=document.getElementById('late-list');
+  const sum=document.getElementById('late-sum');
+  if(!list) return;
+  const items=Object.entries(lates).map(([id,r])=>{
+    const {fine,days}=lateFine(r);
+    return {id,r,fine,days};
+  });
+  // 미납 집계
+  const unpaid=items.filter(x=>!x.r.paid);
+  const unpaidTotal=unpaid.reduce((s,x)=>s+x.fine,0);
+  const paidTotal=items.filter(x=>x.r.paid).reduce((s,x)=>s+x.fine,0);
+  if(sum){
+    sum.innerHTML=`
+      <div class="sb"><div class="sbv" style="background:linear-gradient(180deg,#fff,#ff8080);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">${unpaidTotal.toLocaleString()}</div><div class="sbl">미납 벌금 (원)</div></div>
+      <div class="sb"><div class="sbv">${unpaid.length}</div><div class="sbl">미납 건수</div></div>`;
+  }
+  if(!items.length){
+    list.innerHTML='<div style="font-size:12px;color:rgba(160,176,202,0.4);text-align:center;padding:20px;letter-spacing:0.5px">등록된 지각 기록이 없습니다</div>';
+    return;
+  }
+  // 미납 우선 → 그다음 날짜 최신순
+  items.sort((a,b)=>{
+    if(a.r.paid!==b.r.paid) return a.r.paid?1:-1;
+    return b.r.date.localeCompare(a.r.date);
+  });
+  const admin=isAdmin();
+  list.innerHTML=items.map(({id,r,fine,days})=>{
+    const paid=r.paid;
+    const penalty=days*LATE_PER_DAY;
+    const dayTxt=paid
+      ? `납부일 ${r.paidDate||'-'}`
+      : (days>0?`경기 후 ${days}일 경과 · 패널티 +${penalty.toLocaleString()}원`:`경기 당일`);
+    return `<div class="fi" style="flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px;width:100%">
+        <span class="fn" style="min-width:56px">${r.name}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;color:var(--cl-silver);letter-spacing:0.3px">${formatDate(r.date)}</div>
+          <div style="font-size:10px;color:${paid?'#4cd983':'#ff8080'};margin-top:2px">${dayTxt}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;min-width:74px">
+          <span class="badge ${paid?'bgg':'bgr'}">${paid?'완납':'미납'}</span>
+          <div style="font-size:13px;font-weight:700;color:${paid?'#4cd983':'#ff8080'};margin-top:3px">${fine.toLocaleString()}원</div>
+        </div>
+      </div>
+      ${admin?`<div style="display:flex;gap:6px;width:100%;padding-left:2px">
+        <button onclick="toggleLatePaid('${id}')" style="flex:1;padding:6px 0;font-size:11px;font-weight:700;background:${paid?'#2a1a1a':'#1b4d1b'};color:${paid?'#ffb0b0':'#a8d5a8'};border:0.5px solid ${paid?'#3a2020':'#2d6a2d'};border-radius:6px;cursor:pointer">${paid?'미납으로 되돌리기':'납부 처리'}</button>
+        <button onclick="deleteLate('${id}')" style="flex:0 0 auto;padding:6px 16px;font-size:11px;font-weight:700;background:#2a1a1a;color:#ff8080;border:0.5px solid #3a2020;border-radius:6px;cursor:pointer">삭제</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── 미납 안내 팝업 ──
+// 회비 미납 회차 = 1월~현재월 중 미납. (season 기준, 미래월은 아직 납부기한 전)
+function overdueMonths(name){
+  const paid=fees[name]||{};
+  const now=new Date();
+  const curM=now.getFullYear()===2026 ? now.getMonth()+1 : 12; // 2026시즌 기준
+  const arr=[];
+  for(let i=1;i<=curM;i++){ if(!paid[i]) arr.push(i); }
+  return arr;
+}
+let _overdueTimer=null;
+function maybeShowOverdue(){
+  // 회비·지각 데이터가 함께 도착하도록 잠깐 모아서 1회만 실행
+  if(overdueShown || !appReady || !myName) return;
+  if(_overdueTimer) clearTimeout(_overdueTimer);
+  _overdueTimer=setTimeout(runOverdueCheck,700);
+}
+function runOverdueCheck(){
+  if(overdueShown || !appReady || !myName) return;
+  // 등록된 회원이 아닐 수 있음(관리자 임의 이름 등) — 회원일 때만
+  overdueShown=true;
+  const months=overdueMonths(myName);
+  const feeAmt=months.length*MONTH_FEE;
+  const late=lateOwed(myName);
+  if(feeAmt===0 && late.total===0) return; // 미납 없음 → 팝업 생략
+  showOverdue(myName, months, feeAmt, late);
+}
+function showOverdue(name, months, feeAmt, late){
+  const hi=document.getElementById('overdue-hi');
+  const body=document.getElementById('overdue-body');
+  hi.textContent=name+' 님, 미납 내역이 있습니다';
+  let html='';
+  if(feeAmt>0){
+    const chips=months.map(m=>`<span class="badge bgr" style="margin:2px">${m}월</span>`).join('');
+    html+=`<div style="background:rgba(214,69,69,0.06);border:1px solid rgba(214,69,69,0.25);border-radius:6px;padding:12px 13px;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--cl-gold);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">▸ 회비 미납</div>
+      <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:10px">${chips}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+        <span style="color:var(--cl-silver)">미납 ${months.length}회차 (월 ${MONTH_FEE.toLocaleString()}원)</span>
+        <span style="font-family:var(--font-display);font-size:20px;color:#ff8080;letter-spacing:1px">${feeAmt.toLocaleString()}원</span>
+      </div>
+    </div>`;
+  }
+  if(late.total>0){
+    html+=`<div style="background:rgba(214,69,69,0.06);border:1px solid rgba(214,69,69,0.25);border-radius:6px;padding:12px 13px;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--cl-gold);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">▸ 지각 벌금 미납</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+        <span style="color:var(--cl-silver)">미납 ${late.cnt}건 (당일 미납 시 하루당 +${LATE_PER_DAY.toLocaleString()}원)</span>
+        <span style="font-family:var(--font-display);font-size:20px;color:#ff8080;letter-spacing:1px">${late.total.toLocaleString()}원</span>
+      </div>
+    </div>`;
+  }
+  const grand=feeAmt+late.total;
+  html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 13px;background:linear-gradient(135deg,rgba(212,175,55,0.12),rgba(212,175,55,0.03));border:1px solid var(--cl-border2);border-radius:6px">
+    <span style="font-size:11px;color:var(--cl-gold);font-weight:700;letter-spacing:1.5px;text-transform:uppercase">합계</span>
+    <span style="font-family:var(--font-display);font-size:24px;background:var(--grad-gold);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px">${grand.toLocaleString()}원</span>
+  </div>`;
+  body.innerHTML=html;
+  document.getElementById('overdue-modal').style.display='flex';
+}
+window.closeOverdue=function(){
+  document.getElementById('overdue-modal').style.display='none';
+};
 
 // ── 경기 ──
 window.addGame=async function(){
