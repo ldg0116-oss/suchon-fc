@@ -157,6 +157,7 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
 .fms{display:flex;gap:4px;flex-wrap:wrap;flex:1}
 .fb{width:28px;height:28px;border-radius:3px;border:1px solid rgba(160,176,202,0.2);background:rgba(0,0,0,0.3);color:var(--cl-silver);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;font-family:var(--font-body)}
 .fb.paid{background:var(--grad-gold);color:var(--cl-navy);border-color:var(--cl-gold);box-shadow:0 0 10px rgba(212,175,55,0.35)}
+.fb.exempt{background:rgba(93,173,226,0.14);color:#7fc1eb;border-color:rgba(93,173,226,0.45);border-style:dashed;box-shadow:none}
 .fb:disabled{cursor:default;opacity:0.85}
 .fb:disabled:hover{filter:none}
 
@@ -495,6 +496,9 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
         <button class="btn btn-gold" onclick="addMember()">+ Add Player</button>
       </div>
     </div>
+    <div class="card" style="padding:11px 13px;margin-bottom:10px">
+      <input id="member-search" placeholder="🔍 선수 검색 (이름 또는 등번호)" autocomplete="off" oninput="filterMembers()" style="margin:0">
+    </div>
     <div class="card" id="member-list"></div>
   </div>
 
@@ -746,6 +750,7 @@ const INIT_SCHEDULES = [
 
 let members=[],games=[],fees={},schedules=[],statOverrides={},qSel=new Set(),appReady=false;
 let lates={}; // 지각 벌금 기록 {id:{date,name,paid,paidDate,ts}}
+let memberQuery=''; // 선수 검색어
 let overdueShown=false; // 로그인 후 미납 팝업 1회 노출 가드
 const MONTH_FEE=20000;        // 월 회비
 const LATE_BASE=5000;         // 지각 기본 벌금
@@ -1058,13 +1063,24 @@ window.deleteMember=async function(id){
   }
   toast(m.name+' 선수 및 관련 데이터 삭제 완료');
 };
+window.filterMembers=function(){
+  const el=document.getElementById('member-search');
+  memberQuery=el?el.value.trim():'';
+  renderMembers();
+};
 function renderMembers(){
   const c=document.getElementById('member-list');
   if(!members.length){c.innerHTML='<div style="color:#666;text-align:center;padding:20px">선수를 추가해주세요</div>';return;}
-  c.innerHTML='<div class="ct">등록 선수 '+members.length+'명 (가나다순)</div>'+members.map(m=>{
+  const q=memberQuery.toLowerCase();
+  const shown=q?members.filter(m=>m.name.toLowerCase().includes(q)||String(m.num||'').includes(q)):members;
+  const head=q
+    ?'<div class="ct">검색 결과 '+shown.length+'명 · "'+memberQuery+'"</div>'
+    :'<div class="ct">등록 선수 '+members.length+'명 (가나다순)</div>';
+  if(!shown.length){c.innerHTML=head+'<div style="color:#666;text-align:center;padding:20px;font-size:13px">검색 결과가 없습니다</div>';return;}
+  c.innerHTML=head+shown.map(m=>{
     const s=getStats(m.name);
     const [bg,tc]=PC[m.pos]||['#2e2e2e','#aaa'];
-    const pc=Object.values(fees[m.name]||{}).filter(Boolean).length;
+    const fs=feeStat(m.name);
     const lo=lateOwed(m.name);
     return`<div class="pi">
       <div class="av" style="background:${bg};color:${tc}">${m.name[0]}</div>
@@ -1074,7 +1090,7 @@ function renderMembers(){
           <span class="badge ${posB(m.pos)}">${m.pos}</span>
           <span class="badge bgy">출전${s.played}</span>
           <span class="badge bgg">⚽${s.goals} 🅰${s.assists}</span>
-          <span class="badge ${pc>=12?'bgg':pc>0?'bgo':'bgr'}">회비${pc}/12</span>
+          <span class="badge ${fs.allPaid?'bgg':fs.paid>0?'bgo':'bgr'}">회비${fs.allPaid?'완납':fs.paid+'/'+fs.required}</span>
           ${lo.total>0?`<span class="badge bgr">지각 ${lo.total.toLocaleString()}원</span>`:''}
         </div>
       </div>
@@ -1087,6 +1103,17 @@ function renderMembers(){
 }
 
 // ── 회비 (12개월 기준) ──
+// 월 상태값: true=납부, false/미설정=미납, 'x'=납입 불필요(면제)
+// 신규 가입 회원은 가입 전 달을 '불필요'로 표시 → 미납/합계에서 제외
+function feeStat(name){
+  const f=fees[name]||{};
+  let paid=0,exempt=0;
+  for(let i=1;i<=12;i++){ const v=f[i]; if(v===true) paid++; else if(v==='x') exempt++; }
+  const required=12-exempt;          // 실제 납부 대상 개월 수
+  const allPaid=(paid===required);   // 미납(=false)이 하나도 없음
+  const amount=(paid>=12)?220000:paid*20000;
+  return {paid,exempt,required,allPaid,amount};
+}
 window.payFull=async function(name){
   if(!isSuperAdmin()){toast('회비 관리는 이동근만 가능합니다');return;}
   if(!confirm(name+' 완납 처리(220,000원)하시겠습니까?'))return;
@@ -1106,34 +1133,43 @@ window.resetFee=async function(name){
 window.toggleFee=async function(name,month){
   if(!isSuperAdmin()){toast('회비 관리는 이동근만 가능합니다');return;}
   const cur=fees[name]?fees[name][month]:false;
-  await update(ref(db,'suchon/fees/'+name),{[month]:!cur});
+  // 미납 → 납부 → 불필요(면제) → 미납 순환
+  let nx;
+  if(cur===true) nx='x';
+  else if(cur==='x') nx=false;
+  else nx=true;
+  await update(ref(db,'suchon/fees/'+name),{[month]:nx});
 };
 function renderFee(){
   const list=document.getElementById('fee-list');
   const sorted=[...members];
-  // 완납=22만원, 미납=월 2만원씩 계산
-  const calcAmt=(cnt)=> cnt>=12 ? 220000 : cnt*20000;
-  list.innerHTML=sorted.map(m=>{
+  list.innerHTML=`<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:9px;color:var(--cl-silver);margin-bottom:12px;letter-spacing:0.5px">
+    <span style="display:flex;align-items:center;gap:4px"><span class="fb" style="width:16px;height:16px;font-size:0"></span>미납</span>
+    <span style="display:flex;align-items:center;gap:4px"><span class="fb paid" style="width:16px;height:16px;font-size:0"></span>납부</span>
+    <span style="display:flex;align-items:center;gap:4px"><span class="fb exempt" style="width:16px;height:16px;font-size:0"></span>납입 불필요</span>
+    ${isSuperAdmin()?'<span style="color:rgba(160,176,202,0.6)">· 월 클릭 시 미납→납부→불필요 순환</span>':''}
+  </div>`+sorted.map(m=>{
     const paid=fees[m.name]||{};
-    const cnt=Object.values(paid).filter(Boolean).length;
-    const allPaid=cnt>=12;
+    const fs=feeStat(m.name);
     const ms=Array.from({length:12},(_,i)=>{
-      const p=!!paid[i+1];
-      return`<button class="fb${p?' paid':''}" ${isSuperAdmin()?'':'disabled'} onclick="toggleFee('${m.name}',${i+1})">${i+1}</button>`;
+      const v=paid[i+1];
+      const cls=v===true?' paid':(v==='x'?' exempt':'');
+      const title=v==='x'?'납입 불필요':(v===true?'납부 완료':'미납');
+      return`<button class="fb${cls}" title="${title}" ${isSuperAdmin()?'':'disabled'} onclick="toggleFee('${m.name}',${i+1})">${i+1}</button>`;
     }).join('');
-    const amt=calcAmt(cnt).toLocaleString();
+    const amt=fs.amount.toLocaleString();
     return`<div class="fi" style="flex-wrap:wrap;gap:6px">
       <div style="display:flex;align-items:center;gap:8px;width:100%">
         <span class="fn">${m.name}</span>
         <div class="fms">${ms}</div>
         <div style="text-align:right;flex-shrink:0;min-width:68px">
-          <span class="badge ${allPaid?'bgg':cnt>0?'bgo':'bgr'}">${allPaid?'완납':cnt+'/12'}</span>
-          <div style="font-size:10px;color:#666;margin-top:2px">${amt}원</div>
+          <span class="badge ${fs.allPaid?'bgg':fs.paid>0?'bgo':'bgr'}">${fs.allPaid?'완납':fs.paid+'/'+fs.required}</span>
+          <div style="font-size:10px;color:#666;margin-top:2px">${amt}원${fs.exempt>0?` · 면제 ${fs.exempt}`:''}</div>
         </div>
       </div>
       ${isAdmin()?`<div style="display:flex;gap:6px;width:100%;padding-left:2px">
-        <button onclick="payFull('${m.name}')" style="flex:1;padding:5px 0;font-size:11px;font-weight:700;background:${allPaid?'#0d2e0d':'#1b4d1b'};color:${allPaid?'#81c784':'#a8d5a8'};border:0.5px solid ${allPaid?'#2d5a2d':'#2d6a2d'};border-radius:6px;cursor:pointer">
-          ${allPaid?'✓ 완납됨':'완납 처리'}
+        <button onclick="payFull('${m.name}')" style="flex:1;padding:5px 0;font-size:11px;font-weight:700;background:${fs.allPaid?'#0d2e0d':'#1b4d1b'};color:${fs.allPaid?'#81c784':'#a8d5a8'};border:0.5px solid ${fs.allPaid?'#2d5a2d':'#2d6a2d'};border-radius:6px;cursor:pointer">
+          ${fs.allPaid?'✓ 완납됨':'완납 처리'}
         </button>
         <button onclick="resetFee('${m.name}')" style="flex:1;padding:5px 0;font-size:11px;font-weight:700;background:#2a1a1a;color:#ff8080;border:0.5px solid #3a2020;border-radius:6px;cursor:pointer">
           초기화
@@ -1613,7 +1649,7 @@ function renderQView(){
   const usedInThisQ = new Set(Object.values(slots).flat());
 
   // 참석자 pool 계산 (가장 가까운 예정 경기 → 없으면 가장 최근 경기)
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayKST();
   const upcoming = schedules.filter(s=>s.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
   const past = schedules.filter(s=>s.date<today).sort((a,b)=>b.date.localeCompare(a.date));
   const refSch = upcoming[0] || past[0];
@@ -1772,7 +1808,7 @@ function renderQModalList(){
   const usedAll = Object.values(slots).flat();
 
   // 참석자 우선
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayKST();
   const upcoming = schedules.filter(s=>s.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
   let pool = members;
   if(upcoming.length){
@@ -1890,7 +1926,7 @@ function renderPlayTime(totalMin, qCnt){
 
 // 참석자 불러오기 (쿼터용)
 window.loadTodayAttendees = function(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=todayKST();
   const upcoming=schedules.filter(s=>s.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
   if(!upcoming.length){toast('등록된 일정이 없습니다');return;}
   const sc=upcoming[0];
@@ -1915,8 +1951,8 @@ function getStats(name){
     goals += (ov.goals||0);
     assists += (ov.assists||0);
   }
-  // 음수가 되지 않도록 클램프
-  return{played:Math.max(0,played),goals:Math.max(0,goals),assists:Math.max(0,assists)};
+  // 음수가 되지 않도록 클램프 + 출전은 전체 경기수를 넘지 못하도록 상한
+  return{played:Math.min(games.length,Math.max(0,played)),goals:Math.max(0,goals),assists:Math.max(0,assists)};
 }
 // 자동 집계만 (보정값 제외) - override 모달에서 현재값 표시용
 function getAutoStats(name){
@@ -1935,7 +1971,8 @@ window.openStatEdit=function(name){
   document.getElementById('stat-assists').value=ov.assists||0;
   document.getElementById('stat-auto-display').innerHTML=
     `<div style="font-size:9px;color:var(--cl-gold);letter-spacing:1.5px;margin-bottom:6px">▸ 경기 기록 자동 집계</div>
-     <div>출전 <strong style="color:var(--cl-white)">${auto.played}</strong>회 · 골 <strong style="color:#4cd983">${auto.goals}</strong> · 어시 <strong style="color:#7fc1eb">${auto.assists}</strong></div>`;
+     <div>출전 <strong style="color:var(--cl-white)">${auto.played}</strong>회 · 골 <strong style="color:#4cd983">${auto.goals}</strong> · 어시 <strong style="color:#7fc1eb">${auto.assists}</strong></div>
+     <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-top:5px">※ 출전 최대치 = 전체 경기수 ${games.length}경기</div>`;
   updateStatPreview();
   document.getElementById('stat-edit-modal').style.display='flex';
   // 입력 시 실시간 미리보기
@@ -1951,9 +1988,12 @@ function updateStatPreview(){
   const dp=parseInt(document.getElementById('stat-played').value)||0;
   const dg=parseInt(document.getElementById('stat-goals').value)||0;
   const da=parseInt(document.getElementById('stat-assists').value)||0;
-  const fp=Math.max(0,auto.played+dp), fg=Math.max(0,auto.goals+dg), fa=Math.max(0,auto.assists+da);
+  const rawP=auto.played+dp;
+  const fp=Math.min(games.length,Math.max(0,rawP)), fg=Math.max(0,auto.goals+dg), fa=Math.max(0,auto.assists+da);
+  const capped = rawP>games.length;
   document.getElementById('stat-final-preview').innerHTML=
-    `▸ 최종 통계 미리보기: 출전 ${fp} · 골 ${fg} · 어시 ${fa}`;
+    `▸ 최종 통계 미리보기: 출전 ${fp} · 골 ${fg} · 어시 ${fa}`
+    + (capped?`<div style="color:#ff8080;font-weight:700;margin-top:4px">⚠ 출전은 전체 경기수(${games.length})를 넘을 수 없어 ${games.length}(으)로 제한됩니다</div>`:'');
 }
 window.closeStatEdit=function(){
   document.getElementById('stat-edit-modal').style.display='none';
@@ -2071,7 +2111,7 @@ function renderStats(){
         </div>
       </div>
     </div>`;
-  const rows=[...members].map(m=>{const s=getStats(m.name);const paid=Object.values(fees[m.name]||{}).filter(Boolean).length;return{m,s,paid};})
+  const rows=[...members].map(m=>{const s=getStats(m.name);const fs=feeStat(m.name);return{m,s,paid:fs.paid,fs};})
     .sort((a,b)=>{
       let av,bv;
       if(sortCol==='name'){av=a.m.name;bv=b.m.name;return sortAsc?av.localeCompare(bv,'ko'):bv.localeCompare(av,'ko');}
@@ -2082,13 +2122,13 @@ function renderStats(){
       else{av=a.s.goals;bv=b.s.goals;}
       return sortAsc?av-bv:bv-av;
     });
-  document.getElementById('stats-body').innerHTML=rows.map(({m,s,paid})=>`<tr>
+  document.getElementById('stats-body').innerHTML=rows.map(({m,s,paid,fs})=>`<tr>
     <td style="font-weight:700;color:var(--cl-white)">${m.name}${statOverrides[m.name]?`<span title="수동 보정값 적용중" style="margin-left:5px;font-size:9px;color:var(--cl-gold);font-weight:700">⚙</span>`:''}</td>
     <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${m.pos}</span></td>
     <td style="color:var(--cl-silver)">${s.played}</td>
     <td><span class="badge bgg">${s.goals}</span></td>
     <td><span class="badge bgb">${s.assists}</span></td>
-    <td><span class="badge ${paid>=12?'bgg':paid>0?'bgo':'bgr'}">${paid}/12</span></td>
+    <td><span class="badge ${fs.allPaid?'bgg':paid>0?'bgo':'bgr'}">${fs.allPaid?'완납':paid+'/'+fs.required}</span></td>
     ${isAdmin()?`<td><button class="bsm" style="background:linear-gradient(135deg,rgba(212,175,55,0.18),rgba(212,175,55,0.06));color:var(--cl-gold);border:1px solid rgba(212,175,55,0.4)" onclick="openStatEdit('${m.name}')">수정</button></td>`:'<td></td>'}
   </tr>`).join('');
   const thead=document.querySelector('#s-stats .rt thead tr');
@@ -2336,9 +2376,11 @@ window.adminSetVote=async function(sid,name,vote){
   // Firebase 리스너가 자동 갱신해주지만, 모달은 즉시 새로고침
   setTimeout(renderVoteAdminList,150);
 };
+// 한국 시간(Asia/Seoul) 기준 오늘 날짜 YYYY-MM-DD
+function todayKST(){ return new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'}); }
 function renderSchedule(){
   const c=document.getElementById('schedule-list');
-  const today=new Date().toISOString().slice(0,10);
+  const today=todayKST();
   // 경기 기록 생성된 일정도 목록에 그대로 표시 (수동 삭제 전까지 유지)
   const upcoming=schedules.filter(s=>s.date>=today);
   const past=schedules.filter(s=>s.date<today);
@@ -2432,15 +2474,22 @@ function renderSchedule(){
       </div>`:''}
     </div>`;
   };
-  // 마감(경기 기록 생성된) 일정 → 예정 목록 맨 아래
-  const upcomingOpen   = upcoming.filter(s=>!games.some(g=>g.scheduleId===s.id));
-  const upcomingClosed = upcoming.filter(s=> games.some(g=>g.scheduleId===s.id));
-  const upcomingSorted = [...upcomingOpen, ...upcomingClosed];
+  // 오늘 경기 → 마감(경기 기록 생성) 여부와 무관하게 당일 23:59(KST)까지 최상단 고정
+  const todays = upcoming.filter(s=>s.date===today);
+  const future = upcoming.filter(s=>s.date>today);
+  // 미래 경기: 미마감 먼저, 마감된 것은 아래로
+  const futureOpen   = future.filter(s=>!games.some(g=>g.scheduleId===s.id));
+  const futureClosed = future.filter(s=> games.some(g=>g.scheduleId===s.id));
+  const futureSorted = [...futureOpen, ...futureClosed];
 
   let html='';
-  if(upcomingSorted.length){
-    html+='<div style="font-size:11px;font-weight:700;color:#777;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px">예정 경기</div>';
-    html+=upcomingSorted.map(s=>renderCard({...s,comments:commentsData[s.id]||{}},false)).join('');
+  if(todays.length){
+    html+='<div style="font-size:11px;font-weight:700;color:var(--cl-gold);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:#2ecc71;box-shadow:0 0 8px rgba(46,204,113,0.8);animation:pulse 2s infinite"></span>📢 오늘 경기 · 23:59까지 상단 고정</div>';
+    html+=todays.map(s=>renderCard({...s,comments:commentsData[s.id]||{}},false)).join('');
+  }
+  if(futureSorted.length){
+    html+='<div style="font-size:11px;font-weight:700;color:#777;letter-spacing:0.8px;text-transform:uppercase;margin:'+(todays.length?'16px':'0')+' 0 8px">예정 경기</div>';
+    html+=futureSorted.map(s=>renderCard({...s,comments:commentsData[s.id]||{}},false)).join('');
   }
   if(past.length){
     html+=`<div style="font-size:11px;font-weight:700;color:#555;letter-spacing:0.8px;text-transform:uppercase;margin:16px 0 8px">지난 경기</div>`;
