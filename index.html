@@ -1067,6 +1067,15 @@ window.deleteMember=async function(id){
   }
   toast(m.name+' 선수 및 관련 데이터 삭제 완료');
 };
+// 휴면회원 토글: 투표 대상 제외 + 회비 월 1만원 자동 적용
+window.toggleDormant=async function(id){
+  if(!isSuperAdmin()){toast('이동근만 변경할 수 있습니다');return;}
+  const m=members.find(x=>x.id===id); if(!m) return;
+  const nx=!m.dormant;
+  if(nx && !confirm(m.name+' 님을 휴면회원으로 전환할까요?\n· 일정 투표 대상에서 제외됩니다\n· 회비가 월 10,000원으로 적용됩니다'))return;
+  await update(ref(db,'suchon/members/'+id),{dormant:nx});
+  toast(m.name+(nx?' 휴면회원 처리 완료':' 휴면 해제 완료'));
+};
 window.filterMembers=function(){
   const el=document.getElementById('member-search');
   memberQuery=el?el.value.trim():'';
@@ -1086,10 +1095,10 @@ function renderMembers(){
     const [bg,tc]=PC[m.pos]||['#2e2e2e','#aaa'];
     const fs=feeStat(m.name);
     const lo=lateOwed(m.name);
-    return`<div class="pi">
+    return`<div class="pi" style="${m.dormant?'opacity:0.55':''}">
       <div class="av" style="background:${bg};color:${tc}">${m.name[0]}</div>
       <div class="pn">
-        <div class="pname">${m.num?'#'+m.num+' ':''}&nbsp;${m.name}</div>
+        <div class="pname">${m.num?'#'+m.num+' ':''}&nbsp;${m.name}${m.dormant?'<span class="badge bgy" style="margin-left:6px;font-size:9px">💤 휴면</span>':''}</div>
         <div class="pst">
           <span class="badge ${posB(m.pos)}">${m.pos}</span>
           <span class="badge bgy">출전${s.played}</span>
@@ -1098,7 +1107,8 @@ function renderMembers(){
           ${lo.total>0?`<span class="badge bgr">지각 ${lo.total.toLocaleString()}원</span>`:''}
         </div>
       </div>
-      ${isSuperAdmin()?`<div style="display:flex;gap:5px">
+      ${isSuperAdmin()?`<div style="display:flex;gap:5px;flex-shrink:0">
+        <button class="bsm" style="background:${m.dormant?'rgba(46,204,113,0.12)':'rgba(160,176,202,0.12)'};color:${m.dormant?'#4cd983':'var(--cl-silver)'};border:1px solid ${m.dormant?'rgba(46,204,113,0.35)':'rgba(160,176,202,0.3)'};font-size:11px" onclick="toggleDormant('${m.id}')">${m.dormant?'복귀':'휴면'}</button>
         <button class="bsm" style="background:rgba(93,173,226,0.12);color:#7fc1eb;border:1px solid rgba(93,173,226,0.35);font-size:11px" onclick="openMemberEdit('${m.id}','${m.name}',${m.num},'${m.pos}')">수정</button>
         <button class="bsm" style="background:rgba(214,69,69,0.12);color:#ff6b6b;border:1px solid rgba(214,69,69,0.35);font-size:11px" onclick="deleteMember('${m.id}')">삭제</button>
       </div>`:''}
@@ -1111,8 +1121,11 @@ function renderMembers(){
 function isGK(pos){ return pos==='GK' || /골키퍼|goalkeeper/i.test(pos||''); }
 function monthFee(name){
   const m=members.find(x=>x.name===name);
-  return isGK(m&&m.pos) ? 10000 : 20000;
+  if(m&&m.dormant) return 10000;          // 휴면회원 월 1만원
+  return isGK(m&&m.pos) ? 10000 : 20000;  // 골키퍼 월 1만원
 }
+// 투표 대상 회원(휴면 제외)
+function isDormant(name){ const m=members.find(x=>x.name===name); return !!(m&&m.dormant); }
 // 월 상태값: true=납부, false/미설정=미납, 'x'=납입 불필요(면제)
 // 신규 가입 회원은 가입 전 달을 '불필요'로 표시 → 미납/합계에서 제외
 function feeStat(name){
@@ -2326,6 +2339,7 @@ window.deleteSchedule=async function(id){
 };
 window.castVote=async function(sid,vote){
   if(!myName){toast('먼저 내 이름을 선택해주세요');return;}
+  if(isDormant(myName)){toast('휴면회원은 투표 대상에서 제외됩니다');return;}
   // 투표 마감(경기 기록 생성)된 일정은 투표 수정 불가
   if(games.some(g=>g.scheduleId===sid)){
     toast('투표가 마감되어 수정할 수 없습니다');return;
@@ -2359,7 +2373,7 @@ function renderVoteAdminList(){
   if(!s)return;
   const votes=s.votes||{};
   const c=document.getElementById('vote-admin-list');
-  c.innerHTML=members.map(m=>{
+  c.innerHTML=members.filter(m=>!m.dormant).map(m=>{
     const nk=nameKey(m.name);
     const cur=votes[nk]?.vote||null;
     const btn=(v,label,activeColor,activeBg)=>{
@@ -2408,6 +2422,11 @@ function renderSchedule(){
     const myVote=myName?votes[nameKey(myName)]?.vote:null;
     const linked=games.find(g=>g.scheduleId===s.id);
     const isClosed=!!linked; // 투표 마감 (경기 기록 생성) 여부
+    // 휴면회원은 투표 대상에서 제외
+    const voters=members.filter(m=>!m.dormant);
+    const votedKeys=new Set(Object.keys(votes));
+    const noResp=voters.filter(m=>!votedKeys.has(nameKey(m.name)));
+    const myDormant=myName?isDormant(myName):false;
     return`<div class="vote-card" style="${isPast?'opacity:0.6':(isClosed?'border-color:rgba(255,255,255,0.08);opacity:0.85':'')}"><div style="${isClosed?'position:absolute;top:0;left:0;right:0;height:2px;background:rgba(138,155,181,0.3)':''}"></div>
       <div class="vote-header">
         <div>
@@ -2440,21 +2459,21 @@ function renderSchedule(){
           </div>
         </div>`:''}
       </div>
-      ${!isPast&&!isClosed?`<div class="vote-btns">
+      ${!isPast&&!isClosed?(myDormant
+        ?`<div style="padding:10px 12px;margin-bottom:12px;background:rgba(160,176,202,0.06);border:1px solid rgba(160,176,202,0.2);border-radius:3px;font-size:11px;color:var(--cl-silver);text-align:center;letter-spacing:0.5px">💤 휴면회원은 투표 대상에서 제외됩니다</div>`
+        :`<div class="vote-btns">
         <button class="vbtn attend ${myVote==='o'?'active':''}" onclick="castVote('${s.id}','o')">참석</button>
         <button class="vbtn maybe ${myVote==='?'?'active':''}" onclick="castVote('${s.id}','?')">미정</button>
         <button class="vbtn absent ${myVote==='x'?'active':''}" onclick="castVote('${s.id}','x')">불참</button>
-      </div>`:''}
+      </div>`):''}
       <div class="vote-counts">
         <div class="vc"><div class="vc-num" style="color:#81c784">${attend.length}</div><div class="vc-lbl">참석</div></div>
         <div class="vc"><div class="vc-num" style="color:#ffb74d">${maybe.length}</div><div class="vc-lbl">미정</div></div>
         <div class="vc"><div class="vc-num" style="color:#ff8080">${absent.length}</div><div class="vc-lbl">불참</div></div>
-        <div class="vc"><div class="vc-num" style="color:#aaa">${members.length-vList.length}</div><div class="vc-lbl">미응답</div></div>
+        <div class="vc"><div class="vc-num" style="color:#aaa">${noResp.length}</div><div class="vc-lbl">미응답</div></div>
       </div>
       ${(()=>{
-        // 미응답자 = 전체 회원 중 votes에 키가 없는 사람
-        const votedKeys = new Set(Object.keys(votes));
-        const noResp = members.filter(m=>!votedKeys.has(nameKey(m.name)));
+        // 미응답자 = 투표 대상 회원(휴면 제외) 중 votes에 키가 없는 사람
         if(vList.length===0 && noResp.length===0){
           return '<div style="font-size:12px;color:#555">아직 투표한 팀원이 없습니다</div>';
         }
