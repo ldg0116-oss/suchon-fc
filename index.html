@@ -599,7 +599,7 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
     <div id="q-admin-panel" style="display:none">
       <div class="card" style="margin-bottom:10px">
         <div class="ct">Quarter Setup</div>
-        <div class="r3">
+        <div class="r2">
           <div><label>총 경기시간(분)</label><input id="q-total" type="number" value="120" onchange="renderQView()"></div>
           <div><label>쿼터 수</label>
             <select id="q-cnt" onchange="renderQView()">
@@ -607,10 +607,23 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
               <option value="2">2쿼터</option>
             </select>
           </div>
-          <div><label>쿼터당 인원</label><input id="q-per" type="number" value="6" min="1" max="11"></div>
+        </div>
+        <div class="r2" style="margin-top:2px">
+          <div><label>포메이션</label>
+            <select id="q-formation" onchange="renderQView()">
+              <option value="4-3-3">4-3-3</option>
+              <option value="4-4-2">4-4-2</option>
+              <option value="4-2-3-1">4-2-3-1</option>
+              <option value="4-5-1">4-5-1</option>
+              <option value="3-4-3">3-4-3</option>
+              <option value="3-5-2">3-5-2</option>
+              <option value="5-3-2">5-3-2</option>
+            </select>
+          </div>
+          <div><label>고정 GK</label><select id="q-gk"><option value="">자동 선택</option></select></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px">
-          <button onclick="autoRotate()" style="flex:1;padding:11px;background:linear-gradient(135deg,rgba(46,204,113,0.14),rgba(46,204,113,0.04));border:1px solid rgba(46,204,113,0.4);border-radius:3px;color:#4cd983;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">⚖ 균등 로테이션 자동배치</button>
+          <button onclick="autoRotate()" style="flex:1;padding:11px;background:linear-gradient(135deg,rgba(46,204,113,0.14),rgba(46,204,113,0.04));border:1px solid rgba(46,204,113,0.4);border-radius:3px;color:#4cd983;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">⚖ 15분 교체 포함 균등 자동배치</button>
         </div>
         <div style="display:flex;gap:8px;margin-top:8px">
           <button onclick="copyQToAll()" style="flex:1;padding:10px;background:rgba(93,173,226,0.1);border:1px solid rgba(93,173,226,0.35);border-radius:3px;color:#7fc1eb;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">📋 이 배치 전 쿼터 복사</button>
@@ -1689,6 +1702,36 @@ function getQField(q){
   qFormation[k]={field};
   return field;
 }
+// 쿼터별 15분 교체 목록 [{out,in,x,y}]
+function getQSubs(q){ const c=qFormation['q'+q]; return (c&&Array.isArray(c.subs))?c.subs:[]; }
+
+// ── 포메이션 (11인제, 아웃필드 10명) ──
+// 라인은 수비 → 공격 순서의 인원수
+const FORMATIONS={'4-3-3':[4,3,3],'4-4-2':[4,4,2],'4-2-3-1':[4,2,3,1],'4-5-1':[4,5,1],'3-4-3':[3,4,3],'3-5-2':[3,5,2],'5-3-2':[5,3,2]};
+const GK_COORD={x:0.5,y:0.92};
+function formationSlots(name){
+  const lines=FORMATIONS[name]||FORMATIONS['4-3-3'];
+  const L=lines.length, slots=[];
+  lines.forEach((cnt,i)=>{
+    const y = L===1?0.5 : (0.76 - i*(0.76-0.16)/(L-1));      // 수비(아래) → 공격(위)
+    const type = i===0?'DF':(i===L-1?'FW':'MF');
+    for(let j=0;j<cnt;j++) slots.push({type,x:(j+1)/(cnt+1),y});
+  });
+  return slots;
+}
+function posCat(name){ const m=members.find(x=>x.name===name); const p=m?m.pos:''; return (p==='GK'||p==='DF'||p==='FW')?p:'MF'; }
+const CATRANK={DF:0,MF:1,FW:2};
+// 선택된 선수들을 포지션 거리(수비-미드-공격)가 가장 가까운 슬롯에 배치 → [{n,x,y}]
+// 예: 수비 슬롯은 DF → (없으면) MF → FW 순으로 채움
+function assignPlayersToSlots(players, slots){
+  const avail=players.slice(), res=[];
+  slots.forEach(s=>{
+    let bi=-1, bd=99;
+    avail.forEach((n,i)=>{ const d=Math.abs(CATRANK[posCat(n)]-CATRANK[s.type]); if(d<bd){bd=d;bi=i;} });
+    if(bi>=0){ res.push({n:avail[bi],x:s.x,y:s.y}); avail.splice(bi,1); }
+  });
+  return res;
+}
 
 // 참석자 풀 (휴면 제외). 투표 참석자 없으면 전체(비휴면)로 대체
 function getAttendeePool(){
@@ -1741,6 +1784,19 @@ function renderQView(){
   const pool=getAttendeePool();
   const onNames=new Set(field.map(f=>f.n));
   const bench=pool.names.filter(n=>!onNames.has(n));
+  const subs=getQSubs(q);
+
+  // 고정 GK 셀렉트 채우기 (선택 유지)
+  const gkSel=document.getElementById('q-gk');
+  if(gkSel){
+    const prev=gkSel.value;
+    const opts=['<option value="">자동 선택</option>'].concat(pool.names.map(n=>{
+      const m=members.find(x=>x.name===n); const gkTag=(m&&m.pos==='GK')?' (GK)':'';
+      return `<option value="${escAttr(n)}">${n}${gkTag}</option>`;
+    }));
+    gkSel.innerHTML=opts.join('');
+    if(prev && pool.names.includes(prev)) gkSel.value=prev;
+  }
 
   const jerseys=field.map(f=>jerseyHtml(f.n,f.x,f.y,coach)).join('');
   const benchChips=bench.map(n=>{
@@ -1760,6 +1816,7 @@ function renderQView(){
     <div class="q-pitch" id="q-pitch">${pitchLinesHtml()}${jerseys}
       ${field.length===0?`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.65);font-size:12px;text-align:center;padding:24px;pointer-events:none;line-height:1.6">${coach?'아래 벤치에서 선수를<br>피치로 끌어다 배치하세요':'아직 배치된 선수가 없습니다'}</div>`:''}
     </div>
+    ${subs.length?`<div style="margin-top:8px;padding:9px 12px;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.3);border-radius:5px;font-size:11px;color:#4cd983;letter-spacing:0.3px">🔄 ${Math.round(qMin/2)}분 교체 · ${subs.map(s=>`<b style="color:#ff8080">${s.out}</b> ⇄ <b style="color:#4cd983">${s.in}</b>`).join(' / ')}</div>`:''}
     <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--cl-silver);text-transform:uppercase">벤치 · 미출전 (${bench.length})</div>
       ${coach?'<div style="font-size:9px;color:rgba(160,176,202,0.6)">칩 → 피치 드래그 · 피치 밖으로 빼면 제외</div>':''}
@@ -1771,6 +1828,7 @@ function renderQView(){
   bindQDrag();
   renderPlayTime(totalMin,qCnt,pool.names);
 }
+window.renderQView=renderQView; // 인라인 onchange 핸들러용
 
 // ── 드래그(포인터: 마우스+터치) ──
 let qDragBound=false, qDrag=null;
@@ -1818,6 +1876,8 @@ function qPointerUp(e){
   } else {
     if(idx>=0) field.splice(idx,1); // 피치 밖 → 벤치로
   }
+  // 수동 편집 시 해당 쿼터의 자동 교체(subs)는 초기화 (불일치 방지)
+  if(qFormation['q'+currentQTab]) qFormation['q'+currentQTab].subs=[];
   qDrag.clone.remove(); qDrag=null; qEndListeners(false);
   renderQView();
 }
@@ -1827,55 +1887,111 @@ function qPointerCancel(){
   renderQView();
 }
 
-// ── 균등 로테이션 자동배치 ──
-function formationCoords(cnt){
-  if(cnt<=0) return [];
-  const coords=[[0.5,0.9]]; // GK
-  const outfield=cnt-1;
-  if(outfield<=0) return coords;
-  let lines;
-  if(outfield<=2) lines=[outfield];
-  else if(outfield<=4) lines=[Math.ceil(outfield/2),Math.floor(outfield/2)];
-  else { const a=Math.round(outfield/3); const b=Math.round((outfield-a)/2); lines=[a,outfield-a-b,b]; }
-  const ys=lines.length===1?[0.6]:lines.length===2?[0.66,0.4]:[0.68,0.46,0.24];
-  lines.forEach((c,li)=>{ for(let i=0;i<c;i++) coords.push([(i+1)/(c+1),ys[li]]); });
-  return coords;
-}
+// ── 균등 로테이션 자동배치 (포메이션 · GK 고정 · 15분 교체) ──
 window.autoRotate=function(){
   if(!isCoach()){toast('권한이 없습니다');return;}
   const pool=getAttendeePool().names;
-  if(!pool.length){toast('참석자가 없습니다');return;}
+  if(pool.length<2){toast('참석자가 2명 이상 필요합니다');return;}
   const qCnt=parseInt(document.getElementById('q-cnt')?.value)||4;
-  let per=parseInt(document.getElementById('q-per')?.value)||6;
-  per=Math.max(1,Math.min(per,pool.length));
-  if(!confirm(`참석 ${pool.length}명을 ${qCnt}쿼터 · 쿼터당 ${per}명으로 균등 배치할까요?\n(현재 배치는 덮어씁니다)`)) return;
-  const M=pool.length, totalSlots=per*qCnt;
-  const base=Math.floor(totalSlots/M), rem=totalSlots%M;
-  const remain={}; pool.forEach((n,i)=>{ remain[n]=base+(i<rem?1:0); });
-  const perQ=Array.from({length:qCnt},()=>[]);
-  for(let slot=0; slot<per; slot++){
-    for(let qi=0; qi<qCnt; qi++){
-      const cand=pool.filter(n=>remain[n]>0 && !perQ[qi].includes(n)).sort((a,b)=>remain[b]-remain[a]);
-      if(cand.length){ perQ[qi].push(cand[0]); remain[cand[0]]--; }
+  const totalMin=parseInt(document.getElementById('q-total')?.value)||120;
+  const qMin=Math.floor(totalMin/qCnt);
+  const half=Math.round(qMin/2);
+  const fname=document.getElementById('q-formation')?.value||'4-3-3';
+  const slots=formationSlots(fname);
+  // 고정 GK 결정 (지정값 → 없으면 GK 포지션 선수 자동)
+  let gk=document.getElementById('q-gk')?.value||'';
+  if(!gk || !pool.includes(gk)) gk=pool.find(n=>posCat(n)==='GK')||'';
+  const outfield=pool.filter(n=>n!==gk);
+  const N=outfield.length;
+  if(N===0){toast('필드 선수가 없습니다');return;}
+  const slotCount=Math.min(slots.length,N);
+  const useSlots=slots.slice(0,slotCount);
+  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분 (${half}분 교체 1회)\nGK 고정: ${gk||'미지정'}\n필드 ${N}명을 균등 배치할까요?\n(현재 배치는 덮어씁니다)`)) return;
+
+  // 15분 세그먼트 단위로 누적 분을 맞춰 배치 (쿼터당 교체 1회 제약)
+  const acc={}, appear={}; outfield.forEach(n=>{acc[n]=0;appear[n]=0;});
+  const N2=outfield.length;
+  for(let q=0;q<qCnt;q++){
+    // 세그먼트 A(전반 15분): 누적 최저 → 출전 적은 → 회전 순
+    const rot=(i)=>((i+q*3)%N2);
+    const sortA=[...outfield].sort((a,b)=>acc[a]-acc[b] || appear[a]-appear[b] || rot(outfield.indexOf(a))-rot(outfield.indexOf(b)));
+    const starters=sortA.slice(0,slotCount);
+    starters.forEach(n=>acc[n]+=half); // A 출전
+    // 세그먼트 B(후반 15분): A 유지하되 교체 1회 가능
+    let subOut=null, subIn=null;
+    if(N>slotCount){
+      const benchIn=sortA.slice(slotCount)[0];
+      // A 중 누적 최고를 빼고 벤치 최저를 넣음 (균형 개선될 때만)
+      let hi=starters[0]; starters.forEach(n=>{ if(acc[n]>acc[hi]) hi=n; });
+      if(acc[benchIn] < acc[hi]){ subOut=hi; subIn=benchIn; }
     }
+    if(subOut){
+      starters.forEach(n=>{ if(n!==subOut) acc[n]+=half; });
+      acc[subIn]=(acc[subIn]||0)+half;
+      // 출전 쿼터 카운트: 이 쿼터에 나온 모든 선수
+      starters.forEach(n=>appear[n]++); appear[subIn]=(appear[subIn]||0)+1;
+    } else {
+      starters.forEach(n=>{ acc[n]+=half; appear[n]++; });
+    }
+    // 배치: A를 포지션 맞춰 슬롯에
+    const placed=assignPlayersToSlots(starters,useSlots);
+    const field=[];
+    if(gk) field.push({n:gk,x:GK_COORD.x,y:GK_COORD.y});
+    field.push(...placed);
+    const subs=[];
+    if(subOut){
+      const slot=placed.find(pp=>pp.n===subOut)||{x:0.5,y:0.5};
+      subs.push({out:subOut,in:subIn,x:slot.x,y:slot.y});
+    }
+    qFormation['q'+(q+1)]={field,subs};
   }
-  for(let qi=0; qi<qCnt; qi++){
-    const names=perQ[qi];
-    names.sort((a,b)=>{ const ga=(members.find(m=>m.name===a)||{}).pos==='GK'?0:1; const gb=(members.find(m=>m.name===b)||{}).pos==='GK'?0:1; return ga-gb; });
-    const coords=formationCoords(names.length);
-    qFormation['q'+(qi+1)]={field:names.map((n,i)=>({n,x:coords[i]?coords[i][0]:0.5,y:coords[i]?coords[i][1]:0.5}))};
-  }
-  renderQView();
-  toast('균등 로테이션 배치 완료 — 확인 후 저장하세요');
+  // 재조정 패스: 남는 교체 기회로 최다-최소 출전 격차를 15분씩 좁힘
+  qRebalance(qCnt,qMin,half,outfield,gk);
+  currentQTab=1; switchQTab(1);
+  toast(`${fname} 균등 배치 완료 — 확인 후 저장하세요`);
 };
+function qRebalance(qCnt,qMin,half,outfield,gk){
+  for(let iter=0; iter<60; iter++){
+    const mins={}; outfield.forEach(n=>mins[n]=0);
+    for(let q=1;q<=qCnt;q++){
+      const cur=qFormation['q'+q]; if(!cur) continue;
+      const outS=new Set((cur.subs||[]).map(s=>s.out));
+      (cur.field||[]).forEach(x=>{ if(x.n!==gk && mins[x.n]!==undefined) mins[x.n]+=(outS.has(x.n)?half:qMin); });
+      (cur.subs||[]).forEach(s=>{ if(mins[s.in]!==undefined) mins[s.in]+=half; });
+    }
+    let hi=null,lo=null;
+    outfield.forEach(n=>{ if(hi===null||mins[n]>mins[hi])hi=n; if(lo===null||mins[n]<mins[lo])lo=n; });
+    if(hi===null||mins[hi]-mins[lo]<=half) break;
+    // hi의 출전 15분을 lo에게 넘기는 이동을 찾음 (한 쿼터당 교체 1회 유지)
+    let done=false;
+    for(let q=1;q<=qCnt && !done;q++){
+      const cur=qFormation['q'+q]; if(!cur) continue;
+      const f=cur.field||[], subs=cur.subs||[];
+      const present=new Set(f.map(x=>x.n)); subs.forEach(s=>present.add(s.in));
+      const hiSlot=f.find(x=>x.n===hi);
+      // 이동1: 교체 없는 쿼터 · hi 풀출전 · lo 미출전 → hi→lo 교체 신설
+      if(hiSlot && subs.length===0 && !present.has(lo)){
+        cur.subs=[{out:hi,in:lo,x:hiSlot.x,y:hiSlot.y}]; done=true; break;
+      }
+      if(subs.length===1){
+        const s=subs[0];
+        // 이동2: hi가 이 쿼터의 교체 투입(subIn) · lo 미출전 → 투입을 lo로 교체
+        if(s.in===hi && !present.has(lo)){ s.in=lo; done=true; break; }
+        // 이동3: lo가 이 쿼터의 교체 아웃(subOut, 15분만 뜀) · hi 풀출전 → 나가는 선수를 hi로
+        if(s.out===lo && hiSlot && hi!==s.in){ s.out=hi; s.x=hiSlot.x; s.y=hiSlot.y; done=true; break; }
+      }
+    }
+    if(!done) break;
+  }
+}
 
 window.copyQToAll=function(){
   if(!isCoach()){toast('권한이 없습니다');return;}
   const qCnt=parseInt(document.getElementById('q-cnt')?.value)||4;
-  const src=getQField(currentQTab);
+  const src=getQField(currentQTab); const srcSubs=getQSubs(currentQTab);
   if(!src.length){toast('현재 쿼터에 배치가 없습니다');return;}
   if(!confirm(`Q${currentQTab} 배치를 전 쿼터(1~${qCnt})에 복사할까요?`)) return;
-  for(let i=1;i<=qCnt;i++) qFormation['q'+i]={field:src.map(f=>({n:f.n,x:f.x,y:f.y}))};
+  for(let i=1;i<=qCnt;i++) qFormation['q'+i]={field:src.map(f=>({n:f.n,x:f.x,y:f.y})),subs:srcSubs.map(s=>({...s}))};
   renderQView();
   toast('전 쿼터에 복사 완료 — 저장하세요');
 };
@@ -1895,22 +2011,32 @@ window.clearQFormation=async function(){
 
 function renderPlayTime(totalMin,qCnt,poolNames){
   const qMin=Math.floor(totalMin/(qCnt||4));
+  const half=Math.round(qMin/2);
   const active=[1,2,3,4].slice(0,qCnt||4);
   const playMap={}, qcount={};
   (poolNames||[]).forEach(n=>{ playMap[n]=0; qcount[n]=0; });
   active.forEach(q=>{
-    getQField(q).forEach(f=>{ if(f.n){ playMap[f.n]=(playMap[f.n]||0)+qMin; qcount[f.n]=(qcount[f.n]||0)+1; } });
+    const subs=getQSubs(q);
+    const outSet=new Set(subs.map(s=>s.out));
+    getQField(q).forEach(f=>{ if(f.n){ const mn=outSet.has(f.n)?half:qMin; playMap[f.n]=(playMap[f.n]||0)+mn; qcount[f.n]=(qcount[f.n]||0)+1; } });
+    subs.forEach(s=>{ if(s.in){ playMap[s.in]=(playMap[s.in]||0)+half; qcount[s.in]=(qcount[s.in]||0)+1; } });
   });
   const names=Object.keys(playMap);
   const pt=document.getElementById('q-playtime');
   if(!names.length){ pt.innerHTML='<div style="font-size:11px;color:rgba(160,176,202,0.35);text-align:center;padding:16px;letter-spacing:0.5px">참석자를 배치하면 출전 시간이 표시됩니다</div>'; return; }
   const sorted=names.map(n=>({n,min:playMap[n],q:qcount[n]})).sort((a,b)=>b.min-a.min||a.n.localeCompare(b.n,'ko'));
   const maxMin=sorted[0].min||1;
-  const mins=sorted.map(s=>s.min); const balance=Math.max(...mins)-Math.min(...mins);
+  // 고정 GK 감지: 모든 쿼터의 field[0]가 동일하면 그 선수를 GK로 보고 편차에서 제외
+  let gkName=null;
+  const firsts=active.map(q=>{const f=getQField(q);return f[0]&&f[0].n;}).filter(Boolean);
+  if(firsts.length===active.length && new Set(firsts).size===1) gkName=firsts[0];
+  // 편차는 GK 제외한 필드 로테이션 선수 기준
+  const rot=sorted.filter(s=>s.n!==gkName && s.min>0).map(s=>s.min);
+  const balance=rot.length?Math.max(...rot)-Math.min(...rot):0;
   pt.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--cl-border2)">
       <div style="font-family:var(--font-display);font-size:12px;letter-spacing:2.5px;color:var(--cl-silver)">PLAY TIME · 전체 ${sorted.length}명</div>
-      <div style="font-size:10px;color:${balance===0?'#4cd983':balance<=qMin?'var(--cl-gold)':'#ff8080'};font-weight:700;letter-spacing:0.5px">편차 ${balance}분</div>
+      <div style="font-size:10px;color:${balance<=half?'#4cd983':balance<=qMin?'var(--cl-gold)':'#ff8080'};font-weight:700;letter-spacing:0.5px">로테이션 편차 ${balance}분</div>
     </div>
     ${sorted.map(s=>`
       <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.06);${s.min===0?'opacity:0.8':''}">
@@ -2333,8 +2459,10 @@ function renderVoteAdminList(){
   const s=schedules.find(x=>x.id===sid);
   if(!s)return;
   const votes=s.votes||{};
+  const isClosed=games.some(g=>g.scheduleId===sid);
   const c=document.getElementById('vote-admin-list');
-  c.innerHTML=members.filter(m=>!m.dormant).map(m=>{
+  const closedNote=isClosed?`<div style="background:rgba(212,175,55,0.08);border:1px solid var(--cl-border2);border-radius:4px;padding:9px 11px;margin-bottom:12px;font-size:10px;color:var(--cl-gold);letter-spacing:0.3px;line-height:1.5">🔒 이미 마감된 경기입니다 · 관리자는 투표를 수정할 수 있어요<br><span style="color:var(--cl-silver)">※ 이미 생성된 경기 기록의 출전 명단은 자동 변경되지 않습니다</span></div>`:'';
+  c.innerHTML=closedNote+members.filter(m=>!m.dormant).map(m=>{
     const nk=nameKey(m.name);
     const cur=votes[nk]?.vote||null;
     const btn=(v,label,activeColor,activeBg)=>{
@@ -2354,9 +2482,7 @@ function renderVoteAdminList(){
 }
 window.adminSetVote=async function(sid,name,vote){
   if(!isAdmin()){toast('관리자만 가능합니다');return;}
-  if(games.some(g=>g.scheduleId===sid)){
-    toast('투표가 마감되어 수정할 수 없습니다');return;
-  }
+  // 투표 마감(경기 기록 생성) 이후에도 관리자는 투표를 수정할 수 있음
   const nk=nameKey(name);
   if(vote==='null'){
     await remove(ref(db,'suchon/schedules/'+sid+'/votes/'+nk));
@@ -2413,7 +2539,7 @@ function renderSchedule(){
           ${isClosed?`<div style="display:inline-block;margin-top:6px;padding:3px 8px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.25);border-radius:3px;font-size:10px;color:var(--cl-silver);letter-spacing:1.5px">🔒 투표 마감됨</div>`:''}
         </div>
         ${isAdmin()?`<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end">
-          ${!isClosed?`<button class="bsm" style="background:linear-gradient(135deg,rgba(212,175,55,0.18),rgba(212,175,55,0.06));color:var(--cl-gold);border:1px solid rgba(212,175,55,0.4);white-space:nowrap" onclick="openVoteAdmin('${s.id}')">👥 투표 관리</button>`:''}
+          <button class="bsm" style="background:linear-gradient(135deg,rgba(212,175,55,0.18),rgba(212,175,55,0.06));color:var(--cl-gold);border:1px solid rgba(212,175,55,0.4);white-space:nowrap" onclick="openVoteAdmin('${s.id}')">👥 투표 관리${isClosed?' (마감후)':''}</button>
           <div style="display:flex;gap:6px">
             <button class="bsm" style="background:rgba(93,173,226,0.12);color:#7fc1eb;border:1px solid rgba(93,173,226,0.35)" onclick="openEditModal('${s.id}')">수정</button>
             <button class="bsm" style="background:rgba(214,69,69,0.12);color:#ff6b6b;border:1px solid rgba(214,69,69,0.35)" onclick="deleteSchedule('${s.id}')">삭제</button>
