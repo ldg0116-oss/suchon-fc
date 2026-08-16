@@ -634,6 +634,10 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
           <button onclick="clearQFormation()" style="flex:1;padding:10px;background:rgba(214,69,69,0.1);border:1px solid rgba(214,69,69,0.3);border-radius:3px;color:#ff6b6b;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">🗑 이 쿼터 비우기</button>
         </div>
         <button onclick="clearAllQ()" style="width:100%;margin-top:8px;padding:10px;background:rgba(214,69,69,0.08);border:1px solid rgba(214,69,69,0.3);border-radius:3px;color:#ff8080;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">🗑 전 쿼터 초기화</button>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button onclick="saveQBackup()" style="flex:1;padding:10px;background:rgba(93,173,226,0.1);border:1px solid rgba(93,173,226,0.35);border-radius:3px;color:#7fc1eb;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">💾 이 경기 기록 백업</button>
+          <button onclick="openBackupModal()" style="flex:1;padding:10px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.35);border-radius:3px;color:var(--cl-silver);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">📁 백업 목록</button>
+        </div>
         <button onclick="saveQFormation()" style="width:100%;margin-top:8px;padding:12px;background:linear-gradient(135deg,rgba(212,175,55,0.2),rgba(212,175,55,0.08));border:1px solid var(--cl-gold);border-radius:3px;color:var(--cl-gold);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase">💾 저장 (팀원 화면 반영)</button>
       </div>
     </div>
@@ -688,6 +692,18 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
         <button onclick="resetWeights()" style="padding:10px 14px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.3);border-radius:3px;color:var(--cl-silver);font-size:11px;font-weight:700;cursor:pointer">기본값</button>
         <button class="btn btn-gold" style="flex:0 0 auto;width:auto;margin:0;padding:10px 20px" onclick="closeWeightEdit()">✓ 완료</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 경기 기록 백업 모달 (관리자) -->
+  <div id="backup-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);backdrop-filter:blur(6px);z-index:999;align-items:flex-end;justify-content:center">
+    <div style="background:var(--grad-card);border-radius:6px 6px 0 0;padding:18px 16px 24px;width:100%;max-width:500px;border-top:1px solid var(--cl-gold);max-height:82vh;display:flex;flex-direction:column;box-shadow:0 -10px 40px rgba(0,0,0,0.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-family:var(--font-display);font-size:15px;letter-spacing:2px;color:var(--cl-gold);text-transform:uppercase">경기 기록 백업</div>
+        <button onclick="closeBackupModal()" style="background:rgba(255,255,255,0.06);border:1px solid var(--cl-border2);border-radius:3px;color:var(--cl-silver);font-size:10px;padding:5px 12px;cursor:pointer;letter-spacing:1.5px;font-weight:700">CLOSE</button>
+      </div>
+      <div style="font-size:10px;color:var(--cl-silver);margin-bottom:12px;letter-spacing:0.2px;line-height:1.5">쿼터 배치·교체·뛴 시간·명단을 그대로 저장합니다. 불러오면 현재 배치에 덮어쓰기 됩니다. (관리자 전용)</div>
+      <div id="backup-list" style="overflow-y:auto;flex:1"></div>
     </div>
   </div>
 
@@ -950,6 +966,10 @@ function startListeners(){
     qFormation=snap.val()||{};
     if(appReady&&document.getElementById('s-quarter').classList.contains('on')) renderQView();
   });
+  onValue(ref(db,'suchon/qBackups'),snap=>{
+    qBackups=snap.val()||{};
+    if(appReady&&document.getElementById('backup-modal')?.style.display==='flex') renderBackupList();
+  });
   setDot('ok','실시간 연결됨');
   appReady=true;
 }
@@ -1178,7 +1198,6 @@ function renderMembers(){
           <span class="badge ${posB(m.pos)}">${m.pos}</span>
           <span class="badge bgy">출전${s.played}</span>
           <span class="badge bgg">⚽${s.goals} 🅰${s.assists}</span>
-          <span class="badge bgo">기여 ${Math.round(contribScoreReg(m.name))}</span>
           <span class="badge ${fs.allPaid?'bgg':fs.paid>0?'bgo':'bgr'}">회비${fs.allPaid?'완납':fs.paid+'/'+fs.required}</span>
           ${lo.total>0?`<span class="badge bgr">지각 ${lo.total.toLocaleString()}원</span>`:''}
         </div>
@@ -1620,9 +1639,11 @@ window.selectGame=function(id, scroll=true){
       const toggle=p.played
         ? `<span onclick="updRec('${id}','${m.name}','played',false)" style="display:inline-block;padding:5px 11px;background:rgba(46,204,113,0.18);border:1px solid rgba(46,204,113,0.45);border-radius:3px;color:#4cd983;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;user-select:none;white-space:nowrap">출전</span>`
         : `<span onclick="updRec('${id}','${m.name}','played',true)" style="display:inline-block;padding:5px 11px;background:rgba(160,176,202,0.06);border:1px dashed rgba(160,176,202,0.3);border-radius:3px;color:rgba(160,176,202,0.55);font-size:11px;font-weight:500;cursor:pointer;letter-spacing:1px;user-select:none;white-space:nowrap">미출전</span>`;
+      const playedPos=p.pos||posCat(m.name);
+      const posSel=`<select onchange="updRec('${id}','${escAttr(m.name)}','pos',this.value)" title="이 경기에서 뛴 포지션 (골·어시 가중치 기준)" style="padding:4px 3px;font-size:11px;margin:0;min-width:50px">${['DF','MF','FW','GK'].map(k=>`<option value="${k}" ${k===playedPos?'selected':''}>${k}</option>`).join('')}</select>`;
       return`<tr>
         <td style="font-weight:700;white-space:nowrap;color:var(--cl-white)">${m.name}</td>
-        <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${m.pos}</span></td>
+        <td>${posSel}</td>
         <td>${toggle}</td>
         <td><input type="number" class="ni" value="${p.goals||0}" min="0" onchange="updRec('${id}','${m.name}','goals',+this.value)"></td>
         <td><input type="number" class="ni" value="${p.assists||0}" min="0" onchange="updRec('${id}','${m.name}','assists',+this.value)"></td>
@@ -1630,9 +1651,10 @@ window.selectGame=function(id, scroll=true){
     } else {
       // 일반 팀원: 읽기 전용, 출전 선수만 표시
       if(!p.played&&!p.goals&&!p.assists) return '';
+      const shownPos=p.pos||m.pos;
       return`<tr>
         <td style="font-weight:700;white-space:nowrap;color:var(--cl-white)">${m.name}</td>
-        <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${m.pos}</span></td>
+        <td><span class="badge ${posB(shownPos)}" style="font-size:10px">${shownPos}</span></td>
         <td><span style="color:${p.played?'#2ecc71':'var(--cl-silver)'};font-size:13px">${p.played?'✓ 출전':'—'}</span></td>
         <td><span class="badge bgg" style="${!p.goals?'opacity:0.3':''}">${p.goals||0}</span></td>
         <td><span class="badge bgb" style="${!p.assists?'opacity:0.3':''}">${p.assists||0}</span></td>
@@ -1657,7 +1679,7 @@ window.selectGame=function(id, scroll=true){
 
   document.getElementById('rec-table').innerHTML=`
     <thead><tr>
-      <th>이름</th><th>POS</th><th>출전</th><th>G</th><th>A</th>
+      <th>이름</th><th title="이 경기에서 뛴 포지션 (골·어시 가중치 기준)">뛴P</th><th>출전</th><th>G</th><th>A</th>
     </tr></thead>
     <tbody>${scoreRow}${rows}${emptyMsg}</tbody>`;
   if(scroll) document.getElementById('record-wrap').scrollIntoView({behavior:'smooth',block:'start'});
@@ -1690,6 +1712,7 @@ window.updGameInfo=async function(gid,field,val){
 // ── 쿼터 포지션 배치 ──
 let currentQTab = 1;
 let qFormation = {}; // {q1:{GK:[],DF:[],MF:[],FW:[]}, q2:...}
+let qBackups = {}; // 경기 기록 백업 스냅샷
 let pendingPos = null;
 let pendingQ = null;
 
@@ -1797,15 +1820,19 @@ const DEFAULT_POSW={
   FW:{att:1,goal:0.3,assist:0.5,role:0.2},
   GK:{att:1,goal:0.5,assist:0.5,role:0.6}
 };
+// 선수별 기본 참석 보너스(멀리서 오는 사람 등) · 산정 포지션 지정 (앱 기본값, 관리자 수정 가능)
+const DEFAULT_ATTBONUS={박지훈:1,이동근:1,김종호:1,최춘식:1};
+const DEFAULT_PLAYERPOS={최춘식:'FW'};
+function attBonusOf(name){ const a=qFormation.attBonus||{}; return (a[name]!=null?a[name]:(DEFAULT_ATTBONUS[name]||0)); }
+function scorePos(name){ const o=qFormation.playerPos||{}; return o[name]||DEFAULT_PLAYERPOS[name]||posCat(name); }
 function posWeights(){
   const pw=qFormation.posWeights||{};
   const out={};
   ['DF','MF','FW','GK'].forEach(k=>{ const d=DEFAULT_POSW[k], c=pw[k]||{}; out[k]={att:(c.att!=null?c.att:d.att),goal:(c.goal!=null?c.goal:d.goal),assist:(c.assist!=null?c.assist:d.assist),role:(c.role!=null?c.role:d.role)}; });
-  // 수비(DF)·GK의 골·어시 가중은 필드 포지션(MF·FW) 최대값을 자동 적용
+  // 수비(DF)의 골·어시 가중은 필드 포지션(MF·FW) 최대값을 자동 적용 (GK는 직접 편집)
   const maxGoal=Math.max(out.MF.goal,out.FW.goal);
   const maxAssist=Math.max(out.MF.assist,out.FW.assist);
   out.DF.goal=maxGoal; out.DF.assist=maxAssist;
-  out.GK.goal=maxGoal; out.GK.assist=maxAssist;
   return out;
 }
 // 피치 y좌표 → 포지션 구분 (아래=수비, 위=공격)
@@ -1821,17 +1848,22 @@ function effectivePos(name){
   let best='MF',bc=-1; ['GK','DF','MF','FW'].forEach(k=>{ if(counts[k]>bc){bc=counts[k];best=k;} });
   return best;
 }
-// 지정 포지션 가중치로 기여도 계산 = 참석×att + 골×goal + 어시×assist + 참석×role(포지션기여)
+// 기여도 = 참석×(att+선수보너스) + 참석×role + Σ(경기별 골×해당 경기 포지션 goal) + Σ(경기별 어시×해당 경기 포지션 assist)
+// · 참석·포지션(role): 고정 산정/배치 포지션(posK) 기준 (기존 방식 유지)
+// · 골·어시: '그날 뛴 포지션' 가중치로 경기별 합산 — 수비 자리 골=최대값(높게), 공격 배치 골=FW 가중(낮게)
 function contribBreak(name,posK){
-  const s=getStats(name); const w=posWeights()[posK]||DEFAULT_POSW.MF;
-  const att=w.att*s.played, goal=w.goal*s.goals, assist=w.assist*s.assists, role=w.role*s.played;
-  return {att,goal,assist,role,total:att+goal+assist+role,played:s.played,goals:s.goals,assists:s.assists,pos:posK};
+  const s=getStatsByPos(name); const W=posWeights(); const w=W[posK]||DEFAULT_POSW.MF;
+  const bonus=attBonusOf(name);
+  const att=(w.att+bonus)*s.played, role=w.role*s.played;
+  let goal=0, assist=0;
+  ['DF','MF','FW','GK'].forEach(k=>{ goal += W[k].goal*(s.goalsByPos[k]||0); assist += W[k].assist*(s.assistsByPos[k]||0); });
+  return {att,goal,assist,role,total:att+goal+assist+role,played:s.played,goals:s.goals,assists:s.assists,pos:posK,bonus,goalsByPos:s.goalsByPos,assistsByPos:s.assistsByPos};
 }
 function contribScoreWith(name,posK){ return contribBreak(name,posK).total; }
 // 기여도 점수 — 이번 경기 배치된 포지션 기준(없으면 등록 포지션) · 쿼터 배정용
 function contribScore(name){ return contribScoreWith(name, effectivePos(name)); }
-// 시즌 기여도 — 등록 포지션 기준 · 선수/통계 탭 표시용
-function contribScoreReg(name){ return contribScoreWith(name, posCat(name)); }
+// 시즌 기여도 — 산정 포지션(지정 override 우선) 기준 · 통계 탭 표시용
+function contribScoreReg(name){ return contribScoreWith(name, scorePos(name)); }
 function r1(x){ return Math.round(x*10)/10; } // 소수 1자리 표시용
 // 포지션별 평균 기여도 (등록 포지션 그룹 기준 · 가중치 튜닝용)
 function posAverages(){
@@ -1850,7 +1882,7 @@ function renderWeightGrid(){
   const labels={DF:'수비 DF',MF:'미드 MF',FW:'공격 FW',GK:'GK'};
   const rows=['DF','MF','FW','GK'].map(pk=>{
     const w=pw[pk]; const pct=Math.round((avg[pk]/topAvg)*100);
-    const autoGA=(pk==='DF'||pk==='GK'); // 골·어시는 최대값 자동
+    const autoGA=(pk==='DF'); // DF만 골·어시 최대값 자동 (GK는 직접 편집)
     const gaInput=(key,v)=> autoGA
       ? `<input type="number" value="${v}" disabled title="MF·FW 최대값 자동" style="opacity:0.7;border-style:dashed">`
       : `<input type="number" min="0" step="0.1" value="${v}" onchange="setPosWeight('${pk}','${key}',this.value)">`;
@@ -1868,26 +1900,31 @@ function renderWeightGrid(){
     </div>`;
   }).join('');
   const formula=`<div style="font-size:10px;color:var(--cl-gold);background:rgba(212,175,55,0.06);border:1px solid var(--cl-border2);border-radius:4px;padding:8px 10px;margin-bottom:10px;line-height:1.6">기여도 = 참석수×참석 + 골×골 + 어시×어시 + <b style="color:#f1d36b">참석수×포지션</b><br><span style="color:var(--cl-silver)">골·어시는 소수 가중(편차↓). FW=어시↑·MF=골↑, 수비(DF)는 골·어시 최대값 자동 → 수비가 넣으면 최대 보상.</span></div>`;
-  // 관리자용 전체 통계 (현재 데이터 기반 · 등록 포지션 기준)
-  const rowsData=members.filter(m=>!m.dormant).map(m=>({m,b:contribBreak(m.name,posCat(m.name))}))
+  // 관리자용 전체 통계 + 선수별 편집(산정 포지션 · 참석 보너스)
+  const rowsData=members.filter(m=>!m.dormant).map(m=>({m,b:contribBreak(m.name,scorePos(m.name))}))
     .sort((a,b)=>b.b.total-a.b.total);
+  const posOpt=(sel)=>['DF','MF','FW','GK'].map(k=>`<option value="${k}" ${k===sel?'selected':''}>${k}</option>`).join('');
   const table=`<div style="margin-top:6px;border-top:1px solid var(--cl-border2);padding-top:10px">
-    <div style="font-size:10px;font-weight:700;color:var(--cl-silver);letter-spacing:1px;margin-bottom:6px">전체 기여도 통계 (관리자)</div>
+    <div style="font-size:10px;font-weight:700;color:var(--cl-silver);letter-spacing:1px;margin-bottom:2px">전체 기여도 통계 · 선수별 편집 (관리자)</div>
+    <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-bottom:6px">산정P=기여 계산 포지션(변경 가능) · 참석+=선수 참석 보너스(멀리 오는 사람 등)</div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead><tr style="color:var(--cl-gold)">
-        <th style="text-align:left;padding:4px 5px">이름</th><th style="padding:4px 3px">POS</th><th style="padding:4px 3px">출전</th><th style="padding:4px 3px">골</th><th style="padding:4px 3px">어시</th>
-        <th style="padding:4px 3px">참석</th><th style="padding:4px 3px">골</th><th style="padding:4px 3px">어시</th><th style="padding:4px 3px;color:#f1d36b">포지션</th><th style="padding:4px 5px;color:var(--cl-white)">합계</th>
+        <th style="text-align:left;padding:4px 5px">이름</th><th style="padding:4px 2px">산정P</th><th style="padding:4px 2px">참석+</th><th style="padding:4px 2px">출전</th><th style="padding:4px 2px">골</th><th style="padding:4px 2px">어시</th>
+        <th style="padding:4px 2px">참석</th><th style="padding:4px 2px">골</th><th style="padding:4px 2px">어시</th><th style="padding:4px 2px;color:#f1d36b">포지션</th><th style="padding:4px 4px;color:var(--cl-white)">합계</th>
       </tr></thead><tbody>
       ${rowsData.map(({m,b})=>`<tr style="border-top:1px solid rgba(212,175,55,0.06);color:var(--cl-silver)">
         <td style="text-align:left;padding:4px 5px;color:var(--cl-white);font-weight:700;white-space:nowrap">${m.name}</td>
-        <td style="text-align:center;padding:4px 3px">${b.pos}</td>
-        <td style="text-align:center;padding:4px 3px">${b.played}</td><td style="text-align:center;padding:4px 3px">${b.goals}</td><td style="text-align:center;padding:4px 3px">${b.assists}</td>
-        <td style="text-align:center;padding:4px 3px">${r1(b.att)}</td><td style="text-align:center;padding:4px 3px">${r1(b.goal)}</td><td style="text-align:center;padding:4px 3px">${r1(b.assist)}</td><td style="text-align:center;padding:4px 3px;color:#f1d36b">${r1(b.role)}</td>
-        <td style="text-align:center;padding:4px 5px;color:var(--cl-gold);font-weight:700">${Math.round(b.total)}</td>
+        <td style="text-align:center;padding:2px"><select onchange="setPlayerPos('${escAttr(m.name)}',this.value)" style="width:auto;padding:3px 4px;font-size:10px;margin:0">${posOpt(b.pos)}</select></td>
+        <td style="text-align:center;padding:2px"><input type="number" min="0" step="0.5" value="${attBonusOf(m.name)}" onchange="setPlayerAtt('${escAttr(m.name)}',this.value)" style="width:44px;padding:3px 4px;font-size:10px;margin:0;text-align:center"></td>
+        <td style="text-align:center;padding:4px 2px">${b.played}</td><td style="text-align:center;padding:4px 2px">${b.goals}</td><td style="text-align:center;padding:4px 2px">${b.assists}</td>
+        <td style="text-align:center;padding:4px 2px">${r1(b.att)}</td><td style="text-align:center;padding:4px 2px">${r1(b.goal)}</td><td style="text-align:center;padding:4px 2px">${r1(b.assist)}</td><td style="text-align:center;padding:4px 2px;color:#f1d36b">${r1(b.role)}</td>
+        <td style="text-align:center;padding:4px 4px;color:var(--cl-gold);font-weight:700">${Math.round(b.total)}</td>
       </tr>`).join('')}
       </tbody></table></div></div>`;
   document.getElementById('weight-grid').innerHTML=formula+rows+`<div style="font-size:9px;color:rgba(160,176,202,0.6);letter-spacing:0.2px;margin-bottom:4px">※ %는 최고 포지션 평균 대비. 수비가 80~110%면 균형(초록).</div>`+table;
 }
+window.setPlayerPos=function(name,pos){ if(!qFormation.playerPos)qFormation.playerPos={}; qFormation.playerPos[name]=pos; renderWeightGrid(); };
+window.setPlayerAtt=function(name,val){ if(!qFormation.attBonus)qFormation.attBonus={}; qFormation.attBonus[name]=Math.max(0,parseFloat(val)||0); renderWeightGrid(); };
 window.setPosWeight=function(pk,key,val){
   if(!qFormation.posWeights) qFormation.posWeights=JSON.parse(JSON.stringify(posWeights()));
   if(!qFormation.posWeights[pk]) qFormation.posWeights[pk]={};
@@ -2094,16 +2131,20 @@ function renderQView(){
   const opt=(names,sel)=>names.map(n=>`<option value="${escAttr(n)}" ${n===sel?'selected':''}>${n}</option>`).join('');
   let subBlock;
   if(coach){
-    const rows=subs.map((s,i)=>`
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <select onchange="qSetSubOut(${i},this.value)" style="flex:1;padding:7px 6px;font-size:12px;margin:0">${opt(onFieldNames,s.out)}</select>
+    const rows=subs.map((s,i)=>{
+      const smin=(s.min!=null?s.min:Math.round(qMin/2));
+      return `
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
+        <select onchange="qSetSubOut(${i},this.value)" style="flex:1;min-width:0;padding:7px 4px;font-size:12px;margin:0">${opt(onFieldNames,s.out)}</select>
         <span style="color:#ff8080;font-weight:900">→</span>
-        <select onchange="qSetSubIn(${i},this.value)" style="flex:1;padding:7px 6px;font-size:12px;margin:0">${opt(bench,s.in)}</select>
-        <button onclick="qRemoveSub(${i})" style="background:rgba(214,69,69,0.12);border:1px solid rgba(214,69,69,0.35);border-radius:4px;color:#ff8080;font-size:15px;line-height:1;padding:5px 9px;cursor:pointer">×</button>
-      </div>`).join('');
+        <select onchange="qSetSubIn(${i},this.value)" style="flex:1;min-width:0;padding:7px 4px;font-size:12px;margin:0">${opt(bench,s.in)}</select>
+        <input type="number" min="0" max="${qMin}" value="${smin}" onchange="qSetSubMin(${i},this.value)" title="OUT 선수가 뛴 시간(분)" style="width:46px;padding:7px 3px;font-size:12px;margin:0;text-align:center">
+        <span style="font-size:9px;color:var(--cl-silver)">분</span>
+        <button onclick="qRemoveSub(${i})" style="background:rgba(214,69,69,0.12);border:1px solid rgba(214,69,69,0.35);border-radius:4px;color:#ff8080;font-size:15px;line-height:1;padding:5px 8px;cursor:pointer">×</button>
+      </div>`;}).join('');
     const canAdd = subs.length===0 && onFieldNames.length>0 && bench.length>0;
     subBlock=`<div style="margin-top:8px;padding:10px 12px;background:rgba(46,204,113,0.06);border:1px solid rgba(46,204,113,0.28);border-radius:5px">
-      <div style="font-size:10px;font-weight:700;color:#4cd983;letter-spacing:1px;margin-bottom:8px">🔄 ${Math.round(qMin/2)}분 교체 (Q${q}) · OUT → IN</div>
+      <div style="font-size:10px;font-weight:700;color:#4cd983;letter-spacing:1px;margin-bottom:8px">🔄 교체 (Q${q}) · OUT → IN · 분=나간선수 뛴 시간</div>
       ${rows}
       ${canAdd?`<button onclick="qAddSub()" style="width:100%;padding:8px;background:rgba(46,204,113,0.1);border:1px dashed rgba(46,204,113,0.4);border-radius:4px;color:#4cd983;font-size:11px;font-weight:700;cursor:pointer">＋ 교체 추가</button>`:''}
       ${subs.length===0&&!canAdd?`<div style="font-size:10px;color:rgba(160,176,202,0.5)">${bench.length===0?'벤치 선수가 없어 교체 불가':'피치에 선수를 배치하세요'}</div>`:''}
@@ -2222,6 +2263,13 @@ window.qSetSubIn=function(i,name){
 window.qRemoveSub=function(i){
   const cur=qFormation['q'+currentQTab]; if(!cur||!cur.subs)return;
   cur.subs.splice(i,1); renderQView();
+};
+window.qSetSubMin=function(i,val){
+  const cur=qFormation['q'+currentQTab]; if(!cur||!(cur.subs||[])[i])return;
+  const totalMin=parseInt(document.getElementById('q-total')?.value)||120;
+  const qMin=Math.floor(totalMin/(parseInt(document.getElementById('q-cnt')?.value)||4));
+  cur.subs[i].min=Math.max(0,Math.min(qMin,parseInt(val)||0));
+  renderQView();
 };
 // ── 많이 뛸 선수(우선) 지정 ──
 window.togglePriority=function(n){
@@ -2362,6 +2410,72 @@ window.clearAllQ=function(){
   currentQTab=1; switchQTab(1);
   toast('전 쿼터 초기화 완료 — 저장하면 반영됩니다');
 };
+// ── 경기 기록 백업 (관리자) ──
+window.saveQBackup=async function(){
+  if(!isCoach()){toast('권한이 없습니다');return;}
+  const def=(getAttendeePool().ref&&getAttendeePool().ref.date)||todayKST();
+  const label=prompt('백업 이름 (예: 경기 날짜/상대)', def);
+  if(label===null) return;
+  const id='B'+Date.now();
+  const snap={
+    label:label||def, ts:Date.now(), by:myName||'',
+    settings:{
+      total:document.getElementById('q-total')?.value||'120',
+      cnt:document.getElementById('q-cnt')?.value||'4',
+      formation:document.getElementById('q-formation')?.value||'4-3-3',
+      gk:document.getElementById('q-gk')?.value||''
+    },
+    data:JSON.parse(JSON.stringify(qFormation))
+  };
+  await set(ref(db,'suchon/qBackups/'+id),snap);
+  toast('백업 저장 완료: '+snap.label);
+};
+window.openBackupModal=function(){ if(!isCoach()){toast('관리자만 가능합니다');return;} renderBackupList(); document.getElementById('backup-modal').style.display='flex'; };
+window.closeBackupModal=function(){ document.getElementById('backup-modal').style.display='none'; };
+function renderBackupList(){
+  const el=document.getElementById('backup-list');
+  const list=Object.entries(qBackups).sort((a,b)=>(b[1].ts||0)-(a[1].ts||0));
+  if(!list.length){ el.innerHTML='<div style="font-size:12px;color:rgba(160,176,202,0.5);text-align:center;padding:20px">저장된 백업이 없습니다</div>'; return; }
+  el.innerHTML=list.map(([id,bk])=>{
+    const d=new Date(bk.ts||0);
+    const when=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const qsum=[1,2,3,4].map(q=>{const f=(bk.data&&bk.data['q'+q]&&bk.data['q'+q].field)||[];return f.length;}).join('·');
+    return `<div style="background:rgba(0,0,0,0.22);border:1px solid var(--cl-border2);border-radius:5px;padding:11px 12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--cl-white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${bk.label||'(무제)'}</div>
+          <div style="font-size:9px;color:var(--cl-silver);margin-top:2px">${when} · ${bk.by||''} · ${bk.settings?bk.settings.formation:''} · Q인원 ${qsum}</div>
+        </div>
+        <div style="display:flex;gap:5px;flex-shrink:0">
+          <button onclick="loadBackup('${id}')" style="padding:6px 12px;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.4);border-radius:4px;color:#4cd983;font-size:11px;font-weight:700;cursor:pointer">불러오기</button>
+          <button onclick="deleteBackup('${id}')" style="padding:6px 10px;background:rgba(214,69,69,0.12);border:1px solid rgba(214,69,69,0.35);border-radius:4px;color:#ff8080;font-size:11px;font-weight:700;cursor:pointer">삭제</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+window.loadBackup=function(id){
+  const bk=qBackups[id]; if(!bk){toast('백업을 찾을 수 없습니다');return;}
+  if(!confirm(`'${bk.label}' 백업을 현재 배치에 불러올까요?\n(현재 배치·명단·가중치가 덮어써집니다)`))return;
+  qFormation=JSON.parse(JSON.stringify(bk.data||{}));
+  if(bk.settings){
+    const st=bk.settings;
+    if(document.getElementById('q-total'))st.total&&(document.getElementById('q-total').value=st.total);
+    if(document.getElementById('q-cnt'))st.cnt&&(document.getElementById('q-cnt').value=st.cnt);
+    if(document.getElementById('q-formation'))st.formation&&(document.getElementById('q-formation').value=st.formation);
+  }
+  closeBackupModal();
+  currentQTab=1; switchQTab(1);
+  toast(`'${bk.label}' 불러옴 — 저장하면 팀원 화면 반영`);
+};
+window.deleteBackup=async function(id){
+  if(!isCoach()){toast('권한이 없습니다');return;}
+  const bk=qBackups[id];
+  if(!confirm(`'${bk?bk.label:''}' 백업을 삭제할까요?`))return;
+  await remove(ref(db,'suchon/qBackups/'+id));
+  renderBackupList();
+  toast('백업 삭제됨');
+};
 window.copyQToAll=function(){
   if(!isCoach()){toast('권한이 없습니다');return;}
   const qCnt=parseInt(document.getElementById('q-cnt')?.value)||4;
@@ -2394,9 +2508,10 @@ function renderPlayTime(totalMin,qCnt,poolNames){
   (poolNames||[]).forEach(n=>{ playMap[n]=0; qcount[n]=0; });
   active.forEach(q=>{
     const subs=getQSubs(q);
-    const outSet=new Set(subs.map(s=>s.out));
-    getQField(q).forEach(f=>{ if(f.n){ const mn=outSet.has(f.n)?half:qMin; playMap[f.n]=(playMap[f.n]||0)+mn; qcount[f.n]=(qcount[f.n]||0)+1; } });
-    subs.forEach(s=>{ if(s.in){ playMap[s.in]=(playMap[s.in]||0)+half; qcount[s.in]=(qcount[s.in]||0)+1; } });
+    // 교체 나간 선수의 실제 뛴 시간(교체 분) 맵 — 교체 시각은 수정 가능(기본 절반)
+    const outMin={}; subs.forEach(s=>{ if(s.out) outMin[s.out]=(s.min!=null?s.min:half); });
+    getQField(q).forEach(f=>{ if(f.n){ const mn=(outMin[f.n]!=null)?outMin[f.n]:qMin; playMap[f.n]=(playMap[f.n]||0)+mn; qcount[f.n]=(qcount[f.n]||0)+1; } });
+    subs.forEach(s=>{ if(s.in){ const inMin=qMin-(s.min!=null?s.min:half); playMap[s.in]=(playMap[s.in]||0)+inMin; qcount[s.in]=(qcount[s.in]||0)+1; } });
   });
   const names=Object.keys(playMap);
   const pt=document.getElementById('q-playtime');
@@ -2451,6 +2566,25 @@ function getAutoStats(name){
   let played=0,goals=0,assists=0;
   games.forEach(g=>{const p=g.players&&g.players[name];if(p){if(p.played)played++;goals+=p.goals||0;assists+=p.assists||0;}});
   return{played,goals,assists};
+}
+// 경기별 '뛴 포지션'으로 골·어시를 포지션별 집계 (경기에 pos 없으면 산정 포지션 폴백) — 기여도 골·어시 계산용
+function getStatsByPos(name){
+  const fixed=scorePos(name);
+  const gp={DF:0,MF:0,FW:0,GK:0}, ap={DF:0,MF:0,FW:0,GK:0};
+  let played=0,goals=0,assists=0;
+  games.forEach(g=>{
+    const p=g.players&&g.players[name]; if(!p) return;
+    if(p.played) played++;
+    const k=(p.pos==='DF'||p.pos==='MF'||p.pos==='FW'||p.pos==='GK')?p.pos:fixed; // 그 경기에서 뛴 포지션
+    const gg=p.goals||0, ga=p.assists||0;
+    gp[k]+=gg; ap[k]+=ga; goals+=gg; assists+=ga;
+  });
+  // 수동 보정값(델타): 포지션 정보 없음 → 산정 포지션에 귀속
+  const ov=statOverrides[name];
+  if(ov){ played+=ov.played||0; gp[fixed]+=ov.goals||0; ap[fixed]+=ov.assists||0; goals+=ov.goals||0; assists+=ov.assists||0; }
+  played=Math.min(games.length,Math.max(0,played));
+  ['DF','MF','FW','GK'].forEach(k=>{ gp[k]=Math.max(0,gp[k]); ap[k]=Math.max(0,ap[k]); });
+  return {played,goals:Math.max(0,goals),assists:Math.max(0,assists),goalsByPos:gp,assistsByPos:ap};
 }
 window.openStatEdit=function(name){
   if(!isAdmin()){toast('관리자만 수정 가능합니다');return;}
