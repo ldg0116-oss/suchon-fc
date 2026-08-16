@@ -113,6 +113,10 @@ input,select{width:100%;padding:11px 13px;font-size:13px;border:1px solid rgba(1
 input:focus,select:focus{outline:none;border-color:var(--cl-gold);background:rgba(212,175,55,0.04);box-shadow:0 0 0 3px rgba(212,175,55,0.1)}
 input::placeholder{color:rgba(160,176,202,0.35)}
 input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
+/* 드롭다운 흰배경/흰글씨 방지 — 선택창·옵션 색 고정 */
+select{background-color:#0f1a33;color:var(--cl-white)}
+select:focus{background-color:#101c38}
+select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .btn{width:100%;padding:13px;font-size:12px;font-weight:700;border:none;border-radius:3px;cursor:pointer;margin-top:14px;letter-spacing:3px;text-transform:uppercase;transition:all 0.25s;font-family:var(--font-body);position:relative;overflow:hidden}
@@ -1765,6 +1769,18 @@ function voteAttendees(){
   names=names.filter(n=>!isDormant(n));
   return {names:[...new Set(names)], ref:rf};
 }
+// 참석율(경기 출전 비율) + 투표 참석 순서 기준 우선순위 정렬 (앞쪽 = 우선)
+function timePriorityOrder(names){
+  const totalG=games.length;
+  const att={};
+  names.forEach(n=>{ let c=0; games.forEach(g=>{ const pp=g.players&&g.players[n]; if(pp&&pp.played)c++; }); att[n]= totalG? c/totalG : 0.5; });
+  const va=voteAttendees(); const votes=(va.ref&&va.ref.votes)||{};
+  const ts={}; names.forEach(n=>{ const v=votes[nameKey(n)]; ts[n]=(v&&v.ts)?v.ts:Infinity; });
+  return names.slice().sort((a,b)=>
+    (att[b]-att[a]) ||          // 참석율 높은 순
+    (ts[a]-ts[b]) ||            // 일찍 투표한 순
+    a.localeCompare(b,'ko'));
+}
 // 출전 풀: 편집된 명단(roster)이 있으면 우선, 없으면 투표 참석자, 그것도 없으면 전체(비휴면)
 function getAttendeePool(){
   if(Array.isArray(qFormation.roster) && qFormation.roster.length){
@@ -1791,15 +1807,23 @@ function renderRosterList(){
   const memberNames=members.filter(m=>!m.dormant).map(m=>m.name);
   const mercs=[...rosterDraft].filter(n=>!memberNames.includes(n)); // 용병(비회원)
   const prio=Array.isArray(qFormation.priority)?qFormation.priority:[];
+  // 참석율 계산(경기 출전 비율)
+  const totalG=games.length;
+  const attPct=(n)=>{ if(!totalG) return null; let c=0; games.forEach(g=>{const pp=g.players&&g.players[n];if(pp&&pp.played)c++;}); return Math.round(c/totalG*100); };
+  // 투표 순서(빠른 순 랭킹)
+  const va=voteAttendees(); const vt=(va.ref&&va.ref.votes)||{};
+  const voters=Object.values(vt).filter(v=>v.vote==='o'&&v.ts).sort((a,b)=>a.ts-b.ts).map(v=>v.name);
   const row=(n,isMerc)=>{
     const on=rosterDraft.has(n);
     const isP=prio.includes(n);
     const m=members.find(x=>x.name===n); const pos=m?m.pos:(isMerc?'용병':'');
+    const ap=attPct(n); const vo=voters.indexOf(n);
+    const tag = (ap!==null?`출석 ${ap}%`:'') + (vo>=0?`${ap!==null?' · ':''}투표 ${vo+1}번`:'');
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 8px;border-bottom:1px solid rgba(212,175,55,0.07)">
       <div onclick="toggleRoster('${escAttr(n)}')" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;min-width:0">
         <div style="width:20px;height:20px;border-radius:4px;border:1.5px solid ${on?'var(--cl-gold)':'rgba(160,176,202,0.4)'};background:${on?'var(--grad-gold)':'transparent'};display:flex;align-items:center;justify-content:center;color:var(--cl-navy);font-size:13px;font-weight:900;flex-shrink:0">${on?'✓':''}</div>
         <span style="font-size:9px;color:var(--cl-silver);min-width:28px">${pos}</span>
-        <span style="flex:1;font-size:13px;font-weight:700;color:${on?'var(--cl-white)':'var(--cl-silver)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${n}${isMerc?' <span style="font-size:9px;color:#7fc1eb">(용병)</span>':''}</span>
+        <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:700;color:${on?'var(--cl-white)':'var(--cl-silver)'}">${n}${isMerc?' <span style="font-size:9px;color:#7fc1eb">(용병)</span>':''}</span>${tag?`<span style="display:block;font-size:9px;color:rgba(160,176,202,0.6);letter-spacing:0.2px">${tag}</span>`:''}</span>
       </div>
       ${on?`<button onclick="togglePriority('${escAttr(n)}')" title="많이 뛰기(우선)" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 5px;color:${isP?'var(--cl-gold)':'rgba(160,176,202,0.35)'}">${isP?'★':'☆'}</button>`:''}
       ${isMerc?`<button onclick="removeMercenary('${escAttr(n)}')" style="background:none;border:none;color:#ff6b6b;font-size:16px;cursor:pointer;padding:0 4px">×</button>`:''}
@@ -1950,7 +1974,7 @@ function renderQView(){
       <div style="font-family:var(--font-display);font-size:13px;letter-spacing:2px;color:var(--cl-gold)">Q${q} · ${qMin}분 · 출전 ${field.length}명</div>
       <div style="font-size:10px;color:var(--cl-silver);letter-spacing:0.3px">${info}</div>
     </div>
-    ${planHtml?`<div style="font-size:11px;color:var(--cl-silver);background:rgba(0,0,0,0.22);border:1px solid var(--cl-border2);border-radius:5px;padding:9px 11px;margin-bottom:10px;letter-spacing:0.2px;line-height:1.5">📊 ${planHtml}${!plan.full?`<span style="display:block;margin-top:3px;font-size:10px;color:rgba(160,176,202,0.7)">＋많이 뛸 ${plan.extraCount}명은 ‘명단 편집’에서 ★로 지정 (지정 ${priority.length}명)</span>`:''}</div>`:''}
+    ${planHtml?`<div style="font-size:11px;color:var(--cl-silver);background:rgba(0,0,0,0.22);border:1px solid var(--cl-border2);border-radius:5px;padding:9px 11px;margin-bottom:10px;letter-spacing:0.2px;line-height:1.5">📊 ${planHtml}${!plan.full?`<span style="display:block;margin-top:3px;font-size:10px;color:rgba(160,176,202,0.7)">＋많이 뛸 ${plan.extraCount}명 우선순위: ★지정(${priority.length}명) → 참석율 → 투표 빠른 순</span>`:''}</div>`:''}
     <div class="q-pitch" id="q-pitch">${pitchLinesHtml()}${jerseys}
       ${field.length===0?`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.65);font-size:12px;text-align:center;padding:24px;pointer-events:none;line-height:1.6">${coach?'아래 벤치에서 선수를<br>피치로 끌어다 배치하세요':'아직 배치된 선수가 없습니다'}</div>`:''}
     </div>
@@ -2083,15 +2107,16 @@ window.autoRotate=function(){
   if(N===0){toast('필드 선수가 없습니다');return;}
   const S=Math.min(slots.length,N);
   const useSlots=slots.slice(0,S);
-  // 많이 뛸(우선) 선수 — 지정된 만큼 더 오래 뜀
-  const priority=(qFormation.priority||[]).filter(n=>order.includes(n));
-  const nonPrio=order.filter(n=>!priority.includes(n));
-  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\nGK 고정: ${gk||'미지정'}\n필드 ${N}명 · 우선(더 뛰기) ${priority.length}명\n전원 균등 출전(착석은 뒤 쿼터부터)으로 배치할까요?\n(현재 배치는 덮어씁니다)`)) return;
+  // 많이 뛸(우선) 선수: 수동 지정(★) → 참석율 높은 순 → 일찍 투표한 순
+  const manual=(qFormation.priority||[]).filter(n=>order.includes(n));
+  const nonPrio=timePriorityOrder(order.filter(n=>!manual.includes(n)));
+  const bestFirst=[...manual, ...nonPrio];  // 앞쪽일수록 더 오래 뜀
+  const priority=manual;
+  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\nGK 고정: ${gk||'미지정'}\n필드 ${N}명 · ★우선 ${manual.length}명\n(추가 시간은 ★ → 참석율 → 투표 빠른 순)\n전원 균등 출전으로 배치할까요? (현재 배치 덮어씀)`)) return;
 
-  // 목표 출전 시간 (15분 블록) — 우선 선수부터 추가 블록 배정
+  // 목표 출전 시간 (15분 블록) — 우선순위 앞쪽부터 추가 블록 배정
   const totalBlocks=S*qCnt*2, baseB=Math.floor(totalBlocks/N), remB=totalBlocks%N;
-  const rankT=[...priority, ...nonPrio];
-  const target={}; rankT.forEach((n,i)=>{ target[n]=(N<=S?totalMin:(baseB+(i<remB?1:0))*half); });
+  const target={}; bestFirst.forEach((n,i)=>{ target[n]=(N<=S?totalMin:(baseB+(i<remB?1:0))*half); });
 
   // 각 쿼터 출전 명단 결정
   const play={}; // play[q] = 이름 배열
@@ -2101,8 +2126,8 @@ window.autoRotate=function(){
     const benchPer=N-S;                       // 매 쿼터 착석 인원
     const sitTotal=qCnt*benchPer;             // 총 착석 횟수
     const base=Math.floor(sitTotal/N), extra=sitTotal%N;
-    // 추가 착석(=적게 뜀)은 비우선 선수부터 → 우선 선수는 더 많이 뜀
-    const sitOrder=[...nonPrio, ...priority];
+    // 추가 착석(=적게 뜀)은 후순위(참석율 낮음·투표 늦음)부터 → 우선 선수는 더 많이 뜀
+    const sitOrder=bestFirst.slice().reverse();
     const sitCount={}; sitOrder.forEach((p,i)=>{ sitCount[p]=base+(i<extra?1:0); });
     const remaining={...sitCount};
     const sit={}; for(let q=1;q<=qCnt;q++) sit[q]=new Set();
@@ -2642,11 +2667,16 @@ window.castVote=async function(sid,vote){
   }
   const nk=nameKey(myName);
   const cur=(schedules.find(s=>s.id===sid)?.votes||{})[nk];
-  const newVote=cur===vote?null:vote;
+  const curVote=cur&&typeof cur==='object'?cur.vote:cur;
+  const newVote=curVote===vote?null:vote;
   if(newVote===null){
     await remove(ref(db,'suchon/schedules/'+sid+'/votes/'+nk));
   }else{
-    await update(ref(db,'suchon/schedules/'+sid+'/votes'),{[nk]:{name:myName,vote:newVote}});
+    // 참석('o') 투표 시각 기록 — 이미 참석이었으면 최초 시각 유지
+    const rec={name:myName,vote:newVote};
+    if(newVote==='o'){ rec.ts=(cur&&cur.vote==='o'&&cur.ts)?cur.ts:Date.now(); }
+    else if(cur&&cur.ts){ rec.ts=cur.ts; }
+    await update(ref(db,'suchon/schedules/'+sid+'/votes'),{[nk]:rec});
   }
 };
 
@@ -2696,7 +2726,10 @@ window.adminSetVote=async function(sid,name,vote){
   if(vote==='null'){
     await remove(ref(db,'suchon/schedules/'+sid+'/votes/'+nk));
   }else{
-    await update(ref(db,'suchon/schedules/'+sid+'/votes'),{[nk]:{name,vote}});
+    const prev=(schedules.find(s=>s.id===sid)?.votes||{})[nk];
+    const rec={name,vote};
+    if(vote==='o'){ rec.ts=(prev&&prev.vote==='o'&&prev.ts)?prev.ts:Date.now(); }
+    await update(ref(db,'suchon/schedules/'+sid+'/votes'),{[nk]:rec});
   }
   // Firebase 리스너가 자동 갱신해주지만, 모달은 즉시 새로고침
   setTimeout(renderVoteAdminList,150);
