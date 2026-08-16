@@ -628,6 +628,7 @@ input:disabled,select:disabled{opacity:0.5;cursor:not-allowed}
           <button onclick="copyQToAll()" style="flex:1;padding:10px;background:rgba(93,173,226,0.1);border:1px solid rgba(93,173,226,0.35);border-radius:3px;color:#7fc1eb;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">📋 이 배치 전 쿼터 복사</button>
           <button onclick="clearQFormation()" style="flex:1;padding:10px;background:rgba(214,69,69,0.1);border:1px solid rgba(214,69,69,0.3);border-radius:3px;color:#ff6b6b;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">🗑 이 쿼터 비우기</button>
         </div>
+        <button onclick="clearAllQ()" style="width:100%;margin-top:8px;padding:10px;background:rgba(214,69,69,0.08);border:1px solid rgba(214,69,69,0.3);border-radius:3px;color:#ff8080;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">🗑 전 쿼터 초기화</button>
         <button onclick="saveQFormation()" style="width:100%;margin-top:8px;padding:12px;background:linear-gradient(135deg,rgba(212,175,55,0.2),rgba(212,175,55,0.08));border:1px solid var(--cl-gold);border-radius:3px;color:var(--cl-gold);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase">💾 저장 (팀원 화면 반영)</button>
       </div>
     </div>
@@ -1789,18 +1790,25 @@ window.closeRosterEdit=function(){ document.getElementById('roster-modal').style
 function renderRosterList(){
   const memberNames=members.filter(m=>!m.dormant).map(m=>m.name);
   const mercs=[...rosterDraft].filter(n=>!memberNames.includes(n)); // 용병(비회원)
+  const prio=Array.isArray(qFormation.priority)?qFormation.priority:[];
   const row=(n,isMerc)=>{
     const on=rosterDraft.has(n);
+    const isP=prio.includes(n);
     const m=members.find(x=>x.name===n); const pos=m?m.pos:(isMerc?'용병':'');
-    return `<div onclick="toggleRoster('${escAttr(n)}')" style="display:flex;align-items:center;gap:10px;padding:9px 8px;border-bottom:1px solid rgba(212,175,55,0.07);cursor:pointer">
-      <div style="width:20px;height:20px;border-radius:4px;border:1.5px solid ${on?'var(--cl-gold)':'rgba(160,176,202,0.4)'};background:${on?'var(--grad-gold)':'transparent'};display:flex;align-items:center;justify-content:center;color:var(--cl-navy);font-size:13px;font-weight:900;flex-shrink:0">${on?'✓':''}</div>
-      <span style="font-size:9px;color:var(--cl-silver);min-width:28px">${pos}</span>
-      <span style="flex:1;font-size:13px;font-weight:700;color:${on?'var(--cl-white)':'var(--cl-silver)'}">${n}${isMerc?' <span style="font-size:9px;color:#7fc1eb">(용병)</span>':''}</span>
-      ${isMerc?`<button onclick="event.stopPropagation();removeMercenary('${escAttr(n)}')" style="background:none;border:none;color:#ff6b6b;font-size:16px;cursor:pointer;padding:0 4px">×</button>`:''}
+    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 8px;border-bottom:1px solid rgba(212,175,55,0.07)">
+      <div onclick="toggleRoster('${escAttr(n)}')" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;min-width:0">
+        <div style="width:20px;height:20px;border-radius:4px;border:1.5px solid ${on?'var(--cl-gold)':'rgba(160,176,202,0.4)'};background:${on?'var(--grad-gold)':'transparent'};display:flex;align-items:center;justify-content:center;color:var(--cl-navy);font-size:13px;font-weight:900;flex-shrink:0">${on?'✓':''}</div>
+        <span style="font-size:9px;color:var(--cl-silver);min-width:28px">${pos}</span>
+        <span style="flex:1;font-size:13px;font-weight:700;color:${on?'var(--cl-white)':'var(--cl-silver)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${n}${isMerc?' <span style="font-size:9px;color:#7fc1eb">(용병)</span>':''}</span>
+      </div>
+      ${on?`<button onclick="togglePriority('${escAttr(n)}')" title="많이 뛰기(우선)" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 5px;color:${isP?'var(--cl-gold)':'rgba(160,176,202,0.35)'}">${isP?'★':'☆'}</button>`:''}
+      ${isMerc?`<button onclick="removeMercenary('${escAttr(n)}')" style="background:none;border:none;color:#ff6b6b;font-size:16px;cursor:pointer;padding:0 4px">×</button>`:''}
     </div>`;
   };
   const list=document.getElementById('roster-list');
-  list.innerHTML = mercs.map(n=>row(n,true)).join('') + memberNames.map(n=>row(n,false)).join('');
+  const prioCount=[...rosterDraft].filter(n=>prio.includes(n)).length;
+  list.innerHTML = `<div style="font-size:10px;color:rgba(160,176,202,0.7);margin-bottom:8px;letter-spacing:0.2px">★ = 많이 뛰기(우선) 지정 · 현재 ${prioCount}명</div>`
+    + mercs.map(n=>row(n,true)).join('') + memberNames.map(n=>row(n,false)).join('');
   document.getElementById('roster-count').textContent=rosterDraft.size;
 }
 window.toggleRoster=function(n){ if(rosterDraft.has(n))rosterDraft.delete(n); else rosterDraft.add(n); renderRosterList(); };
@@ -1845,6 +1853,27 @@ function jerseyHtml(n,x,y,coach){
   </div>`;
 }
 
+// 출전 시간 예측: 참석 인원 기준 평균/추가출전 인원 계산
+function qPlanInfo(){
+  const pool=getAttendeePool().names;
+  const totalMin=parseInt(document.getElementById('q-total')?.value)||120;
+  const qCnt=parseInt(document.getElementById('q-cnt')?.value)||4;
+  const half=Math.round(totalMin/qCnt/2);
+  const fname=document.getElementById('q-formation')?.value||'4-3-3';
+  const slots=formationSlots(fname);
+  let gk=document.getElementById('q-gk')?.value||'';
+  if(!gk || !pool.includes(gk)) gk=pool.find(n=>posCat(n)==='GK')||'';
+  const outfield=pool.filter(n=>n!==gk);
+  const No=outfield.length;
+  const S=Math.min(slots.length,No);
+  if(No<=0) return {No:0,S,gk,pool,outfield,qCnt,totalMin,half};
+  if(No<=S){ return {No,S,gk,pool,outfield,qCnt,totalMin,half,full:true,avg:totalMin,extraCount:0,baseMin:totalMin,extraMin:totalMin}; }
+  const totalBlocks=S*qCnt*2;                 // 15분 블록 총량
+  const base=Math.floor(totalBlocks/No), rem=totalBlocks%No;
+  return {No,S,gk,pool,outfield,qCnt,totalMin,half,full:false,
+    avg:Math.round(totalBlocks*half/No), extraCount:rem, baseMin:base*half, extraMin:(base+1)*half};
+}
+
 function renderQView(){
   const q=currentQTab;
   const field=getQField(q);
@@ -1881,15 +1910,51 @@ function renderQView(){
       ? `${pool.ref?formatDate(pool.ref.date)+' · ':''}참석 ${pool.names.length}명`
       : `참석 투표 없음 · 전체 ${pool.names.length}명`;
 
+  // 출전 시간 예측 (평균 · 추가 출전 인원)
+  const plan=qPlanInfo();
+  const priority=(qFormation.priority||[]).filter(n=>plan.outfield.includes(n));
+  let planHtml;
+  if(plan.No<=0){ planHtml=''; }
+  else if(plan.full){
+    planHtml=`<span style="color:#4cd983">전원 풀타임 ${plan.totalMin}분</span> · 필드 ${plan.No}명 ≤ ${plan.S}자리`;
+  } else {
+    planHtml=`필드 <b style="color:var(--cl-white)">${plan.No}</b>명 · 평균 <b style="color:var(--cl-gold)">${plan.avg}분</b> · <b style="color:#4cd983">${plan.extraCount}명</b>은 ${plan.extraMin}분(+${plan.half}) · 나머지 ${plan.baseMin}분`;
+  }
+
+  // 교체(15분) 편집기 — 코치 전용
+  const gkName=plan.gk;
+  const onFieldNames=field.filter(f=>f.n!==gkName).map(f=>f.n);
+  const opt=(names,sel)=>names.map(n=>`<option value="${escAttr(n)}" ${n===sel?'selected':''}>${n}</option>`).join('');
+  let subBlock;
+  if(coach){
+    const rows=subs.map((s,i)=>`
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <select onchange="qSetSubOut(${i},this.value)" style="flex:1;padding:7px 6px;font-size:12px;margin:0">${opt(onFieldNames,s.out)}</select>
+        <span style="color:#ff8080;font-weight:900">→</span>
+        <select onchange="qSetSubIn(${i},this.value)" style="flex:1;padding:7px 6px;font-size:12px;margin:0">${opt(bench,s.in)}</select>
+        <button onclick="qRemoveSub(${i})" style="background:rgba(214,69,69,0.12);border:1px solid rgba(214,69,69,0.35);border-radius:4px;color:#ff8080;font-size:15px;line-height:1;padding:5px 9px;cursor:pointer">×</button>
+      </div>`).join('');
+    const canAdd = subs.length===0 && onFieldNames.length>0 && bench.length>0;
+    subBlock=`<div style="margin-top:8px;padding:10px 12px;background:rgba(46,204,113,0.06);border:1px solid rgba(46,204,113,0.28);border-radius:5px">
+      <div style="font-size:10px;font-weight:700;color:#4cd983;letter-spacing:1px;margin-bottom:8px">🔄 ${Math.round(qMin/2)}분 교체 (Q${q}) · OUT → IN</div>
+      ${rows}
+      ${canAdd?`<button onclick="qAddSub()" style="width:100%;padding:8px;background:rgba(46,204,113,0.1);border:1px dashed rgba(46,204,113,0.4);border-radius:4px;color:#4cd983;font-size:11px;font-weight:700;cursor:pointer">＋ 교체 추가</button>`:''}
+      ${subs.length===0&&!canAdd?`<div style="font-size:10px;color:rgba(160,176,202,0.5)">${bench.length===0?'벤치 선수가 없어 교체 불가':'피치에 선수를 배치하세요'}</div>`:''}
+    </div>`;
+  } else {
+    subBlock = subs.length?`<div style="margin-top:8px;padding:9px 12px;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.3);border-radius:5px;font-size:11px;color:#4cd983;letter-spacing:0.3px">🔄 ${Math.round(qMin/2)}분 교체 · ${subs.map(s=>`<b style="color:#ff8080">${s.out}</b> ⇄ <b style="color:#4cd983">${s.in}</b>`).join(' / ')}</div>`:'';
+  }
+
   document.getElementById('q-content').innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <div style="font-family:var(--font-display);font-size:13px;letter-spacing:2px;color:var(--cl-gold)">Q${q} · ${qMin}분 · 출전 ${field.length}명</div>
       <div style="font-size:10px;color:var(--cl-silver);letter-spacing:0.3px">${info}</div>
     </div>
+    ${planHtml?`<div style="font-size:11px;color:var(--cl-silver);background:rgba(0,0,0,0.22);border:1px solid var(--cl-border2);border-radius:5px;padding:9px 11px;margin-bottom:10px;letter-spacing:0.2px;line-height:1.5">📊 ${planHtml}${!plan.full?`<span style="display:block;margin-top:3px;font-size:10px;color:rgba(160,176,202,0.7)">＋많이 뛸 ${plan.extraCount}명은 ‘명단 편집’에서 ★로 지정 (지정 ${priority.length}명)</span>`:''}</div>`:''}
     <div class="q-pitch" id="q-pitch">${pitchLinesHtml()}${jerseys}
       ${field.length===0?`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.65);font-size:12px;text-align:center;padding:24px;pointer-events:none;line-height:1.6">${coach?'아래 벤치에서 선수를<br>피치로 끌어다 배치하세요':'아직 배치된 선수가 없습니다'}</div>`:''}
     </div>
-    ${subs.length?`<div style="margin-top:8px;padding:9px 12px;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.3);border-radius:5px;font-size:11px;color:#4cd983;letter-spacing:0.3px">🔄 ${Math.round(qMin/2)}분 교체 · ${subs.map(s=>`<b style="color:#ff8080">${s.out}</b> ⇄ <b style="color:#4cd983">${s.in}</b>`).join(' / ')}</div>`:''}
+    ${subBlock}
     <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--cl-silver);text-transform:uppercase">벤치 · 미출전 (${bench.length})</div>
       ${coach?'<div style="font-size:9px;color:rgba(160,176,202,0.6)">칩 → 피치 드래그 · 피치 밖으로 빼면 제외</div>':''}
@@ -1949,8 +2014,13 @@ function qPointerUp(e){
   } else {
     if(idx>=0) field.splice(idx,1); // 피치 밖 → 벤치로
   }
-  // 수동 편집 시 해당 쿼터의 자동 교체(subs)는 초기화 (불일치 방지)
-  if(qFormation['q'+currentQTab]) qFormation['q'+currentQTab].subs=[];
+  // 배치 변경에 맞춰 교체(subs) 정리 (없는 선수 참조 제거 · 좌표 갱신)
+  const cur=qFormation['q'+currentQTab];
+  if(cur){
+    const fnames=new Set((cur.field||[]).map(f=>f.n));
+    cur.subs=(cur.subs||[]).filter(s=> fnames.has(s.out) && !fnames.has(s.in));
+    cur.subs.forEach(s=>{ const fs=(cur.field||[]).find(f=>f.n===s.out); if(fs){s.x=fs.x;s.y=fs.y;} });
+  }
   qDrag.clone.remove(); qDrag=null; qEndListeners(false);
   renderQView();
 }
@@ -1959,6 +2029,40 @@ function qPointerCancel(){
   qDrag.clone.remove(); qDrag=null; qEndListeners(false);
   renderQView();
 }
+
+// ── 교체(15분) 직접 편집 ──
+window.qAddSub=function(){
+  if(!isCoach()){toast('권한이 없습니다');return;}
+  const cur=qFormation['q'+currentQTab]; if(!cur){toast('먼저 선수를 배치하세요');return;}
+  const gk=qPlanInfo().gk;
+  const onF=(cur.field||[]).filter(f=>f.n!==gk);
+  const onNames=new Set((cur.field||[]).map(f=>f.n));
+  const bench=getAttendeePool().names.filter(n=>!onNames.has(n));
+  if(!onF.length||!bench.length){toast('교체할 선수가 부족합니다');return;}
+  cur.subs=[{out:onF[0].n,in:bench[0],x:onF[0].x,y:onF[0].y}];
+  renderQView();
+};
+window.qSetSubOut=function(i,name){
+  const cur=qFormation['q'+currentQTab]; if(!cur||!(cur.subs||[])[i])return;
+  const slot=(cur.field||[]).find(f=>f.n===name);
+  cur.subs[i].out=name; if(slot){cur.subs[i].x=slot.x;cur.subs[i].y=slot.y;}
+  renderQView();
+};
+window.qSetSubIn=function(i,name){
+  const cur=qFormation['q'+currentQTab]; if(!cur||!(cur.subs||[])[i])return;
+  cur.subs[i].in=name; renderQView();
+};
+window.qRemoveSub=function(i){
+  const cur=qFormation['q'+currentQTab]; if(!cur||!cur.subs)return;
+  cur.subs.splice(i,1); renderQView();
+};
+// ── 많이 뛸 선수(우선) 지정 ──
+window.togglePriority=function(n){
+  if(!Array.isArray(qFormation.priority)) qFormation.priority=[];
+  const i=qFormation.priority.indexOf(n);
+  if(i>=0) qFormation.priority.splice(i,1); else qFormation.priority.push(n);
+  if(document.getElementById('roster-modal').style.display==='flex') renderRosterList();
+};
 
 // ── 후반 집중 균등 자동배치 (전원 균등 출전 · 착석은 뒤 쿼터부터 · GK 고정) ──
 window.autoRotate=function(){
@@ -1979,7 +2083,15 @@ window.autoRotate=function(){
   if(N===0){toast('필드 선수가 없습니다');return;}
   const S=Math.min(slots.length,N);
   const useSlots=slots.slice(0,S);
-  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\nGK 고정: ${gk||'미지정'}\n필드 ${N}명 — 전원 균등 출전(착석은 뒤 쿼터부터)으로 배치할까요?\n(현재 배치는 덮어씁니다)`)) return;
+  // 많이 뛸(우선) 선수 — 지정된 만큼 더 오래 뜀
+  const priority=(qFormation.priority||[]).filter(n=>order.includes(n));
+  const nonPrio=order.filter(n=>!priority.includes(n));
+  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\nGK 고정: ${gk||'미지정'}\n필드 ${N}명 · 우선(더 뛰기) ${priority.length}명\n전원 균등 출전(착석은 뒤 쿼터부터)으로 배치할까요?\n(현재 배치는 덮어씁니다)`)) return;
+
+  // 목표 출전 시간 (15분 블록) — 우선 선수부터 추가 블록 배정
+  const totalBlocks=S*qCnt*2, baseB=Math.floor(totalBlocks/N), remB=totalBlocks%N;
+  const rankT=[...priority, ...nonPrio];
+  const target={}; rankT.forEach((n,i)=>{ target[n]=(N<=S?totalMin:(baseB+(i<remB?1:0))*half); });
 
   // 각 쿼터 출전 명단 결정
   const play={}; // play[q] = 이름 배열
@@ -1989,7 +2101,9 @@ window.autoRotate=function(){
     const benchPer=N-S;                       // 매 쿼터 착석 인원
     const sitTotal=qCnt*benchPer;             // 총 착석 횟수
     const base=Math.floor(sitTotal/N), extra=sitTotal%N;
-    const sitCount={}; order.forEach((p,i)=>{ sitCount[p]=base+(i<extra?1:0); });
+    // 추가 착석(=적게 뜀)은 비우선 선수부터 → 우선 선수는 더 많이 뜀
+    const sitOrder=[...nonPrio, ...priority];
+    const sitCount={}; sitOrder.forEach((p,i)=>{ sitCount[p]=base+(i<extra?1:0); });
     const remaining={...sitCount};
     const sit={}; for(let q=1;q<=qCnt;q++) sit[q]=new Set();
     // 뒤 쿼터(Q4)부터 착석을 채움 → 착석이 후반에 몰리고 앞 쿼터는 최대한 유지
@@ -2012,12 +2126,14 @@ window.autoRotate=function(){
     field.push(...placed);
     qFormation['q'+q]={field,subs:[]};
   }
-  // 미세조정: 남는 격차를 뒤 쿼터의 15분 교체로 좁힘 (전원 균등)
-  qRebalance(qCnt,qMin,half,order,gk);
+  // 미세조정: 목표 시간에 맞춰 뒤 쿼터의 15분 교체로 조정
+  qRebalance(qCnt,qMin,half,order,gk,target);
   currentQTab=1; switchQTab(1);
-  toast(`${fname} 후반 집중 균등 배치 완료 — 확인 후 저장하세요`);
+  toast(`${fname} 배치 완료${priority.length?` · 우선 ${priority.length}명 더 뛰기`:''} — 확인 후 저장하세요`);
 };
-function qRebalance(qCnt,qMin,half,outfield,gk){
+function qRebalance(qCnt,qMin,half,outfield,gk,target){
+  target=target||{};
+  const tgt=(n)=> (target[n]!==undefined?target[n]:0);
   const calcMins=()=>{
     const mins={}; outfield.forEach(n=>mins[n]=0);
     for(let q=1;q<=qCnt;q++){
@@ -2044,15 +2160,25 @@ function qRebalance(qCnt,qMin,half,outfield,gk){
     }
     return false;
   };
+  const hasTarget=outfield.some(n=>target[n]!==undefined);
   for(let iter=0; iter<300; iter++){
     const mins=calcMins();
-    const hiOrder=outfield.slice().sort((a,b)=>mins[b]-mins[a]);
-    const loOrder=outfield.slice().sort((a,b)=>mins[a]-mins[b]);
-    if(mins[hiOrder[0]]-mins[loOrder[0]]<=half) break;
+    // 목표 대비 초과분(surplus) 큰 선수 → 부족분 큰 선수로 15분 이동
+    const sur=(n)=> hasTarget ? (mins[n]-tgt(n)) : mins[n];
+    const hiOrder=outfield.slice().sort((a,b)=>sur(b)-sur(a));
+    const loOrder=outfield.slice().sort((a,b)=>sur(a)-sur(b));
+    if(hasTarget){
+      // 목표 초과가 없거나 목표 미달이 없으면 종료
+      if(sur(hiOrder[0])<=0 || sur(loOrder[0])>=0) break;
+    } else {
+      if(mins[hiOrder[0]]-mins[loOrder[0]]<=half) break;
+    }
     let moved=false;
     for(const hi of hiOrder){
+      if(hasTarget && sur(hi)<=0) break;
       for(const lo of loOrder){
-        if(mins[hi]-mins[lo]<=half) break;   // 이득 없음 → 다음 hi
+        if(hasTarget){ if(sur(lo)>=0) break; }
+        else if(mins[hi]-mins[lo]<=half) break;
         if(hi!==lo && tryMove(hi,lo)){ moved=true; break; }
       }
       if(moved) break;
@@ -2061,6 +2187,13 @@ function qRebalance(qCnt,qMin,half,outfield,gk){
   }
 }
 
+window.clearAllQ=function(){
+  if(!isCoach()){toast('권한이 없습니다');return;}
+  if(!confirm('전 쿼터(1~4) 배치를 모두 초기화할까요?'))return;
+  for(let i=1;i<=4;i++) qFormation['q'+i]={field:[],subs:[]};
+  currentQTab=1; switchQTab(1);
+  toast('전 쿼터 초기화 완료 — 저장하면 반영됩니다');
+};
 window.copyQToAll=function(){
   if(!isCoach()){toast('권한이 없습니다');return;}
   const qCnt=parseInt(document.getElementById('q-cnt')?.value)||4;
