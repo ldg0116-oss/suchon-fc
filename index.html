@@ -1178,7 +1178,7 @@ function renderMembers(){
           <span class="badge ${posB(m.pos)}">${m.pos}</span>
           <span class="badge bgy">출전${s.played}</span>
           <span class="badge bgg">⚽${s.goals} 🅰${s.assists}</span>
-          <span class="badge bgo">기여 ${contribScoreReg(m.name)}</span>
+          <span class="badge bgo">기여 ${Math.round(contribScoreReg(m.name))}</span>
           <span class="badge ${fs.allPaid?'bgg':fs.paid>0?'bgo':'bgr'}">회비${fs.allPaid?'완납':fs.paid+'/'+fs.required}</span>
           ${lo.total>0?`<span class="badge bgr">지각 ${lo.total.toLocaleString()}원</span>`:''}
         </div>
@@ -1788,13 +1788,24 @@ function voteAttendees(){
   names=names.filter(n=>!isDormant(n));
   return {names:[...new Set(names)], ref:rf};
 }
-// 포지션별 기여도 가중치
+// 포지션별 기여도 가중치 (골·어시는 소수 가중으로 편차 최소화)
 // 항목: 참석(att) · 골(goal) · 어시(assist) · 포지션기여(role, DF>MF>FW=수비 우대·공격 최소)
-const DEFAULT_POSW={DF:{att:2,goal:1,assist:1,role:3},MF:{att:2,goal:2,assist:2,role:2},FW:{att:2,goal:3,assist:3,role:1},GK:{att:2,goal:1,assist:1,role:3}};
+// FW=어시 우대, MF=골 우대, DF/GK=골·어시 각각 최대값 자동 적용(수비가 넣으면 최대 보상)
+const DEFAULT_POSW={
+  DF:{att:1,goal:0.5,assist:0.5,role:0.6},
+  MF:{att:1,goal:0.5,assist:0.3,role:0.4},
+  FW:{att:1,goal:0.3,assist:0.5,role:0.2},
+  GK:{att:1,goal:0.5,assist:0.5,role:0.6}
+};
 function posWeights(){
   const pw=qFormation.posWeights||{};
   const out={};
   ['DF','MF','FW','GK'].forEach(k=>{ const d=DEFAULT_POSW[k], c=pw[k]||{}; out[k]={att:(c.att!=null?c.att:d.att),goal:(c.goal!=null?c.goal:d.goal),assist:(c.assist!=null?c.assist:d.assist),role:(c.role!=null?c.role:d.role)}; });
+  // 수비(DF)·GK의 골·어시 가중은 필드 포지션(MF·FW) 최대값을 자동 적용
+  const maxGoal=Math.max(out.MF.goal,out.FW.goal);
+  const maxAssist=Math.max(out.MF.assist,out.FW.assist);
+  out.DF.goal=maxGoal; out.DF.assist=maxAssist;
+  out.GK.goal=maxGoal; out.GK.assist=maxAssist;
   return out;
 }
 // 피치 y좌표 → 포지션 구분 (아래=수비, 위=공격)
@@ -1821,6 +1832,7 @@ function contribScoreWith(name,posK){ return contribBreak(name,posK).total; }
 function contribScore(name){ return contribScoreWith(name, effectivePos(name)); }
 // 시즌 기여도 — 등록 포지션 기준 · 선수/통계 탭 표시용
 function contribScoreReg(name){ return contribScoreWith(name, posCat(name)); }
+function r1(x){ return Math.round(x*10)/10; } // 소수 1자리 표시용
 // 포지션별 평균 기여도 (등록 포지션 그룹 기준 · 가중치 튜닝용)
 function posAverages(){
   const avg={};
@@ -1838,20 +1850,24 @@ function renderWeightGrid(){
   const labels={DF:'수비 DF',MF:'미드 MF',FW:'공격 FW',GK:'GK'};
   const rows=['DF','MF','FW','GK'].map(pk=>{
     const w=pw[pk]; const pct=Math.round((avg[pk]/topAvg)*100);
+    const autoGA=(pk==='DF'||pk==='GK'); // 골·어시는 최대값 자동
+    const gaInput=(key,v)=> autoGA
+      ? `<input type="number" value="${v}" disabled title="MF·FW 최대값 자동" style="opacity:0.7;border-style:dashed">`
+      : `<input type="number" min="0" step="0.1" value="${v}" onchange="setPosWeight('${pk}','${key}',this.value)">`;
     return `<div style="background:rgba(0,0,0,0.22);border:1px solid var(--cl-border2);border-radius:5px;padding:10px 11px;margin-bottom:8px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <span style="font-size:12px;font-weight:700;color:var(--cl-white)">${labels[pk]}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--cl-white)">${labels[pk]}${autoGA?' <span style="font-size:9px;color:rgba(160,176,202,0.6)">골·어시=최대값 자동</span>':''}</span>
         <span style="font-size:10px;color:${pct>=80&&pct<=110?'#4cd983':'var(--cl-silver)'}">평균 ${avg[pk]}점 · ${pct}%</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
-        <div><label style="margin-top:0">참석</label><input type="number" min="0" value="${w.att}" onchange="setPosWeight('${pk}','att',this.value)"></div>
-        <div><label style="margin-top:0">골</label><input type="number" min="0" value="${w.goal}" onchange="setPosWeight('${pk}','goal',this.value)"></div>
-        <div><label style="margin-top:0">어시</label><input type="number" min="0" value="${w.assist}" onchange="setPosWeight('${pk}','assist',this.value)"></div>
-        <div><label style="margin-top:0;color:var(--cl-gold)">포지션</label><input type="number" min="0" value="${w.role}" onchange="setPosWeight('${pk}','role',this.value)"></div>
+        <div><label style="margin-top:0">참석</label><input type="number" min="0" step="0.1" value="${w.att}" onchange="setPosWeight('${pk}','att',this.value)"></div>
+        <div><label style="margin-top:0">골</label>${gaInput('goal',w.goal)}</div>
+        <div><label style="margin-top:0">어시</label>${gaInput('assist',w.assist)}</div>
+        <div><label style="margin-top:0;color:var(--cl-gold)">포지션</label><input type="number" min="0" step="0.1" value="${w.role}" onchange="setPosWeight('${pk}','role',this.value)"></div>
       </div>
     </div>`;
   }).join('');
-  const formula=`<div style="font-size:10px;color:var(--cl-gold);background:rgba(212,175,55,0.06);border:1px solid var(--cl-border2);border-radius:4px;padding:8px 10px;margin-bottom:10px;line-height:1.6">기여도 = 참석수×참석 + 골×골 + 어시×어시 + <b style="color:#f1d36b">참석수×포지션</b><br><span style="color:var(--cl-silver)">포지션기여: 수비(DF) 높게 → 공격(FW) 낮게. 수비 보는 사람에게 추가 점수.</span></div>`;
+  const formula=`<div style="font-size:10px;color:var(--cl-gold);background:rgba(212,175,55,0.06);border:1px solid var(--cl-border2);border-radius:4px;padding:8px 10px;margin-bottom:10px;line-height:1.6">기여도 = 참석수×참석 + 골×골 + 어시×어시 + <b style="color:#f1d36b">참석수×포지션</b><br><span style="color:var(--cl-silver)">골·어시는 소수 가중(편차↓). FW=어시↑·MF=골↑, 수비(DF)는 골·어시 최대값 자동 → 수비가 넣으면 최대 보상.</span></div>`;
   // 관리자용 전체 통계 (현재 데이터 기반 · 등록 포지션 기준)
   const rowsData=members.filter(m=>!m.dormant).map(m=>({m,b:contribBreak(m.name,posCat(m.name))}))
     .sort((a,b)=>b.b.total-a.b.total);
@@ -1866,8 +1882,8 @@ function renderWeightGrid(){
         <td style="text-align:left;padding:4px 5px;color:var(--cl-white);font-weight:700;white-space:nowrap">${m.name}</td>
         <td style="text-align:center;padding:4px 3px">${b.pos}</td>
         <td style="text-align:center;padding:4px 3px">${b.played}</td><td style="text-align:center;padding:4px 3px">${b.goals}</td><td style="text-align:center;padding:4px 3px">${b.assists}</td>
-        <td style="text-align:center;padding:4px 3px">${b.att}</td><td style="text-align:center;padding:4px 3px">${b.goal}</td><td style="text-align:center;padding:4px 3px">${b.assist}</td><td style="text-align:center;padding:4px 3px;color:#f1d36b">${b.role}</td>
-        <td style="text-align:center;padding:4px 5px;color:var(--cl-gold);font-weight:700">${b.total}</td>
+        <td style="text-align:center;padding:4px 3px">${r1(b.att)}</td><td style="text-align:center;padding:4px 3px">${r1(b.goal)}</td><td style="text-align:center;padding:4px 3px">${r1(b.assist)}</td><td style="text-align:center;padding:4px 3px;color:#f1d36b">${r1(b.role)}</td>
+        <td style="text-align:center;padding:4px 5px;color:var(--cl-gold);font-weight:700">${Math.round(b.total)}</td>
       </tr>`).join('')}
       </tbody></table></div></div>`;
   document.getElementById('weight-grid').innerHTML=formula+rows+`<div style="font-size:9px;color:rgba(160,176,202,0.6);letter-spacing:0.2px;margin-bottom:4px">※ %는 최고 포지션 평균 대비. 수비가 80~110%면 균형(초록).</div>`+table;
@@ -1875,7 +1891,7 @@ function renderWeightGrid(){
 window.setPosWeight=function(pk,key,val){
   if(!qFormation.posWeights) qFormation.posWeights=JSON.parse(JSON.stringify(posWeights()));
   if(!qFormation.posWeights[pk]) qFormation.posWeights[pk]={};
-  qFormation.posWeights[pk][key]=Math.max(0,parseInt(val)||0);
+  qFormation.posWeights[pk][key]=Math.max(0,parseFloat(val)||0);  // 소수 허용
   renderWeightGrid();
 };
 window.resetWeights=function(){ qFormation.posWeights=JSON.parse(JSON.stringify(DEFAULT_POSW)); renderWeightGrid(); toast('기본값으로 초기화'); };
@@ -1946,7 +1962,7 @@ function renderRosterList(){
     const m=members.find(x=>x.name===n); const pos=m?m.pos:(isMerc?'용병':'');
     const s=getStats(n); const sc=scoreOf(n); const vo=voters.indexOf(n);
     const ep=effectivePos(n); const posBadge=(ep!==posCat(n))?` <span style="color:#f1d36b">→${ep} 배치</span>`:'';
-    const tag = `기여 ${sc}점${on&&rankMap[n]?` · ${rankMap[n]}위`:''}${posBadge}` + ` · 출전${s.played}·⚽${s.goals}·🅰${s.assists}` + (vo>=0?` · 투표${vo+1}번`:'');
+    const tag = `기여 ${Math.round(sc)}점${on&&rankMap[n]?` · ${rankMap[n]}위`:''}${posBadge}` + ` · 출전${s.played}·⚽${s.goals}·🅰${s.assists}` + (vo>=0?` · 투표${vo+1}번`:'');
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 8px;border-bottom:1px solid rgba(212,175,55,0.07)">
       <div onclick="toggleRoster('${escAttr(n)}')" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;min-width:0">
         <div style="width:20px;height:20px;border-radius:4px;border:1.5px solid ${on?'var(--cl-gold)':'rgba(160,176,202,0.4)'};background:${on?'var(--grad-gold)':'transparent'};display:flex;align-items:center;justify-content:center;color:var(--cl-navy);font-size:13px;font-weight:900;flex-shrink:0">${on?'✓':''}</div>
@@ -2605,7 +2621,7 @@ function renderStats(){
     <td style="color:var(--cl-silver)">${s.played}</td>
     <td><span class="badge bgg">${s.goals}</span></td>
     <td><span class="badge bgb">${s.assists}</span></td>
-    <td><span class="badge bgo" style="font-family:var(--font-display);font-size:12px">${cs}</span></td>
+    <td><span class="badge bgo" style="font-family:var(--font-display);font-size:12px">${Math.round(cs)}</span></td>
     <td><span class="badge ${fs.allPaid?'bgg':paid>0?'bgo':'bgr'}">${fs.allPaid?'완납':paid+'/'+fs.required}</span></td>
     ${isAdmin()?`<td><button class="bsm" style="background:linear-gradient(135deg,rgba(212,175,55,0.18),rgba(212,175,55,0.06));color:var(--cl-gold);border:1px solid rgba(212,175,55,0.4)" onclick="openStatEdit('${m.name}')">수정</button></td>`:'<td></td>'}
   </tr>`).join('');
