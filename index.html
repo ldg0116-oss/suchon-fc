@@ -700,6 +700,22 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
     </div>
   </div>
 
+  <!-- 선수별 가중치 수정 -->
+  <div id="pweight-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);backdrop-filter:blur(6px);z-index:1001;align-items:flex-end;justify-content:center">
+    <div style="background:var(--grad-card);border-radius:6px 6px 0 0;padding:18px 16px 24px;width:100%;max-width:500px;border-top:1px solid var(--cl-gold);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 -10px 40px rgba(0,0,0,0.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-family:var(--font-display);font-size:15px;letter-spacing:2px;color:var(--cl-gold)" id="pweight-title">선수별 가중치</div>
+        <button onclick="closePlayerWeight()" style="background:rgba(255,255,255,0.06);border:1px solid var(--cl-border2);border-radius:3px;color:var(--cl-silver);font-size:10px;padding:5px 12px;cursor:pointer;letter-spacing:1.5px;font-weight:700">CLOSE</button>
+      </div>
+      <div style="font-size:10px;color:var(--cl-silver);margin-bottom:12px;letter-spacing:0.2px;line-height:1.5">이 선수에게만 적용되는 가중치입니다. 비우면 포지션 기본값을 그대로 씁니다. (칸 아래 회색 숫자 = 포지션 기본값)</div>
+      <div id="pweight-body" style="overflow-y:auto;flex:1"></div>
+      <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--cl-border2)">
+        <button onclick="resetPlayerWeight()" style="flex:1;padding:10px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.3);border-radius:3px;color:var(--cl-silver);font-size:11px;font-weight:700;cursor:pointer">전체 비우기(포지션값 사용)</button>
+        <button class="btn btn-gold" style="flex:0 0 auto;width:auto;margin:0;padding:10px 20px" onclick="closePlayerWeight()">✓ 완료</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 경기 기록 백업 모달 (관리자) -->
   <div id="backup-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);backdrop-filter:blur(6px);z-index:999;align-items:flex-end;justify-content:center">
     <div style="background:var(--grad-card);border-radius:6px 6px 0 0;padding:18px 16px 24px;width:100%;max-width:500px;border-top:1px solid var(--cl-gold);max-height:82vh;display:flex;flex-direction:column;box-shadow:0 -10px 40px rgba(0,0,0,0.7)">
@@ -1867,22 +1883,26 @@ function effectivePos(name){
 // 기여도 = 참석×(att+선수보너스) + 참석×role + Σ(경기별 골×해당 경기 포지션 goal) + Σ(경기별 어시×해당 경기 포지션 assist)
 // · 참석·포지션(role): 고정 산정/배치 포지션(posK) 기준 (기존 방식 유지)
 // · 골·어시: '그날 뛴 포지션' 가중치로 경기별 합산 — 수비 자리 골=최대값(높게), 공격 배치 골=FW 가중(낮게)
+// 선수별 가중치 override (있으면 포지션 가중치 대신 사용)
+function playerWeightsOf(name){ const o=qFormation.playerWeights||{}; return o[name]||{}; }
+function hasPlayerWeight(name){ const w=playerWeightsOf(name); return !!(w&&(w.att!=null||w.goal!=null||w.assist!=null||w.role!=null)); }
 function contribBreak(name,posK){
   const s=getStatsByPos(name); const W=posWeights(); const w=W[posK]||DEFAULT_POSW.MF;
-  const bonus=attBonusOf(name);
-  const att=(w.att+bonus)*s.played, role=w.role*s.played;
+  const bonus=attBonusOf(name); const pw=playerWeightsOf(name);
+  const attW=(pw.att!=null?pw.att:w.att), roleW=(pw.role!=null?pw.role:w.role);
+  const att=(attW+bonus)*s.played, role=roleW*s.played;
   let goal=0, assist=0;
-  ['DF','MF','FW','GK'].forEach(k=>{ goal += W[k].goal*(s.goalsByPos[k]||0); assist += W[k].assist*(s.assistsByPos[k]||0); });
-  return {att,goal,assist,role,total:att+goal+assist+role,played:s.played,goals:s.goals,assists:s.assists,pos:posK,bonus,goalsByPos:s.goalsByPos,assistsByPos:s.assistsByPos};
+  // 골·어시: 선수별 가중치가 있으면 총합에 그 값 적용, 없으면 경기별 '뛴 포지션' 가중치로 합산
+  if(pw.goal!=null){ goal=pw.goal*s.goals; }
+  else { ['DF','MF','FW','GK'].forEach(k=>{ goal += W[k].goal*(s.goalsByPos[k]||0); }); }
+  if(pw.assist!=null){ assist=pw.assist*s.assists; }
+  else { ['DF','MF','FW','GK'].forEach(k=>{ assist += W[k].assist*(s.assistsByPos[k]||0); }); }
+  return {att,goal,assist,role,total:att+goal+assist+role,played:s.played,goals:s.goals,assists:s.assists,pos:posK,bonus,goalsByPos:s.goalsByPos,assistsByPos:s.assistsByPos,custom:hasPlayerWeight(name)};
 }
 function contribScoreWith(name,posK){ return contribBreak(name,posK).total; }
-// 자동 기여도 — 이번 경기 배치된 포지션 기준(없으면 등록 포지션)
-function contribScoreAuto(name){ return contribScoreWith(name, effectivePos(name)); }
-// 선수별 기여도 수동 수정값 (관리자) — 있으면 자동값 대신 사용
-function contribOverrideOf(name){ const o=qFormation.contribOverride||{}; const v=o[name]; return (v!=null && v!=='' && !isNaN(v))?Number(v):null; }
-// 기여도 점수 — 수동 수정값 우선, 없으면 자동 · 쿼터 배정/명단 표시용
-function contribScore(name){ const ov=contribOverrideOf(name); return ov!=null?ov:contribScoreAuto(name); }
-// 시즌 기여도 — 산정 포지션 기준 · 통계 탭 표시용 (순수 계산값 · 쿼터 수동 수정과 무관)
+// 기여도 점수 — 이번 경기 배치된 포지션 기준(없으면 등록 포지션) · 선수별 가중치 반영 · 쿼터 배정/명단 표시용
+function contribScore(name){ return contribScoreWith(name, effectivePos(name)); }
+// 시즌 기여도 — 산정 포지션 기준 · 통계 탭 표시용 · 선수별 가중치 반영
 function contribScoreReg(name){ return contribScoreWith(name, scorePos(name)); }
 function r1(x){ return Math.round(x*10)/10; } // 소수 1자리 표시용
 // 포지션별 평균 기여도 (등록 포지션 그룹 기준 · 가중치 튜닝용)
@@ -1926,14 +1946,14 @@ function renderWeightGrid(){
   const posOpt=(sel)=>['DF','MF','FW','GK'].map(k=>`<option value="${k}" ${k===sel?'selected':''}>${k}</option>`).join('');
   const table=`<div style="margin-top:6px;border-top:1px solid var(--cl-border2);padding-top:10px">
     <div style="font-size:10px;font-weight:700;color:var(--cl-silver);letter-spacing:1px;margin-bottom:2px">전체 기여도 통계 · 선수별 편집 (관리자)</div>
-    <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-bottom:6px">산정P=기여 계산 포지션(변경 가능) · 참석+=선수 참석 보너스(멀리 오는 사람 등)</div>
+    <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-bottom:6px">산정P=기여 계산 포지션 · 참석+=참석 보너스(멀리 오는 사람) · 이름 옆 ⚙=선수별 가중치 수정(비우면 포지션값)</div>
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead><tr style="color:var(--cl-gold)">
         <th style="text-align:left;padding:4px 5px">이름</th><th style="padding:4px 2px">산정P</th><th style="padding:4px 2px">참석+</th><th style="padding:4px 2px">출전</th><th style="padding:4px 2px">골</th><th style="padding:4px 2px">어시</th>
         <th style="padding:4px 2px">참석</th><th style="padding:4px 2px">골</th><th style="padding:4px 2px">어시</th><th style="padding:4px 2px;color:#f1d36b">포지션</th><th style="padding:4px 4px;color:var(--cl-white)">합계</th>
       </tr></thead><tbody>
       ${rowsData.map(({m,b})=>`<tr style="border-top:1px solid rgba(212,175,55,0.06);color:var(--cl-silver)">
-        <td style="text-align:left;padding:4px 5px;color:var(--cl-white);font-weight:700;white-space:nowrap">${m.name}</td>
+        <td style="text-align:left;padding:4px 5px;color:var(--cl-white);font-weight:700;white-space:nowrap">${m.name} <button onclick="openPlayerWeight('${escAttr(m.name)}')" title="선수별 가중치 수정" style="background:${b.custom?'rgba(212,175,55,0.25)':'rgba(255,255,255,0.06)'};border:1px solid ${b.custom?'var(--cl-gold)':'var(--cl-border2)'};border-radius:3px;color:${b.custom?'var(--cl-gold)':'var(--cl-silver)'};font-size:10px;padding:2px 5px;cursor:pointer;margin-left:3px">⚙</button></td>
         <td style="text-align:center;padding:2px"><select onchange="setPlayerPos('${escAttr(m.name)}',this.value)" style="width:auto;padding:3px 4px;font-size:10px;margin:0">${posOpt(b.pos)}</select></td>
         <td style="text-align:center;padding:2px"><input type="number" min="0" step="0.5" value="${attBonusOf(m.name)}" onchange="setPlayerAtt('${escAttr(m.name)}',this.value)" style="width:44px;padding:3px 4px;font-size:10px;margin:0;text-align:center"></td>
         <td style="text-align:center;padding:4px 2px">${b.played}</td><td style="text-align:center;padding:4px 2px">${b.goals}</td><td style="text-align:center;padding:4px 2px">${b.assists}</td>
@@ -1943,8 +1963,54 @@ function renderWeightGrid(){
       </tbody></table></div></div>`;
   document.getElementById('weight-grid').innerHTML=formula+rows+`<div style="font-size:9px;color:rgba(160,176,202,0.6);letter-spacing:0.2px;margin-bottom:4px">※ %는 최고 포지션 평균 대비. 수비가 80~110%면 균형(초록).</div>`+table;
 }
-window.setPlayerPos=function(name,pos){ if(!qFormation.playerPos)qFormation.playerPos={}; qFormation.playerPos[name]=pos; renderWeightGrid(); };
-window.setPlayerAtt=function(name,val){ if(!qFormation.attBonus)qFormation.attBonus={}; qFormation.attBonus[name]=Math.max(0,parseFloat(val)||0); renderWeightGrid(); };
+window.setPlayerPos=function(name,pos){ if(!qFormation.playerPos)qFormation.playerPos={}; qFormation.playerPos[name]=pos; renderWeightGrid(); refreshPWBody(name); };
+window.setPlayerAtt=function(name,val){ if(!qFormation.attBonus)qFormation.attBonus={}; qFormation.attBonus[name]=Math.max(0,parseFloat(val)||0); renderWeightGrid(); refreshPWBody(name); };
+// ── 선수별 가중치(att/goal/assist/role) 수정 ──
+function refreshPWBody(name){ const pm=document.getElementById('pweight-modal'); if(pm&&pm.style.display==='flex'&&pm.dataset.name===name){ document.getElementById('pweight-body').innerHTML=renderPlayerWeightBody(name); } }
+function renderPlayerWeightBody(name){
+  const pos=scorePos(name); const W=posWeights()[pos]||DEFAULT_POSW.MF;
+  const pw=playerWeightsOf(name); const bonus=attBonusOf(name);
+  const field=(key,label,def,note)=>`
+    <div style="margin-bottom:10px">
+      <label style="margin-top:0">${label}</label>
+      <input type="number" min="0" step="0.1" value="${pw[key]!=null?pw[key]:''}" placeholder="${def}" onchange="setPlayerWeight('${escAttr(name)}','${key}',this.value)" style="margin:0">
+      <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-top:2px">${note||('포지션('+pos+') 기본값 '+def+' · 비우면 기본값 사용')}</div>
+    </div>`;
+  return `
+    <div style="font-size:11px;color:var(--cl-gold);margin-bottom:10px">산정 포지션: <b>${pos}</b></div>
+    ${field('att','참석 가중치', W.att)}
+    ${field('goal','골 가중치', W.goal, '기본값 '+W.goal+' · 입력하면 이 선수의 모든 골에 이 가중 적용(포지션별 계산 대체)')}
+    ${field('assist','어시 가중치', W.assist, '기본값 '+W.assist+' · 입력하면 이 선수의 모든 어시에 이 가중 적용')}
+    ${field('role','포지션 가중치', W.role)}
+    <div style="margin-bottom:6px;border-top:1px solid var(--cl-border2);padding-top:10px">
+      <label style="margin-top:0;color:var(--cl-gold)">참석 보너스 (＋, 멀리 오는 사람 등)</label>
+      <input type="number" min="0" step="0.5" value="${bonus}" onchange="setPlayerAtt('${escAttr(name)}',this.value)" style="margin:0">
+      <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-top:2px">참석 가중치에 더해집니다(대체 아님)</div>
+    </div>
+    <div style="font-size:10px;color:var(--cl-gold);background:rgba(212,175,55,0.06);border:1px solid var(--cl-border2);border-radius:4px;padding:8px 10px;margin-top:6px">현재 산정 기여도: <b>${Math.round(contribScoreReg(name))}점</b>${hasPlayerWeight(name)?' · <span style="color:#f1d36b">선수별 가중치 적용중</span>':''}</div>`;
+}
+window.openPlayerWeight=function(name){
+  if(!isCoach()){toast('관리자만 가능합니다');return;}
+  const pm=document.getElementById('pweight-modal');
+  document.getElementById('pweight-title').textContent=name+' 가중치';
+  pm.dataset.name=name;
+  document.getElementById('pweight-body').innerHTML=renderPlayerWeightBody(name);
+  pm.style.display='flex';
+};
+window.closePlayerWeight=function(){ document.getElementById('pweight-modal').style.display='none'; renderWeightGrid(); if(document.getElementById('roster-modal')?.style.display==='flex') renderRosterList(); renderQView(); };
+window.setPlayerWeight=function(name,key,val){
+  if(!qFormation.playerWeights) qFormation.playerWeights={};
+  if(!qFormation.playerWeights[name]) qFormation.playerWeights[name]={};
+  if(val===''||val==null){ delete qFormation.playerWeights[name][key]; if(!Object.keys(qFormation.playerWeights[name]).length) delete qFormation.playerWeights[name]; }
+  else { qFormation.playerWeights[name][key]=Math.max(0,parseFloat(val)||0); }
+  document.getElementById('pweight-body').innerHTML=renderPlayerWeightBody(name);
+};
+window.resetPlayerWeight=function(){
+  const name=document.getElementById('pweight-modal').dataset.name; if(!name)return;
+  if(qFormation.playerWeights) delete qFormation.playerWeights[name];
+  document.getElementById('pweight-body').innerHTML=renderPlayerWeightBody(name);
+  toast(name+' 가중치를 포지션 기본값으로 초기화');
+};
 window.setPosWeight=function(pk,key,val){
   if(!qFormation.posWeights) qFormation.posWeights=JSON.parse(JSON.stringify(posWeights()));
   if(!qFormation.posWeights[pk]) qFormation.posWeights[pk]={};
@@ -2055,22 +2121,22 @@ function renderRosterList(){
     const m=members.find(x=>x.name===n); const pos=m?m.pos:(isMerc?'용병':'');
     const s=getStats(n); const sc=scoreOf(n); const vo=voters.indexOf(n);
     const ep=effectivePos(n); const posBadge=(ep!==posCat(n))?` <span style="color:#f1d36b">→${ep} 배치</span>`:'';
-    const ov=contribOverrideOf(n);
-    const tag = `기여 <b style="color:${ov!=null?'#f1d36b':'inherit'}">${Math.round(sc)}점</b>${ov!=null?'<span style="color:#f1d36b" title="기여도 수동 수정됨">✎</span>':''}${on&&rankMap[n]?` · ${rankMap[n]}위`:''}${posBadge}` + ` · 출전${s.played}·⚽${s.goals}·🅰${s.assists}` + (vo>=0?` · 투표${vo+1}번`:'');
+    const cw=hasPlayerWeight(n);
+    const tag = `기여 <b style="color:${cw?'#f1d36b':'inherit'}">${Math.round(sc)}점</b>${cw?'<span style="color:#f1d36b" title="선수별 가중치 적용중">⚙</span>':''}${on&&rankMap[n]?` · ${rankMap[n]}위`:''}${posBadge}` + ` · 출전${s.played}·⚽${s.goals}·🅰${s.assists}` + (vo>=0?` · 투표${vo+1}번`:'');
     return `<div style="display:flex;align-items:center;gap:8px;padding:9px 8px;border-bottom:1px solid rgba(212,175,55,0.07)">
       <div onclick="toggleRoster('${escAttr(n)}')" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;min-width:0">
         <div style="width:20px;height:20px;border-radius:4px;border:1.5px solid ${on?'var(--cl-gold)':'rgba(160,176,202,0.4)'};background:${on?'var(--grad-gold)':'transparent'};display:flex;align-items:center;justify-content:center;color:var(--cl-navy);font-size:13px;font-weight:900;flex-shrink:0">${on?'✓':''}</div>
         <span style="font-size:9px;color:var(--cl-silver);min-width:28px">${pos}</span>
         <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:700;color:${on?'var(--cl-white)':'var(--cl-silver)'}">${n}${isMerc?' <span style="font-size:9px;color:#7fc1eb">(용병)</span>':''}</span>${tag?`<span style="display:block;font-size:9px;color:rgba(160,176,202,0.6);letter-spacing:0.2px">${tag}</span>`:''}</span>
       </div>
-      ${isCoach()?`<input type="number" min="0" step="1" value="${ov!=null?ov:''}" placeholder="${Math.round(contribScoreAuto(n))}" onchange="setContribOverride('${escAttr(n)}',this.value)" onclick="event.stopPropagation()" title="기여도 수동 수정 (비우면 자동값)" style="width:52px;padding:5px 4px;font-size:11px;margin:0;text-align:center;flex-shrink:0">`:''}
+      ${isCoach()?`<button onclick="event.stopPropagation();openPlayerWeight('${escAttr(n)}')" title="선수별 가중치 수정 (참석·골·어시·포지션)" style="background:${cw?'rgba(212,175,55,0.22)':'rgba(255,255,255,0.06)'};border:1px solid ${cw?'var(--cl-gold)':'var(--cl-border2)'};border-radius:4px;color:${cw?'var(--cl-gold)':'var(--cl-silver)'};font-size:13px;cursor:pointer;padding:4px 8px;flex-shrink:0">⚙</button>`:''}
       ${on?`<button onclick="togglePriority('${escAttr(n)}')" title="많이 뛰기(우선)" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 5px;color:${isP?'var(--cl-gold)':'rgba(160,176,202,0.35)'}">${isP?'★':'☆'}</button>`:''}
       ${isMerc?`<button onclick="removeMercenary('${escAttr(n)}')" style="background:none;border:none;color:#ff6b6b;font-size:16px;cursor:pointer;padding:0 4px">×</button>`:''}
     </div>`;
   };
   const list=document.getElementById('roster-list');
   const prioCount=[...rosterDraft].filter(n=>prio.includes(n)).length;
-  list.innerHTML = `<div style="font-size:10px;color:rgba(160,176,202,0.7);margin-bottom:8px;letter-spacing:0.2px">★ = 많이 뛰기(우선) 지정 · 현재 ${prioCount}명${isCoach()?' · 우측 숫자칸 = 기여도 수동 수정(비우면 자동)':''}</div>`
+  list.innerHTML = `<div style="font-size:10px;color:rgba(160,176,202,0.7);margin-bottom:8px;letter-spacing:0.2px">★ = 많이 뛰기(우선) 지정 · 현재 ${prioCount}명${isCoach()?' · ⚙ = 선수별 가중치(참석·골·어시·포지션) 수정':''}</div>`
     + mercs.map(n=>row(n,true)).join('') + memberNames.map(n=>row(n,false)).join('');
   document.getElementById('roster-count').textContent=rosterDraft.size;
 }
@@ -2370,15 +2436,6 @@ window.togglePriority=function(n){
   const i=qFormation.priority.indexOf(n);
   if(i>=0) qFormation.priority.splice(i,1); else qFormation.priority.push(n);
   if(document.getElementById('roster-modal').style.display==='flex') renderRosterList();
-};
-// 선수별 기여도 수동 수정 (관리자) — 비우면 자동값 사용
-window.setContribOverride=function(n,val){
-  if(!isCoach()){toast('관리자만 가능합니다');return;}
-  if(!qFormation.contribOverride) qFormation.contribOverride={};
-  if(val===''||val==null){ delete qFormation.contribOverride[n]; }
-  else { qFormation.contribOverride[n]=Math.max(0,parseFloat(val)||0); }
-  if(document.getElementById('roster-modal')?.style.display==='flex') renderRosterList();
-  renderQView();
 };
 
 // ── 후반 집중 균등 자동배치 (전원 균등 출전 · 착석은 뒤 쿼터부터 · GK 고정) ──
