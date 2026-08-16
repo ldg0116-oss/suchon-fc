@@ -1855,6 +1855,12 @@ const DEFAULT_POSW={
 // 선수별 기본 참석 보너스(멀리서 오는 사람 등) · 산정 포지션 지정 (앱 기본값, 관리자 수정 가능)
 const DEFAULT_ATTBONUS={박지훈:1,이동근:1,김종호:1,최춘식:1};
 const DEFAULT_PLAYERPOS={최춘식:'FW'};
+// 선수별 기본 골·어시 가중치 override (현재 없음 — 필요 시 {이름:{goal,assist}})
+const DEFAULT_PLAYERW={};
+// 과거 경기 포지션 고정: 'until'(포함) 이전 경기의 골·어시는 'pos' 포지션 가중치로 산정, 이후 경기는 경기별 '뛴 포지션'(뛴P)을 따름
+// 최춘식: 2026-08-16 이전 기록은 공격수(FW) 고정, 이후는 그 경기 쿼터에서 정해진 포지션을 따름
+const DEFAULT_POSLOCK={최춘식:{pos:'FW', until:'2026-08-16'}};
+function posLockOf(name){ const o=qFormation.posLock||{}; return o[name]||DEFAULT_POSLOCK[name]||null; }
 function attBonusOf(name){ const a=qFormation.attBonus||{}; return (a[name]!=null?a[name]:(DEFAULT_ATTBONUS[name]||0)); }
 function scorePos(name){ const o=qFormation.playerPos||{}; return o[name]||DEFAULT_PLAYERPOS[name]||posCat(name); }
 function posWeights(){
@@ -1883,14 +1889,14 @@ function effectivePos(name){
 // 기여도 = 참석×(att+선수보너스) + 참석×role + Σ(경기별 골×해당 경기 포지션 goal) + Σ(경기별 어시×해당 경기 포지션 assist)
 // · 참석·포지션(role): 고정 산정/배치 포지션(posK) 기준 (기존 방식 유지)
 // · 골·어시: '그날 뛴 포지션' 가중치로 경기별 합산 — 수비 자리 골=최대값(높게), 공격 배치 골=FW 가중(낮게)
-// 선수별 가중치 override (있으면 포지션 가중치 대신 사용)
-function playerWeightsOf(name){ const o=qFormation.playerWeights||{}; return o[name]||{}; }
-function hasPlayerWeight(name){ const w=playerWeightsOf(name); return !!(w&&(w.att!=null||w.goal!=null||w.assist!=null||w.role!=null)); }
+// 선수별 골·어시 가중치 override (있으면 그 선수 모든 골/어시에 적용) · 앱 기본값(DEFAULT_PLAYERW) 병합
+function playerWeightsOf(name){ const o=(qFormation.playerWeights||{})[name]||{}; const d=DEFAULT_PLAYERW[name]||{}; return Object.assign({}, d, o); }
+function hasPlayerWeight(name){ const w=playerWeightsOf(name); return !!(w&&(w.goal!=null||w.assist!=null)); }
 function contribBreak(name,posK){
   const s=getStatsByPos(name); const W=posWeights(); const w=W[posK]||DEFAULT_POSW.MF;
   const bonus=attBonusOf(name); const pw=playerWeightsOf(name);
-  const attW=(pw.att!=null?pw.att:w.att), roleW=(pw.role!=null?pw.role:w.role);
-  const att=(attW+bonus)*s.played, role=roleW*s.played;
+  // 참석·포지션(role)은 항상 포지션 가중치 사용 (선수별 수정 대상 아님)
+  const att=(w.att+bonus)*s.played, role=w.role*s.played;
   let goal=0, assist=0;
   // 골·어시: 선수별 가중치가 있으면 총합에 그 값 적용, 없으면 경기별 '뛴 포지션' 가중치로 합산
   if(pw.goal!=null){ goal=pw.goal*s.goals; }
@@ -1969,25 +1975,18 @@ window.setPlayerAtt=function(name,val){ if(!qFormation.attBonus)qFormation.attBo
 function refreshPWBody(name){ const pm=document.getElementById('pweight-modal'); if(pm&&pm.style.display==='flex'&&pm.dataset.name===name){ document.getElementById('pweight-body').innerHTML=renderPlayerWeightBody(name); } }
 function renderPlayerWeightBody(name){
   const pos=scorePos(name); const W=posWeights()[pos]||DEFAULT_POSW.MF;
-  const pw=playerWeightsOf(name); const bonus=attBonusOf(name);
+  const pw=playerWeightsOf(name);
   const field=(key,label,def,note)=>`
-    <div style="margin-bottom:10px">
+    <div style="margin-bottom:12px">
       <label style="margin-top:0">${label}</label>
       <input type="number" min="0" step="0.1" value="${pw[key]!=null?pw[key]:''}" placeholder="${def}" onchange="setPlayerWeight('${escAttr(name)}','${key}',this.value)" style="margin:0">
-      <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-top:2px">${note||('포지션('+pos+') 기본값 '+def+' · 비우면 기본값 사용')}</div>
+      <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-top:2px">${note}</div>
     </div>`;
   return `
-    <div style="font-size:11px;color:var(--cl-gold);margin-bottom:10px">산정 포지션: <b>${pos}</b></div>
-    ${field('att','참석 가중치', W.att)}
-    ${field('goal','골 가중치', W.goal, '기본값 '+W.goal+' · 입력하면 이 선수의 모든 골에 이 가중 적용(포지션별 계산 대체)')}
-    ${field('assist','어시 가중치', W.assist, '기본값 '+W.assist+' · 입력하면 이 선수의 모든 어시에 이 가중 적용')}
-    ${field('role','포지션 가중치', W.role)}
-    <div style="margin-bottom:6px;border-top:1px solid var(--cl-border2);padding-top:10px">
-      <label style="margin-top:0;color:var(--cl-gold)">참석 보너스 (＋, 멀리 오는 사람 등)</label>
-      <input type="number" min="0" step="0.5" value="${bonus}" onchange="setPlayerAtt('${escAttr(name)}',this.value)" style="margin:0">
-      <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-top:2px">참석 가중치에 더해집니다(대체 아님)</div>
-    </div>
-    <div style="font-size:10px;color:var(--cl-gold);background:rgba(212,175,55,0.06);border:1px solid var(--cl-border2);border-radius:4px;padding:8px 10px;margin-top:6px">현재 산정 기여도: <b>${Math.round(contribScoreReg(name))}점</b>${hasPlayerWeight(name)?' · <span style="color:#f1d36b">선수별 가중치 적용중</span>':''}</div>`;
+    <div style="font-size:11px;color:var(--cl-gold);margin-bottom:10px">산정 포지션: <b>${pos}</b> <span style="color:var(--cl-silver);font-size:9px">· 참석·포지션 가중치는 포지션값을 그대로 사용</span></div>
+    ${field('goal','골 가중치', W.goal, '기본값 '+W.goal+' (포지션 '+pos+') · 입력하면 이 선수의 모든 골에 이 가중 적용 · 비우면 기본값')}
+    ${field('assist','어시 가중치', W.assist, '기본값 '+W.assist+' (포지션 '+pos+') · 입력하면 이 선수의 모든 어시에 이 가중 적용 · 비우면 기본값')}
+    <div style="font-size:10px;color:var(--cl-gold);background:rgba(212,175,55,0.06);border:1px solid var(--cl-border2);border-radius:4px;padding:8px 10px;margin-top:6px">현재 산정 기여도: <b>${Math.round(contribScoreReg(name))}점</b> <span style="color:var(--cl-silver)">(골 ${r1(contribBreak(name,scorePos(name)).goal)} · 어시 ${r1(contribBreak(name,scorePos(name)).assist)})</span>${hasPlayerWeight(name)?' · <span style="color:#f1d36b">선수별 가중치 적용중</span>':''}</div>`;
 }
 window.openPlayerWeight=function(name){
   if(!isCoach()){toast('관리자만 가능합니다');return;}
@@ -2783,13 +2782,15 @@ function getAutoStats(name){
 }
 // 경기별 '뛴 포지션'으로 골·어시를 포지션별 집계 (경기에 pos 없으면 산정 포지션 폴백) — 기여도 골·어시 계산용
 function getStatsByPos(name){
-  const fixed=scorePos(name);
+  const fixed=scorePos(name); const lock=posLockOf(name);
   const gp={DF:0,MF:0,FW:0,GK:0}, ap={DF:0,MF:0,FW:0,GK:0};
   let played=0,goals=0,assists=0;
   games.forEach(g=>{
     const p=g.players&&g.players[name]; if(!p) return;
     if(p.played) played++;
-    const k=(p.pos==='DF'||p.pos==='MF'||p.pos==='FW'||p.pos==='GK')?p.pos:fixed; // 그 경기에서 뛴 포지션
+    let k;
+    if(lock && g.date && g.date<=lock.until){ k=lock.pos; }        // 기준일 이전 경기: 고정 포지션(최춘식=FW)
+    else { k=(p.pos==='DF'||p.pos==='MF'||p.pos==='FW'||p.pos==='GK')?p.pos:fixed; } // 이후: 그 경기 '뛴 포지션'(없으면 산정)
     const gg=p.goals||0, ga=p.assists||0;
     gp[k]+=gg; ap[k]+=ga; goals+=gg; assists+=ga;
   });
