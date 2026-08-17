@@ -1932,6 +1932,19 @@ function assignPlayersToSlots(players, slots){
 
 // 투표 참석자(가장 가까운 일정 기준, 휴면 제외)
 function voteAttendees(){
+  // 쿼터탭에 '기록할 경기'가 연결돼 있으면 그 경기 기준 명단을 우선 (마지막 투표가 아니라 해당 경기의 투표)
+  const gid=qFormation.gameId;
+  if(gid){
+    const g=games.find(x=>x.id===gid);
+    if(g){
+      // 1) 연결된 일정의 참석 투표
+      if(g.scheduleId){ const s=schedules.find(x=>x.id===g.scheduleId); if(s){ const votes=s.votes||{}; const nm=Object.values(votes).filter(v=>v.vote==='o').map(v=>v.name).filter(n=>!isDormant(n)); return {names:[...new Set(nm)], ref:s}; } }
+      // 2) 경기 기록에 있는 선수(출전 표시 우선, 없으면 기록 있는 전원)
+      const ps=g.players||{}; let gn=Object.keys(ps).filter(n=>ps[n]&&ps[n].played); if(!gn.length) gn=Object.keys(ps);
+      gn=gn.filter(n=>!isDormant(n));
+      if(gn.length) return {names:[...new Set(gn)], ref:null};
+    }
+  }
   const today=todayKST();
   const upcoming=schedules.filter(s=>s.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
   const past=schedules.filter(s=>s.date<today).sort((a,b)=>b.date.localeCompare(a.date));
@@ -3253,6 +3266,22 @@ window.finalizeVoteAndCreateGame=async function(sid){
   await createGameFromSchedule(sid);
 };
 
+// ── 투표 마감취소 (생성된 경기 기록 삭제 → 다시 투표 가능) ──
+window.unfinalizeVote=async function(sid){
+  if(!isAdmin()){toast('관리자만 가능합니다');return;}
+  const g=games.find(x=>x.scheduleId===sid);
+  if(!g){toast('마감된 경기가 아닙니다');return;}
+  const hasStats=Object.values(g.players||{}).some(p=>(p.goals||0)||(p.assists||0)||(Array.isArray(p.qd)&&p.qd.some(d=>(d.g||0)||(d.a||0))));
+  const msg=hasStats
+    ? '⚠ 이 경기에 골/어시 기록이 있습니다.\n마감을 취소하면 생성된 경기 기록이 삭제되고 다시 투표할 수 있습니다.\n정말 삭제하고 마감 취소할까요?'
+    : '투표 마감을 취소하고 생성된 (빈) 경기 기록을 삭제할까요?\n다시 투표할 수 있게 됩니다.';
+  if(!confirm(msg))return;
+  if(qFormation.gameId===g.id) qFormation.gameId=''; // 쿼터탭 연결 해제
+  await remove(ref(db,'suchon/games/'+g.id));
+  toast('투표 마감 취소됨 — 다시 투표할 수 있습니다');
+  renderSchedule();
+  if(document.getElementById('vote-admin-modal')?.style.display==='flex') closeVoteAdmin();
+};
 window.goToGame=function(gid){
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.sec').forEach(sc=>sc.classList.remove('on'));
@@ -3531,13 +3560,15 @@ function renderSchedule(){
       })()}
       ${isPast&&isAdmin()?`<div style="margin-top:10px">
         ${linked
-          ?`<button onclick="goToGame('${linked.id}')" style="width:100%;padding:11px;background:linear-gradient(135deg,rgba(93,173,226,0.12),rgba(93,173,226,0.04));border:1px solid rgba(93,173,226,0.35);border-radius:3px;color:#7fc1eb;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase">📋 경기 기록 보기 / 수정</button>`
+          ?`<button onclick="goToGame('${linked.id}')" style="width:100%;padding:11px;background:linear-gradient(135deg,rgba(93,173,226,0.12),rgba(93,173,226,0.04));border:1px solid rgba(93,173,226,0.35);border-radius:3px;color:#7fc1eb;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase">📋 경기 기록 보기 / 수정</button>
+             <button onclick="unfinalizeVote('${s.id}')" style="width:100%;margin-top:6px;padding:9px;background:rgba(214,69,69,0.1);border:1px solid rgba(214,69,69,0.35);border-radius:3px;color:#ff8080;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">🔓 투표 마감취소 (경기 기록 삭제)</button>`
           :`<button onclick="createGameFromSchedule('${s.id}')" style="width:100%;padding:11px;background:linear-gradient(135deg,rgba(46,204,113,0.12),rgba(46,204,113,0.04));border:1px solid rgba(46,204,113,0.35);border-radius:3px;color:#4cd983;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase">⚽ 경기 결과 입력하기</button>`
         }
       </div>`:''}
       ${!isPast&&isAdmin()?`<div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(212,175,55,0.2)">
         ${linked
-          ?`<button onclick="goToGame('${linked.id}')" style="width:100%;padding:11px;background:linear-gradient(135deg,rgba(93,173,226,0.12),rgba(93,173,226,0.04));border:1px solid rgba(93,173,226,0.35);border-radius:3px;color:#7fc1eb;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase">📋 생성된 경기 기록 보기</button>`
+          ?`<button onclick="goToGame('${linked.id}')" style="width:100%;padding:11px;background:linear-gradient(135deg,rgba(93,173,226,0.12),rgba(93,173,226,0.04));border:1px solid rgba(93,173,226,0.35);border-radius:3px;color:#7fc1eb;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase">📋 생성된 경기 기록 보기</button>
+             <button onclick="unfinalizeVote('${s.id}')" style="width:100%;margin-top:6px;padding:9px;background:rgba(214,69,69,0.1);border:1px solid rgba(214,69,69,0.35);border-radius:3px;color:#ff8080;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">🔓 투표 마감취소 (경기 기록 삭제)</button>`
           :`<button onclick="finalizeVoteAndCreateGame('${s.id}')" style="width:100%;padding:12px;background:var(--grad-gold);border:none;border-radius:3px;color:var(--cl-navy);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase;box-shadow:0 4px 14px rgba(212,175,55,0.3)">🏁 투표 마감 · 경기 기록 생성 (참석자 ${attend.length}명)</button>`
         }
       </div>`:''}
