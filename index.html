@@ -601,6 +601,14 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 
     <!-- 관리자/감독 설정 -->
     <div id="q-admin-panel" style="display:none">
+      <div class="card" style="margin-bottom:10px;border-color:rgba(93,173,226,0.35)">
+        <div class="ct" style="color:#7fc1eb">🔗 기록할 경기 (연동)</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="q-gameid" onchange="setQGame(this.value)" style="flex:1;margin:0"></select>
+          <button onclick="createLinkGame()" style="flex:0 0 auto;padding:9px 12px;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.4);border-radius:4px;color:#4cd983;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">＋ 새 경기</button>
+        </div>
+        <div style="font-size:9px;color:rgba(160,176,202,0.7);margin-top:6px;line-height:1.5">경기를 연결하면 피치의 선수를 <b style="color:#7fc1eb">탭</b>해서 그 쿼터 골·어시를 입력할 수 있고, 경기 탭에 쿼터별로 저장됩니다.</div>
+      </div>
       <div class="card" style="margin-bottom:10px">
         <div class="ct">Quarter Setup</div>
         <div class="r2">
@@ -736,6 +744,17 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
         <button onclick="closeQDetail()" style="background:rgba(255,255,255,0.06);border:1px solid var(--cl-border2);border-radius:3px;color:var(--cl-silver);font-size:10px;padding:5px 12px;cursor:pointer;letter-spacing:1.5px;font-weight:700">CLOSE</button>
       </div>
       <div id="qdetail-body" style="overflow-y:auto;flex:1"></div>
+    </div>
+  </div>
+
+  <!-- 쿼터 골/어시 입력 (유니폼 탭) -->
+  <div id="qgoal-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);backdrop-filter:blur(6px);z-index:1002;align-items:flex-end;justify-content:center">
+    <div style="background:var(--grad-card);border-radius:6px 6px 0 0;padding:18px 16px 26px;width:100%;max-width:500px;border-top:1px solid var(--cl-gold);box-shadow:0 -10px 40px rgba(0,0,0,0.7)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-family:var(--font-display);font-size:16px;letter-spacing:1px;color:var(--cl-gold)" id="qgoal-title">골/어시</div>
+        <button onclick="closeQGoal()" style="background:rgba(255,255,255,0.06);border:1px solid var(--cl-border2);border-radius:3px;color:var(--cl-silver);font-size:10px;padding:5px 12px;cursor:pointer;letter-spacing:1.5px;font-weight:700">CLOSE</button>
+      </div>
+      <div id="qgoal-body"></div>
     </div>
   </div>
 
@@ -2303,6 +2322,7 @@ function renderQView(){
   const bench=pool.names.filter(n=>!onNames.has(n));
   const subs=getQSubs(q);
 
+  renderQGameSelect(); // 기록할 경기 연동 셀렉트
   // 고정 GK 셀렉트 채우기 (선택 유지)
   const gkSel=document.getElementById('q-gk');
   if(gkSel){
@@ -2418,7 +2438,7 @@ function qPointerDown(e){
   clone.style.left=e.clientX+'px'; clone.style.top=e.clientY+'px';
   document.body.appendChild(clone);
   el.style.opacity='0.35';
-  qDrag={name:el.dataset.name,from:el.dataset.from,clone};
+  qDrag={name:el.dataset.name,from:el.dataset.from,clone,el,sx:e.clientX,sy:e.clientY};
   qEndListeners(true);
 }
 function qPointerMove(e){
@@ -2433,6 +2453,14 @@ function qPointerUp(e){
   const inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
   const field=getQField(currentQTab);
   const idx=field.findIndex(f=>f.n===qDrag.name);
+  // 거의 안 움직였고 피치 위 선수를 눌렀다면 = 탭 → 그 쿼터 골/어시 입력
+  const moved=Math.hypot(e.clientX-qDrag.sx, e.clientY-qDrag.sy);
+  if(moved<8 && qDrag.from==='field' && idx>=0){
+    const nm=qDrag.name; if(qDrag.el) qDrag.el.style.opacity='';
+    qDrag.clone.remove(); qDrag=null; qEndListeners(false);
+    openQGoalEntry(nm,currentQTab);
+    return;
+  }
   if(inside){
     let x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
     x=Math.min(0.95,Math.max(0.05,x)); y=Math.min(0.95,Math.max(0.05,y));
@@ -2451,6 +2479,80 @@ function qPointerCancel(){
   qDrag.clone.remove(); qDrag=null; qEndListeners(false);
   renderQView();
 }
+
+// ── 기록할 경기 연동 + 유니폼 탭 골/어시 입력 ──
+function renderQGameSelect(){
+  const sel=document.getElementById('q-gameid'); if(!sel) return;
+  const gid=qFormation.gameId||'';
+  sel.innerHTML=['<option value="">— 경기 선택 —</option>'].concat(
+    [...games].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(g=>`<option value="${g.id}" ${g.id===gid?'selected':''}>${g.date||''} ${g.opp||'(상대 미정)'}</option>`)
+  ).join('');
+  sel.value=gid;
+}
+window.setQGame=function(id){ qFormation.gameId=id||''; toast(id?'경기 연결됨 — 저장하면 유지':'경기 연결 해제'); renderQView(); };
+window.createLinkGame=async function(){
+  if(!isCoach()){toast('관리자만 가능합니다');return;}
+  const va=voteAttendees(); const defDate=(va&&va.ref&&va.ref.date)||todayKST();
+  const date=prompt('경기 날짜 (YYYY-MM-DD)', defDate); if(date===null) return;
+  const opp=prompt('상대팀', ''); if(opp===null) return;
+  const id='g'+Date.now();
+  await set(ref(db,'suchon/games/'+id),{id,date:(date||defDate).trim(),opp:(opp||'').trim(),our:0,them:0,players:{}});
+  qFormation.gameId=id; toast('새 경기 생성·연결됨'); renderQView();
+};
+window.openQGoalEntry=function(name,q){
+  if(!isCoach()) return;
+  const gid=qFormation.gameId;
+  if(!gid || !games.find(g=>g.id===gid)){ toast('먼저 상단에서 "기록할 경기"를 연결하세요'); return; }
+  const g=games.find(x=>x.id===gid); const p=(g.players&&g.players[name])||{};
+  const d=(Array.isArray(p.qd)&&p.qd[q-1])||{};
+  const md=document.getElementById('qgoal-modal');
+  md.dataset.name=name; md.dataset.q=q; md.dataset.g=d.g||0; md.dataset.a=d.a||0;
+  renderQGoal(); md.style.display='flex';
+};
+function renderQGoal(){
+  const md=document.getElementById('qgoal-modal');
+  const name=md.dataset.name, q=parseInt(md.dataset.q);
+  const gv=parseInt(md.dataset.g)||0, av=parseInt(md.dataset.a)||0;
+  const gid=qFormation.gameId; const g=games.find(x=>x.id===gid)||{};
+  const doms=domPosOf(name); const pos=doms[q-1]||posCat(name);
+  document.getElementById('qgoal-title').textContent=`${name} · Q${q}`;
+  const step=(field,label,val,accent)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:8px 4px">
+      <span style="font-size:16px;color:${accent};font-weight:700">${label}</span>
+      <div style="display:flex;align-items:center;gap:14px">
+        <button onclick="qGoalStep('${field}',-1)" style="width:46px;height:46px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid var(--cl-border2);color:var(--cl-white);font-size:22px;cursor:pointer">−</button>
+        <span style="font-family:var(--font-display);font-size:28px;color:var(--cl-white);min-width:38px;text-align:center">${val}</span>
+        <button onclick="qGoalStep('${field}',1)" style="width:46px;height:46px;border-radius:10px;background:rgba(212,175,55,0.15);border:1px solid var(--cl-gold);color:var(--cl-gold);font-size:22px;cursor:pointer">＋</button>
+      </div>
+    </div>`;
+  document.getElementById('qgoal-body').innerHTML=`
+    <div style="font-size:11px;color:var(--cl-silver);margin-bottom:12px;line-height:1.5">${g.date||''} ${g.opp||''} · 이 쿼터 포지션 <b style="color:#7fc1eb">${pos}</b> <span style="opacity:0.65">(이 골·어시는 ${pos} 가중치로 산정)</span></div>
+    ${step('g','⚽ 골', gv, '#4cd983')}
+    ${step('a','🅰 어시', av, '#7fc1eb')}
+    <div style="font-size:10px;color:rgba(160,176,202,0.6);margin-top:6px">입력 즉시 저장 · 경기 탭에서도 쿼터별로 보고 수정할 수 있습니다.</div>`;
+}
+window.qGoalStep=async function(field,delta){
+  const md=document.getElementById('qgoal-modal');
+  const name=md.dataset.name, q=parseInt(md.dataset.q);
+  let gv=parseInt(md.dataset.g)||0, av=parseInt(md.dataset.a)||0;
+  if(field==='g') gv=Math.max(0,gv+delta); else av=Math.max(0,av+delta);
+  md.dataset.g=gv; md.dataset.a=av; renderQGoal();
+  await qGoalWrite(qFormation.gameId,name,q,gv,av);
+};
+async function qGoalWrite(gid,name,q,gv,av){
+  const g=games.find(x=>x.id===gid); if(!g){toast('경기를 찾을 수 없습니다');return;}
+  const cur=(g.players&&g.players[name])||{};
+  const doms=domPosOf(name); const qd=[];
+  for(let i=0;i<REC_QC;i++){
+    const ex=(Array.isArray(cur.qd)&&cur.qd[i])||{};
+    const pos=doms[i]||ex.pos||cur.pos||posCat(name);
+    let g2=ex.g||0, a2=ex.a||0;
+    if(i===q-1){ g2=gv; a2=av; }
+    qd.push({pos,g:g2,a:a2});
+  }
+  await saveQd(gid,name,qd);
+}
+window.closeQGoal=function(){ document.getElementById('qgoal-modal').style.display='none'; };
 
 // 교체 배열 정리: 빈 교체(둘 다 비었거나 동일)만 제거하고 좌표 갱신 · 수기 입력은 보존
 function qValidateSubs(cur){
