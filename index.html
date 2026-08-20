@@ -458,9 +458,9 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
       <button class="tab on" onclick="go('schedule',this)">일정·투표</button>
       <button class="tab" onclick="go('members',this)">선수</button>
       <button class="tab" onclick="go('fee',this)">회비</button>
-      <button class="tab" onclick="go('late',this)">지각</button>
-      <button class="tab" onclick="go('console',this)" style="color:#7fc1eb">🎮 경기콘솔</button>
+      <button class="tab" onclick="go('late',this)">벌금</button>
       <button class="tab" onclick="go('match',this)">경기</button>
+      <button class="tab" onclick="go('console',this)" style="color:#7fc1eb">🎮 경기콘솔</button>
       <button class="tab" onclick="go('quarter',this)">쿼터</button>
       <button class="tab" onclick="go('stats',this)">통계</button>
     </div>
@@ -569,6 +569,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 
   <!-- 경기 -->
   <div id="s-match" class="sec">
+    <div id="match-summary"></div>
     <div id="admin-game-form">
       <div class="card">
         <div class="ct">Add Match</div>
@@ -639,7 +640,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
           <div><label title="모두에게 보장하는 최소 출전 쿼터 (나머지 시간은 기여도 순 배분)">최소 보장 쿼터</label><input id="q-minq" type="number" min="0" step="1" value="2" onchange="renderQView()"></div>
           <div style="display:flex;align-items:flex-end"><span style="font-size:9px;color:rgba(160,176,202,0.65);line-height:1.4;padding-bottom:9px">↑ 이 쿼터만큼은 모두 보장, 남는 시간은 기여도 높은 선수에게 더 배분</span></div>
         </div>
-        <button onclick="openWeightEdit()" style="width:100%;margin-top:10px;padding:10px;background:rgba(212,175,55,0.08);border:1px solid var(--cl-border2);border-radius:3px;color:var(--cl-gold);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">⚙ 포지션별 기여도 가중치 (관리자)</button>
+        <div style="font-size:9px;color:rgba(160,176,202,0.5);text-align:center;margin-top:10px">⚙ 기여도 가중치 설정은 <b style="color:#7fc1eb">경기콘솔</b> 탭으로 이동했습니다</div>
         <button onclick="openRosterEdit()" style="width:100%;margin-top:10px;padding:10px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.35);border-radius:3px;color:var(--cl-silver);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">👥 출전 명단 편집 (용병 추가·제외)</button>
         <div style="display:flex;gap:8px;margin-top:8px">
           <button onclick="autoRotate()" style="flex:1;padding:11px;background:linear-gradient(135deg,rgba(46,204,113,0.14),rgba(46,204,113,0.04));border:1px solid rgba(46,204,113,0.4);border-radius:3px;color:#4cd983;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px">⚽ 포메이션 자동배치</button>
@@ -1088,6 +1089,7 @@ window.go=function(tab,btn){
   if(tab==='stats')renderStats();
   if(tab==='quarter'){updateQAdminPanel();renderQView();}
   if(tab==='console')renderConsole();
+  if(tab==='match')renderGames();
 };
 
 // ── 내 이름 선택 ──
@@ -1602,7 +1604,31 @@ window.syncMatchRecord=async function(){
   }
 };
 
+function renderMatchSummary(){
+  const el=document.getElementById('match-summary'); if(!el) return;
+  const active=members.filter(m=>!m.dormant);
+  let topG=null,topA=null,topP=null,topC=null; let totalGoals=0;
+  active.forEach(m=>{ const s=getStats(m.name); const c=Math.round(contribScoreReg(m.name)); totalGoals+=s.goals;
+    if(!topG||s.goals>topG.v) topG={n:m.name,v:s.goals};
+    if(!topA||s.assists>topA.v) topA={n:m.name,v:s.assists};
+    if(!topP||s.played>topP.v) topP={n:m.name,v:s.played};
+    if(!topC||c>topC.v) topC={n:m.name,v:c};
+  });
+  const card=(label,color,name,val,unit)=>`<div style="flex:1;min-width:0;background:linear-gradient(180deg,rgba(20,34,66,0.7),rgba(12,24,50,0.7));border:1px solid var(--cl-border2);border-radius:8px;padding:10px 6px;text-align:center">
+    <div style="font-size:9px;color:${color};font-weight:700;letter-spacing:0.5px">${label}</div>
+    <div style="font-size:13px;color:var(--cl-white);font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name||'—'}</div>
+    <div style="font-size:11px;color:${color};font-weight:700">${val||0}${unit}</div></div>`;
+  el.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:2px 2px 8px"><span style="font-size:10px;color:var(--cl-silver);letter-spacing:1px">시즌 요약 · ${games.length}경기 · 총 ${totalGoals}골</span><span onclick="go('stats',document.querySelectorAll('.tab')[7])" style="font-size:10px;color:#7fc1eb;cursor:pointer">통계 자세히 →</span></div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      ${card('⚽ 득점왕','#4cd983',topG&&topG.v?topG.n:'—',topG?topG.v:0,'골')}
+      ${card('🅰 어시왕','#7fc1eb',topA&&topA.v?topA.n:'—',topA?topA.v:0,'도움')}
+      ${card('🏃 최다출전','#d4af37',topP&&topP.v?topP.n:'—',topP?topP.v:0,'회')}
+      ${card('⭐ 기여도','#f1d36b',topC&&topC.v?topC.n:'—',topC?topC.v:0,'점')}
+    </div>`;
+}
 function renderGames(){
+  renderMatchSummary();
   const c=document.getElementById('game-list');
 
   if(!games.length){
@@ -2513,7 +2539,30 @@ function renderQGameSelect(){
   ).join('');
   sel.value=gid;
 }
-window.setQGame=function(id){ qFormation.gameId=id||''; toast(id?'경기 연결됨 — 저장하면 유지':'경기 연결 해제'); if(document.getElementById('s-quarter')?.classList.contains('on')) renderQView(); if(document.getElementById('s-console')?.classList.contains('on')) renderConsole(); };
+// 경기별 라인업(plan) 추출/로드 — 라인업·설정은 경기별 보존, 가중치는 전역 유지
+function extractPlan(){
+  const gv=(id,d)=>{ const e=document.getElementById(id); return e&&e.value!=null?e.value:d; };
+  return JSON.parse(JSON.stringify({
+    q1:qFormation.q1||{field:[]}, q2:qFormation.q2||{field:[]}, q3:qFormation.q3||{field:[]}, q4:qFormation.q4||{field:[]},
+    roster:qFormation.roster||null, priority:qFormation.priority||[], minPlay:qFormation.minPlay||[],
+    settings:{ total:gv('q-total','120'), cnt:gv('q-cnt','4'), formation:gv('q-formation','4-3-3'), gk:gv('q-gk',''), minq:gv('q-minq','2') }
+  }));
+}
+function loadPlan(plan){
+  if(!plan) return;
+  ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]=plan[k]||{field:[]}; });
+  if(plan.roster) qFormation.roster=plan.roster; else delete qFormation.roster;
+  qFormation.priority=plan.priority||[]; qFormation.minPlay=plan.minPlay||[];
+  const st=plan.settings||{}; const sv=(id,v)=>{ const e=document.getElementById(id); if(e&&v!=null&&v!=='') e.value=v; };
+  sv('q-total',st.total); sv('q-cnt',st.cnt); sv('q-formation',st.formation); sv('q-gk',st.gk); sv('q-minq',st.minq);
+}
+window.setQGame=function(id){
+  qFormation.gameId=id||'';
+  if(id){ const g=games.find(x=>x.id===id); if(g&&g.plan) loadPlan(g.plan); }
+  toast(id?'경기 연결됨 · 이 경기 라인업 불러옴':'경기 연결 해제');
+  if(document.getElementById('s-quarter')?.classList.contains('on')) renderQView();
+  if(document.getElementById('s-console')?.classList.contains('on')) renderConsole();
+};
 window.createLinkGame=async function(){
   if(!isCoach()){toast('관리자만 가능합니다');return;}
   const va=voteAttendees(); const defDate=(va&&va.ref&&va.ref.date)||todayKST();
@@ -2621,6 +2670,7 @@ function renderConsole(){
     <div style="display:flex;gap:8px;align-items:center">${gsel}${admin?`<button onclick="createLinkGame()" style="flex:0 0 auto;padding:9px 12px;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.4);border-radius:4px;color:#4cd983;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">＋ 새 경기</button>`:''}</div>
     <div style="font-size:9px;color:rgba(160,176,202,0.7);margin-top:6px">라인업은 '쿼터' 탭에서 배치 · 여기서 당일 골·어시 입력과 그날 기여도를 관리합니다.</div>
   </div>`;
+  if(admin) html+=`<button onclick="openWeightEdit()" style="width:100%;margin-bottom:12px;padding:11px;background:rgba(212,175,55,0.08);border:1px solid var(--cl-border2);border-radius:5px;color:var(--cl-gold);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:0.5px">⚙ 포지션별·선수별 기여도 가중치 설정</button>`;
   if(!g){ el.innerHTML=html+`<div style="text-align:center;color:var(--cl-silver);padding:36px 20px;font-size:13px;line-height:1.6">위에서 <b style="color:#7fc1eb">기록할 경기</b>를 선택하거나<br>＋ 새 경기로 만들어 주세요.</div>`; return; }
   const parts=gameParticipants(g);
   let tg=0,ta=0,tc=0; parts.forEach(n=>{ const b=gameContribBreak(n,g); tg+=b.goals; ta+=b.assists; tc+=b.total; });
@@ -2672,10 +2722,13 @@ function conCard(name,g,admin){
       const stepBtn=(nm,q,fld,d,txt,c)=>`<button onclick="conStep('${escAttr(nm)}',${q},'${fld}',${d})" style="width:30px;height:30px;border-radius:6px;background:${c};border:1px solid var(--cl-border2);color:var(--cl-white);font-size:16px;line-height:1;cursor:pointer">${txt}</button>`;
       const qrows=list.map(q=>{
         const isT=(q===0); const qd=(!isT&&Array.isArray(p.qd)&&p.qd[q-1])||{};
-        const pos=isT?mp:(doms[q-1]||mp); const gv=isT?(p.goals||0):(qd.g||0); const av=isT?(p.assists||0):(qd.a||0);
+        const pos=isT?mp:((qd.pos)||doms[q-1]||mp); const gv=isT?(p.goals||0):(qd.g||0); const av=isT?(p.assists||0):(qd.a||0);
+        const posCell=isT
+          ? `<span style="font-size:9px;color:#7fc1eb;border:1px solid rgba(93,173,226,0.35);border-radius:4px;padding:1px 5px">${pos}</span>`
+          : `<select onchange="conSetQPos('${escAttr(name)}',${q},this.value)" title="이 쿼터 포지션 (기여도 산정 기준)" style="font-size:10px;padding:2px 3px;margin:0;min-width:46px;background-color:#0f1a33;color:#7fc1eb;border:1px solid rgba(93,173,226,0.4);border-radius:4px">${['DF','MF','FW','GK'].map(k=>`<option value="${k}" ${k===pos?'selected':''}>${k}</option>`).join('')}</select>`;
         return `<div style="display:flex;align-items:center;gap:5px;margin-top:6px;padding:6px 7px;background:rgba(0,0,0,0.2);border-radius:6px">
           <span style="font-size:11px;color:var(--cl-gold);font-weight:700;min-width:28px">${isT?'전체':'Q'+q}</span>
-          <span style="font-size:9px;color:#7fc1eb;border:1px solid rgba(93,173,226,0.35);border-radius:4px;padding:1px 5px">${pos}</span>
+          ${posCell}
           <span style="flex:1"></span>
           <span style="font-size:9px;color:#4cd983">골</span>${stepBtn(name,q,'g',-1,'−','rgba(255,255,255,0.06)')}<span style="min-width:16px;text-align:center;color:var(--cl-white);font-weight:700">${gv}</span>${stepBtn(name,q,'g',1,'＋','rgba(46,204,113,0.18)')}
           <span style="font-size:9px;color:#7fc1eb;margin-left:5px">어시</span>${stepBtn(name,q,'a',-1,'−','rgba(255,255,255,0.06)')}<span style="min-width:16px;text-align:center;color:var(--cl-white);font-weight:700">${av}</span>${stepBtn(name,q,'a',1,'＋','rgba(93,173,226,0.18)')}
@@ -2686,9 +2739,9 @@ function conCard(name,g,admin){
   }
   return `<div style="background:linear-gradient(180deg,rgba(20,34,66,0.7),rgba(12,24,50,0.7));border:1px solid var(--cl-border2);border-radius:8px;padding:11px 12px;margin-bottom:8px">${head}${body}</div>`;
 }
-async function conWriteQuarter(g,name,q,newG,newA){
+async function conWriteQuarter(g,name,q,newG,newA,posOverride){
   const doms=domPosOf(name); const cur=(g.players&&g.players[name])||{};
-  const qd=[]; for(let i=0;i<REC_QC;i++){ const ex=(Array.isArray(cur.qd)&&cur.qd[i])||{}; const pos=doms[i]||ex.pos||cur.pos||posCat(name); let gg=ex.g||0,aa=ex.a||0; if(i===q-1){gg=newG;aa=newA;} qd.push({pos,g:gg,a:aa}); }
+  const qd=[]; for(let i=0;i<REC_QC;i++){ const ex=(Array.isArray(cur.qd)&&cur.qd[i])||{}; let pos=ex.pos||doms[i]||cur.pos||posCat(name); if(i===q-1 && posOverride) pos=posOverride; let gg=ex.g||0,aa=ex.a||0; if(i===q-1){gg=newG;aa=newA;} qd.push({pos,g:gg,a:aa}); }
   const goals=qd.reduce((s,d)=>s+(d.g||0),0), assists=qd.reduce((s,d)=>s+(d.a||0),0);
   const byPos={}; qd.forEach(d=>{if(d.pos)byPos[d.pos]=(byPos[d.pos]||0)+(d.g||0)+1;}); let pos=qd[0]&&qd[0].pos,mx=-1; Object.keys(byPos).forEach(k=>{if(byPos[k]>mx){mx=byPos[k];pos=k;}});
   if(!g.players)g.players={}; g.players[name]=Object.assign({},cur,{qd,goals,assists,played:true,pos}); renderConsole();
@@ -2702,6 +2755,11 @@ window.conStep=async function(name,q,field,delta){
   const cur=(g.players&&g.players[name])||{}; const qd=(Array.isArray(cur.qd)&&cur.qd[q-1])||{};
   let gg=qd.g||0,aa=qd.a||0; if(field==='g')gg=Math.max(0,gg+delta); else aa=Math.max(0,aa+delta);
   await conWriteQuarter(g,name,q,gg,aa);
+};
+window.conSetQPos=async function(name,q,pos){
+  if(!isCoach())return; const g=conGame(); if(!g||!q)return;
+  const cur=(g.players&&g.players[name])||{}; const qd0=(Array.isArray(cur.qd)&&cur.qd[q-1])||{};
+  await conWriteQuarter(g,name,q,qd0.g||0,qd0.a||0,pos);
 };
 window.conQuick=async function(name,field){
   if(!isCoach())return; const g=conGame(); if(!g)return;
@@ -3051,7 +3109,12 @@ window.copyQToAll=function(){
 window.saveQFormation=async function(){
   if(!isCoach()){toast('저장 권한이 없습니다');return;}
   await set(ref(db,'suchon/qFormation'),qFormation);
-  toast('포메이션 저장 완료 — 팀원 화면에 반영됩니다');
+  if(qFormation.gameId && games.find(g=>g.id===qFormation.gameId)){
+    await update(ref(db,'suchon/games/'+qFormation.gameId),{plan:extractPlan()});
+    toast('저장 완료 · 이 경기 라인업에 보존됨');
+  } else {
+    toast('포메이션 저장 완료 — 팀원 화면에 반영됩니다');
+  }
 };
 // 지금까지 산정된 포지션을 경기 기록(뛴P)에 확정 저장 → 이후 포지션 수정이 과거 기여도에 영향 없음
 window.freezePositions=async function(){
