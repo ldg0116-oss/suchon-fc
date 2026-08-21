@@ -2131,10 +2131,12 @@ function posWeights(){
   const pw=qFormation.posWeights||{};
   const out={};
   ['DF','MF','FW','GK'].forEach(k=>{ const d=DEFAULT_POSW[k], c=pw[k]||{}; out[k]={att:(c.att!=null?c.att:d.att),goal:(c.goal!=null?c.goal:d.goal),assist:(c.assist!=null?c.assist:d.assist),role:(c.role!=null?c.role:d.role)}; });
-  // 수비(DF)의 골·어시 가중은 필드 포지션(MF·FW) 최대값을 자동 적용 (GK는 직접 편집)
+  // 수비(DF) 골·어시: 관리자가 직접 지정했으면 그 값, 없으면 필드(MF·FW) 최대값 자동
   const maxGoal=Math.max(out.MF.goal,out.FW.goal);
   const maxAssist=Math.max(out.MF.assist,out.FW.assist);
-  out.DF.goal=maxGoal; out.DF.assist=maxAssist;
+  const cDF=pw.DF||{};
+  out.DF.goal=(cDF.goal!=null?cDF.goal:maxGoal);
+  out.DF.assist=(cDF.assist!=null?cDF.assist:maxAssist);
   return out;
 }
 // 피치 y좌표 → 포지션 구분 (아래=수비, 위=공격)
@@ -2169,9 +2171,9 @@ function contribBreak(name,posK){
   return {att,goal,assist,role,total:att+goal+assist+role,played:s.played,goals:s.goals,assists:s.assists,pos:posK,bonus,goalsByPos:s.goalsByPos,assistsByPos:s.assistsByPos,custom:hasPlayerWeight(name)};
 }
 function contribScoreWith(name,posK){ return contribBreak(name,posK).total; }
-// 기여도 점수 — 이번 경기 배치된 포지션 기준(없으면 등록 포지션) · 선수별 가중치 반영 · 쿼터 배정/명단 표시용
-function contribScore(name){ return contribScoreWith(name, effectivePos(name)); }
-// 시즌 기여도 — 산정 포지션 기준 · 통계 탭 표시용 · 선수별 가중치 반영
+// 기여도 점수 — 산정 포지션(scorePos) 기준으로 통일 · 모든 탭에서 동일한 값 (쿼터·명단·통계 일치)
+// (골·어시는 '그날 뛴 포지션'으로 이미 경기별 합산되므로 posK와 무관 — posK는 참석·포지션 항목에만 영향)
+function contribScore(name){ return contribScoreWith(name, scorePos(name)); }
 function contribScoreReg(name){ return contribScoreWith(name, scorePos(name)); }
 function r1(x){ return Math.round(x*10)/10; } // 소수 1자리 표시용
 // 포지션별 평균 기여도 (등록 포지션 그룹 기준 · 가중치 튜닝용)
@@ -2183,21 +2185,33 @@ function posAverages(){
   });
   return avg;
 }
+// 가중치·보너스 설정을 Firebase에 저장 (라인업은 건드리지 않고 해당 항목만 update)
+async function persistWeights(){
+  if(!isCoach()) return;
+  try{
+    await update(ref(db,'suchon/qFormation'),{
+      posWeights:qFormation.posWeights||{}, attBonus:qFormation.attBonus||{},
+      playerPos:qFormation.playerPos||{}, playerWeights:qFormation.playerWeights||{}
+    });
+    toast('가중치·보너스 저장 완료 · 모든 화면에 반영됩니다');
+  }catch(e){ toast('저장 실패 — 다시 시도해 주세요'); }
+}
 window.openWeightEdit=function(){ if(!isCoach()){toast('관리자만 가능합니다');return;} renderWeightGrid(); document.getElementById('weight-modal').style.display='flex'; };
-window.closeWeightEdit=function(){ document.getElementById('weight-modal').style.display='none'; renderQView(); };
+window.closeWeightEdit=async function(){ document.getElementById('weight-modal').style.display='none'; await persistWeights(); renderQView(); };
 function renderWeightGrid(){
   const pw=posWeights(); const avg=posAverages();
   const topAvg=Math.max(avg.DF,avg.MF,avg.FW)||1;
   const labels={DF:'수비 DF',MF:'미드 MF',FW:'공격 FW',GK:'GK'};
   const rows=['DF','MF','FW','GK'].map(pk=>{
     const w=pw[pk]; const pct=Math.round((avg[pk]/topAvg)*100);
-    const autoGA=(pk==='DF'); // DF만 골·어시 최대값 자동 (GK는 직접 편집)
-    const gaInput=(key,v)=> autoGA
-      ? `<input type="number" value="${v}" disabled title="MF·FW 최대값 자동" style="opacity:0.7;border-style:dashed">`
+    const dfAuto=(pk==='DF'); // DF 골·어시는 비우면 MF·FW 최대값 자동, 값 입력 시 그 값 사용
+    const cRaw=(qFormation.posWeights||{})[pk]||{};
+    const gaInput=(key,v)=> dfAuto
+      ? `<input type="number" min="0" step="0.1" value="${cRaw[key]!=null?cRaw[key]:''}" placeholder="${v} (자동)" title="비우면 MF·FW 최대값 자동 · 값 입력 시 그 값 사용" onchange="setPosWeight('${pk}','${key}',this.value)" style="border-style:${cRaw[key]!=null?'solid':'dashed'}">`
       : `<input type="number" min="0" step="0.1" value="${v}" onchange="setPosWeight('${pk}','${key}',this.value)">`;
     return `<div style="background:rgba(0,0,0,0.22);border:1px solid var(--cl-border2);border-radius:5px;padding:10px 11px;margin-bottom:8px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <span style="font-size:12px;font-weight:700;color:var(--cl-white)">${labels[pk]}${autoGA?' <span style="font-size:9px;color:rgba(160,176,202,0.6)">골·어시=최대값 자동</span>':''}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--cl-white)">${labels[pk]}${dfAuto?' <span style="font-size:9px;color:rgba(160,176,202,0.6)">골·어시 비우면 최대값 자동</span>':''}</span>
         <span style="font-size:10px;color:${pct>=80&&pct<=110?'#4cd983':'var(--cl-silver)'}">평균 ${avg[pk]}점 · ${pct}%</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
@@ -2261,7 +2275,7 @@ window.openPlayerWeight=function(name){
   document.getElementById('pweight-body').innerHTML=renderPlayerWeightBody(name);
   pm.style.display='flex';
 };
-window.closePlayerWeight=function(){ document.getElementById('pweight-modal').style.display='none'; renderWeightGrid(); if(document.getElementById('roster-modal')?.style.display==='flex') renderRosterList(); renderQView(); };
+window.closePlayerWeight=async function(){ document.getElementById('pweight-modal').style.display='none'; await persistWeights(); renderWeightGrid(); if(document.getElementById('roster-modal')?.style.display==='flex') renderRosterList(); renderQView(); };
 window.setPlayerWeight=function(name,key,val){
   if(!qFormation.playerWeights) qFormation.playerWeights={};
   if(!qFormation.playerWeights[name]) qFormation.playerWeights[name]={};
@@ -2276,15 +2290,16 @@ window.resetPlayerWeight=function(){
   toast(name+' 가중치를 포지션 기본값으로 초기화');
 };
 window.setPosWeight=function(pk,key,val){
-  if(!qFormation.posWeights) qFormation.posWeights=JSON.parse(JSON.stringify(posWeights()));
+  if(!qFormation.posWeights) qFormation.posWeights={};   // 편집한 항목만 저장(나머지는 기본값/자동)
   if(!qFormation.posWeights[pk]) qFormation.posWeights[pk]={};
-  qFormation.posWeights[pk][key]=Math.max(0,parseFloat(val)||0);  // 소수 허용
+  if(val===''||val==null){ delete qFormation.posWeights[pk][key]; }   // 비우면 기본값/자동으로 복귀
+  else { qFormation.posWeights[pk][key]=Math.max(0,parseFloat(val)||0); } // 소수 허용
   renderWeightGrid();
 };
-window.resetWeights=function(){ qFormation.posWeights=JSON.parse(JSON.stringify(DEFAULT_POSW)); renderWeightGrid(); toast('기본값으로 초기화'); };
+window.resetWeights=function(){ qFormation.posWeights={}; renderWeightGrid(); toast('포지션 가중치 기본값으로 초기화'); };
 // 수비(DF)·GK 포지션 가중을 조정해 평균이 공격 평균의 85%가 되도록 자동 보정
 window.autoBalanceWeights=function(){
-  if(!qFormation.posWeights) qFormation.posWeights=JSON.parse(JSON.stringify(posWeights()));
+  if(!qFormation.posWeights) qFormation.posWeights={};
   const target=0.85;
   const topAvg=Math.max(posAverages().MF, posAverages().FW)||0;
   ['DF','GK'].forEach(pk=>{
@@ -2295,7 +2310,7 @@ window.autoBalanceWeights=function(){
     const w=posWeights()[pk];
     // DF 점수 ≈ (참석+포지션)×출전 (골·어시 거의 0) = target×topAvg → 포지션 = target×topAvg/출전 − 참석
     const roleW=Math.max(0, Math.round(target*topAvg/avgPlayed - w.att));
-    qFormation.posWeights[pk]=Object.assign({},qFormation.posWeights[pk]||DEFAULT_POSW[pk],{role:roleW});
+    qFormation.posWeights[pk]=Object.assign({},qFormation.posWeights[pk]||{},{role:roleW}); // role만 저장(골·어시 자동 유지)
   });
   renderWeightGrid();
   toast('수비 포지션 가중을 평균 85%에 맞춰 보정했습니다');
