@@ -159,11 +159,11 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 .mac{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 
 /* ── FEE ── */
-.fi{display:flex;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid rgba(212,175,55,0.08);flex-wrap:wrap}
+.fi{display:flex;flex-direction:column;gap:9px;padding:13px 2px;border-bottom:1px solid rgba(212,175,55,0.08)}
 .fi:last-child{border-bottom:none}
-.fn{font-size:13px;font-weight:700;color:var(--cl-white);min-width:60px}
-.fms{display:flex;gap:4px;flex-wrap:wrap;flex:1}
-.fb{width:28px;height:28px;border-radius:3px;border:1px solid rgba(160,176,202,0.2);background:rgba(0,0,0,0.3);color:var(--cl-silver);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;font-family:var(--font-body)}
+.fn{font-size:13px;font-weight:700;color:var(--cl-white)}
+.fms{display:grid;grid-template-columns:repeat(12,1fr);gap:4px}
+.fb{width:100%;aspect-ratio:1;min-height:24px;border-radius:5px;border:1px solid rgba(160,176,202,0.2);background:rgba(0,0,0,0.3);color:var(--cl-silver);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;font-family:var(--font-body);padding:0}
 .fb.paid{background:var(--grad-gold);color:var(--cl-navy);border-color:var(--cl-gold);box-shadow:0 0 10px rgba(212,175,55,0.35)}
 .fb.exempt{background:rgba(93,173,226,0.14);color:#7fc1eb;border-color:rgba(93,173,226,0.45);border-style:dashed;box-shadow:none}
 .fb:disabled{cursor:default;opacity:0.85}
@@ -386,27 +386,27 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
     </div>
     <input type="hidden" id="edit-mid">
     <input type="hidden" id="edit-mname-orig">
-    <div class="r3">
+    <div class="r2">
       <div><label>이름</label><input id="edit-mname" placeholder="홍길동"></div>
       <div><label>번호</label><input id="edit-mnum" type="number" placeholder="10"></div>
-      <div><label>포지션 1순위</label>
-        <select id="edit-mpos">
-          <option value="GK">GK</option>
-          <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
-          <option value="MF">MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
-          <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
-        </select>
-      </div>
     </div>
-    <div style="margin-top:10px"><label style="font-size:10px;color:var(--cl-silver)">포지션 2순위 (선택 · 1순위 자리가 찼을 때)</label>
-      <select id="edit-mpos2">
+    <div style="margin-top:10px"><label>포지션 1순위</label>
+      <select id="edit-mpos" style="width:100%">
+        <option value="GK">GK</option>
+        <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
+        <option value="MF">MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
+        <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
+      </select>
+    </div>
+    <div style="margin-top:10px"><label>포지션 2순위 <span style="color:var(--cl-silver);font-weight:400">(선택 · 1순위 자리가 찼을 때)</span></label>
+      <select id="edit-mpos2" style="width:100%">
         <option value="">(없음)</option>
         <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
         <option value="MF">MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
         <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
       </select>
     </div>
-    <button class="btn btn-gold" style="margin-top:14px" onclick="saveMemberEdit()">Save Changes</button>
+    <button class="btn btn-gold" style="margin-top:16px" onclick="saveMemberEdit()">Save Changes</button>
   </div>
 </div>
 
@@ -427,7 +427,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
       <div><label>시간</label><input id="edit-time" placeholder="15-17"></div>
       <div><label>유니폼</label><input id="edit-uni" placeholder="흰색"></div>
     </div>
-    <label>담당자</label><input id="edit-mgr" placeholder="이석우">
+    <label>담당자</label><input id="edit-mgr" placeholder="이동근">
     <button class="btn btn-gold" style="margin-top:14px" onclick="saveScheduleEdit()">Save Changes</button>
   </div>
 </div>
@@ -509,7 +509,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
           <div><label>시간</label><input id="sc-time" placeholder="15-17"></div>
           <div><label>유니폼</label><input id="sc-uni" placeholder="흰색"></div>
         </div>
-        <label>담당자</label><input id="sc-mgr" placeholder="이석우">
+        <label>담당자</label><input id="sc-mgr" placeholder="이동근">
         <button class="btn btn-gold" onclick="addSchedule()">+ Add Schedule</button>
       </div>
     </div>
@@ -532,27 +532,27 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
     <div id="super-admin-member-form" style="display:none">
       <div class="card">
         <div class="ct">Add Player</div>
-        <div class="r3">
+        <div class="r2">
           <div><label>이름</label><input id="m-name" placeholder="홍길동"></div>
           <div><label>번호</label><input id="m-num" type="number" placeholder="10"></div>
-          <div><label>포지션 1순위</label>
-            <select id="m-pos">
-              <option value="GK">GK</option>
-              <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
-              <option value="MF" selected>MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
-              <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
-            </select>
-          </div>
         </div>
-        <div style="margin-top:8px"><label style="font-size:10px;color:var(--cl-silver)">포지션 2순위 (선택 · 1순위 자리가 찼을 때 이 포지션으로)</label>
-          <select id="m-pos2">
+        <div style="margin-top:10px"><label>포지션 1순위</label>
+          <select id="m-pos" style="width:100%">
+            <option value="GK">GK</option>
+            <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
+            <option value="MF" selected>MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
+            <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
+          </select>
+        </div>
+        <div style="margin-top:10px"><label>포지션 2순위 <span style="color:var(--cl-silver);font-weight:400">(선택 · 1순위 자리가 찼을 때)</span></label>
+          <select id="m-pos2" style="width:100%">
             <option value="">(없음)</option>
             <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
             <option value="MF">MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
             <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
           </select>
         </div>
-        <button class="btn btn-gold" style="margin-top:10px" onclick="addMember()">+ Add Player</button>
+        <button class="btn btn-gold" style="margin-top:12px" onclick="addMember()">+ Add Player</button>
       </div>
     </div>
     <div class="card" style="padding:11px 13px;margin-bottom:10px">
@@ -675,11 +675,12 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
           </div>
           <div><label>고정 GK</label><select id="q-gk"><option value="">자동 선택</option></select></div>
         </div>
-        <div class="r2" style="margin-top:2px">
-          <div><label title="모두에게 보장하는 최소 출전 쿼터 (나머지 시간은 기여도 순 배분)">최소 보장 쿼터</label><input id="q-minq" type="number" min="0" step="1" value="2" onchange="renderQView()"></div>
-          <div style="display:flex;align-items:flex-end"><span style="font-size:9px;color:rgba(160,176,202,0.65);line-height:1.4;padding-bottom:9px">↑ 이 쿼터만큼은 모두 보장, 남는 시간은 기여도 높은 선수에게 더 배분</span></div>
+        <div>
+          <label title="모두에게 보장하는 최소 출전 쿼터 (나머지 시간은 기여도 순 배분)">최소 보장 쿼터</label>
+          <input id="q-minq" type="number" min="0" step="1" value="2" onchange="renderQView()">
+          <div style="font-size:9px;color:rgba(160,176,202,0.6);line-height:1.5;margin-top:5px">이 쿼터만큼은 전원 보장 · 남는 시간은 기여도 높은 선수에게 더 배분</div>
         </div>
-        <div style="font-size:9px;color:rgba(160,176,202,0.5);text-align:center;margin-top:10px">⚙ 기여도 가중치 설정은 <b style="color:#7fc1eb">경기콘솔</b> 탭으로 이동했습니다</div>
+        <div style="font-size:9px;color:rgba(160,176,202,0.5);text-align:center;margin-top:12px">⚙ 기여도 가중치 설정은 <b style="color:#7fc1eb">경기콘솔</b> 탭으로 이동했습니다</div>
         <button onclick="openRosterEdit()" style="width:100%;margin-top:10px;padding:10px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.35);border-radius:3px;color:var(--cl-silver);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">👥 출전 명단 편집 (용병 추가·제외)</button>
         <div style="display:flex;gap:8px;margin-top:8px">
           <button onclick="autoRotate()" style="flex:1;padding:11px;background:linear-gradient(135deg,rgba(46,204,113,0.14),rgba(46,204,113,0.04));border:1px solid rgba(46,204,113,0.4);border-radius:3px;color:#4cd983;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px">⚽ 포메이션 자동배치</button>
@@ -1423,22 +1424,18 @@ function renderFee(){
       return`<button class="fb${cls}" title="${title}" ${isSuperAdmin()?'':'disabled'} onclick="toggleFee('${m.name}',${i+1})">${i+1}</button>`;
     }).join('');
     const amt=fs.amount.toLocaleString();
-    return`<div class="fi" style="flex-wrap:wrap;gap:6px">
-      <div style="display:flex;align-items:center;gap:8px;width:100%">
-        <span class="fn">${m.name}${isGK(m.pos)?'<span class="badge bgo" style="margin-left:5px;font-size:8px;padding:1px 5px">GK 월 10,000</span>':''}</span>
-        <div class="fms">${ms}</div>
-        <div style="text-align:right;flex-shrink:0;min-width:68px">
+    return`<div class="fi">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span class="fn" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.name}${isGK(m.pos)?'<span class="badge bgo" style="margin-left:5px;font-size:8px;padding:1px 5px">GK 1만</span>':''}</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span style="font-size:10px;color:rgba(160,176,202,0.75)">${amt}원${fs.exempt>0?` · 면제${fs.exempt}`:''}</span>
           <span class="badge ${fs.allPaid?'bgg':fs.paid>0?'bgo':'bgr'}">${fs.allPaid?'완납':fs.paid+'/'+fs.required}</span>
-          <div style="font-size:10px;color:#666;margin-top:2px">${amt}원${fs.exempt>0?` · 면제 ${fs.exempt}`:''}</div>
         </div>
       </div>
-      ${isAdmin()?`<div style="display:flex;gap:6px;width:100%;padding-left:2px">
-        <button onclick="payFull('${m.name}')" style="flex:1;padding:5px 0;font-size:11px;font-weight:700;background:${fs.allPaid?'#0d2e0d':'#1b4d1b'};color:${fs.allPaid?'#81c784':'#a8d5a8'};border:0.5px solid ${fs.allPaid?'#2d5a2d':'#2d6a2d'};border-radius:6px;cursor:pointer">
-          ${fs.allPaid?'✓ 완납됨':'완납 처리'}
-        </button>
-        <button onclick="resetFee('${m.name}')" style="flex:1;padding:5px 0;font-size:11px;font-weight:700;background:#2a1a1a;color:#ff8080;border:0.5px solid #3a2020;border-radius:6px;cursor:pointer">
-          초기화
-        </button>
+      <div class="fms">${ms}</div>
+      ${isAdmin()?`<div style="display:flex;gap:6px">
+        <button onclick="payFull('${m.name}')" style="flex:1;padding:6px 0;font-size:11px;font-weight:700;background:${fs.allPaid?'#0d2e0d':'#1b4d1b'};color:${fs.allPaid?'#81c784':'#a8d5a8'};border:0.5px solid ${fs.allPaid?'#2d5a2d':'#2d6a2d'};border-radius:6px;cursor:pointer">${fs.allPaid?'✓ 완납됨':'완납 처리'}</button>
+        <button onclick="resetFee('${m.name}')" style="flex:1;padding:6px 0;font-size:11px;font-weight:700;background:#2a1a1a;color:#ff8080;border:0.5px solid #3a2020;border-radius:6px;cursor:pointer">초기화</button>
       </div>`:''}
     </div>`;
   }).join('');
@@ -1776,7 +1773,7 @@ window.selectGame=function(id, scroll=true){
     </div>
     <div class="r2">
       <div><label>유니폼</label><input type="text" placeholder="흰색" value="${(g.uniform||'').replace(/"/g,'&quot;')}" onchange="updGameInfo('${id}','uniform',this.value)"></div>
-      <div><label>담당자</label><input type="text" placeholder="이석우" value="${(g.mgr||'').replace(/"/g,'&quot;')}" onchange="updGameInfo('${id}','mgr',this.value)"></div>
+      <div><label>담당자</label><input type="text" placeholder="이동근" value="${(g.mgr||'').replace(/"/g,'&quot;')}" onchange="updGameInfo('${id}','mgr',this.value)"></div>
     </div>
     <div style="font-size:9px;color:var(--cl-silver);margin-top:10px;letter-spacing:0.5px;opacity:0.7">※ 변경 즉시 저장됩니다</div>
   </div>`;
