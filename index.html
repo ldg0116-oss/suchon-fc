@@ -389,12 +389,22 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
     <div class="r3">
       <div><label>이름</label><input id="edit-mname" placeholder="홍길동"></div>
       <div><label>번호</label><input id="edit-mnum" type="number" placeholder="10"></div>
-      <div><label>포지션</label>
+      <div><label>포지션 1순위</label>
         <select id="edit-mpos">
-          <option value="GK">GK</option><option value="DF">DF</option>
-          <option value="MF">MF</option><option value="FW">FW</option>
+          <option value="GK">GK</option>
+          <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
+          <option value="MF">MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
+          <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
         </select>
       </div>
+    </div>
+    <div style="margin-top:10px"><label style="font-size:10px;color:var(--cl-silver)">포지션 2순위 (선택 · 1순위 자리가 찼을 때)</label>
+      <select id="edit-mpos2">
+        <option value="">(없음)</option>
+        <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
+        <option value="MF">MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
+        <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
+      </select>
     </div>
     <button class="btn btn-gold" style="margin-top:14px" onclick="saveMemberEdit()">Save Changes</button>
   </div>
@@ -525,14 +535,24 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
         <div class="r3">
           <div><label>이름</label><input id="m-name" placeholder="홍길동"></div>
           <div><label>번호</label><input id="m-num" type="number" placeholder="10"></div>
-          <div><label>포지션</label>
+          <div><label>포지션 1순위</label>
             <select id="m-pos">
-              <option value="GK">GK</option><option value="DF">DF</option>
-              <option value="MF" selected>MF</option><option value="FW">FW</option>
+              <option value="GK">GK</option>
+              <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
+              <option value="MF" selected>MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
+              <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
             </select>
           </div>
         </div>
-        <button class="btn btn-gold" onclick="addMember()">+ Add Player</button>
+        <div style="margin-top:8px"><label style="font-size:10px;color:var(--cl-silver)">포지션 2순위 (선택 · 1순위 자리가 찼을 때 이 포지션으로)</label>
+          <select id="m-pos2">
+            <option value="">(없음)</option>
+            <option value="DF">DF (전방향)</option><option value="DFL">DF 좌</option><option value="DFC">DF 중</option><option value="DFR">DF 우</option>
+            <option value="MF">MF (전방향)</option><option value="MFL">MF 좌</option><option value="MFC">MF 중</option><option value="MFR">MF 우</option>
+            <option value="FW">FW (전방향)</option><option value="FWL">FW 좌</option><option value="FWC">FW 중</option><option value="FWR">FW 우</option>
+          </select>
+        </div>
+        <button class="btn btn-gold" style="margin-top:10px" onclick="addMember()">+ Add Player</button>
       </div>
     </div>
     <div class="card" style="padding:11px 13px;margin-bottom:10px">
@@ -700,7 +720,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
         <div style="font-family:var(--font-display);font-size:15px;letter-spacing:3px;color:var(--cl-gold);text-transform:uppercase">출전 명단 편집</div>
         <button onclick="closeRosterEdit()" style="background:rgba(255,255,255,0.06);border:1px solid var(--cl-border2);border-radius:3px;color:var(--cl-silver);font-size:10px;padding:5px 12px;cursor:pointer;letter-spacing:1.5px;font-weight:700">CLOSE</button>
       </div>
-      <div style="font-size:10px;color:var(--cl-silver);margin-bottom:12px;letter-spacing:0.3px">체크 = 출전 · 해제 = 제외(부상/불참) · 용병은 아래에서 추가 · <span style="color:var(--cl-gold)">당일 포지션</span> 지정 시 자동배치가 그 포지션으로 자리 잡음</div>
+      <div style="font-size:10px;color:var(--cl-silver);margin-bottom:12px;letter-spacing:0.3px">체크 = 출전 · 해제 = 제외(부상/불참) · 용병은 아래에서 추가 · <span style="color:var(--cl-gold)">당일 1순위</span>/<span style="color:#7fc1eb">2순위</span> 포지션 지정 시 자동배치가 우선 반영(1순위 자리 차면 2순위)</div>
       <div style="display:flex;gap:6px;margin-bottom:12px">
         <input id="roster-merc" placeholder="용병 이름 입력 후 추가" autocomplete="off" style="margin:0;flex:1" onkeydown="if(event.key==='Enter')addMercenary()">
         <button class="btn btn-gold" style="width:auto;margin:0;padding:0 18px;flex:0 0 auto" onclick="addMercenary()">＋ 용병</button>
@@ -937,7 +957,7 @@ function isCoach(){ return COACHES.some(c=>_norm(c)===_norm(myName))||isAdmin();
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 function setDot(s,txt){document.getElementById('rtdot').className='rtdot '+s;document.getElementById('rttxt').textContent=txt;}
-function posB(p){return PCB[p]||'bgy';}
+function posB(p){return PCB[lineOf(p)]||'bgy';}
 function nameKey(n){return n.replace(/[^a-zA-Z0-9가-힣]/g,'_');}
 function getDayStr(dateStr){
   if(!dateStr) return '';
@@ -1226,11 +1246,12 @@ window.addMember=async function(){
   const name=document.getElementById('m-name').value.trim();
   const num=parseInt(document.getElementById('m-num').value)||0;
   const pos=document.getElementById('m-pos').value;
+  const pos2=document.getElementById('m-pos2')?.value||'';
   if(!name){toast('이름을 입력하세요');return;}
   if(members.find(m=>m.name===name)){toast('이미 등록된 선수');return;}
   const id='m'+Date.now();
   // 선수 등록
-  await set(ref(db,'suchon/members/'+id),{id,name,num,pos});
+  await set(ref(db,'suchon/members/'+id),{id,name,num,pos,pos2});
   // 회비 초기화 (12개월)
   await set(ref(db,'suchon/fees/'+name),{1:false,2:false,3:false,4:false,5:false,6:false,7:false,8:false,9:false,10:false,11:false,12:false});
   // 기존 모든 경기에 해당 선수 미출전으로 추가
@@ -1308,7 +1329,7 @@ function renderMembers(){
   if(!shown.length){c.innerHTML=head+'<div style="color:#666;text-align:center;padding:20px;font-size:13px">검색 결과가 없습니다</div>';return;}
   c.innerHTML=head+shown.map(m=>{
     const s=getStats(m.name);
-    const [bg,tc]=PC[m.pos]||['#2e2e2e','#aaa'];
+    const [bg,tc]=PC[lineOf(m.pos)]||['#2e2e2e','#aaa'];
     const fs=feeStat(m.name);
     const lo=lateOwed(m.name);
     return`<div class="pi" style="${m.dormant?'opacity:0.55':''}">
@@ -1316,7 +1337,7 @@ function renderMembers(){
       <div class="pn">
         <div class="pname">${m.num?'#'+m.num+' ':''}&nbsp;${m.name}${m.dormant?'<span class="badge bgy" style="margin-left:6px;font-size:9px">💤 휴면</span>':''}</div>
         <div class="pst">
-          <span class="badge ${posB(m.pos)}">${m.pos}</span>
+          <span class="badge ${posB(m.pos)}">${posLabel(m.pos)}${m.pos2?`<span style="opacity:0.7;font-weight:400"> · ${posLabel(m.pos2)}</span>`:''}</span>
           <span class="badge bgy">출전${s.played}</span>
           <span class="badge bgg">⚽${s.goals} 🅰${s.assists}</span>
           <span class="badge ${fs.allPaid?'bgg':fs.paid>0?'bgo':'bgr'}">회비${fs.allPaid?'완납':fs.paid+'/'+fs.required}</span>
@@ -1810,7 +1831,7 @@ window.selectGame=function(id, scroll=true){
       const shownPos=p.pos||m.pos;
       return`<tr>
         <td style="font-weight:700;white-space:nowrap;color:var(--cl-white)">${m.name}</td>
-        <td><span class="badge ${posB(shownPos)}" style="font-size:10px">${shownPos}</span></td>
+        <td><span class="badge ${posB(shownPos)}" style="font-size:10px">${posLabel(shownPos)}</span></td>
         <td><span style="color:${p.played?'#2ecc71':'var(--cl-silver)'};font-size:13px">${p.played?'✓ 출전':'—'}</span></td>
         <td><span class="badge bgg" style="${!p.goals?'opacity:0.3':''}">${p.goals||0}</span></td>
         <td><span class="badge bgb" style="${!p.assists?'opacity:0.3':''}">${p.assists||0}</span></td>
@@ -1972,7 +1993,7 @@ window.switchQTab = function(q){
 
 // ── 쿼터 라인업 (드래그 포메이션) ──
 const QJ={GK:'#f2a33d',DF:'#4a90d9',MF:'#2ecc71',FW:'#e0574b'};
-function qJerseyColor(name){ const m=members.find(x=>x.name===name); const p=m?m.pos:''; return QJ[p]||'#c9a84c'; }
+function qJerseyColor(name){ const m=members.find(x=>x.name===name); return QJ[lineOf(m?m.pos:'')]||'#c9a84c'; }
 function escAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 
 // 쿼터별 필드 배치: qFormation = { q1:{field:[{n,x,y}]}, ... }  (x,y: 0~1)
@@ -1998,28 +2019,61 @@ function getQSubs(q){ const c=qFormation['q'+q]; return (c&&Array.isArray(c.subs
 // 라인은 수비 → 공격 순서의 인원수
 const FORMATIONS={'4-3-3':[4,3,3],'4-2-3-1':[4,2,3,1],'3-4-3':[3,4,3],'5-4-1':[5,4,1],'4-4-2':[4,4,2]};
 const GK_COORD={x:0.5,y:0.92};
+function sideFromX(x){ return x<0.4?'L':(x>0.6?'R':'C'); }   // 슬롯 x좌표 → 좌/중/우
 function formationSlots(name){
   const lines=FORMATIONS[name]||FORMATIONS['4-3-3'];
   const L=lines.length, slots=[];
   lines.forEach((cnt,i)=>{
     const y = L===1?0.5 : (0.76 - i*(0.76-0.16)/(L-1));      // 수비(아래) → 공격(위)
     const type = i===0?'DF':(i===L-1?'FW':'MF');
-    for(let j=0;j<cnt;j++) slots.push({type,x:(j+1)/(cnt+1),y});
+    for(let j=0;j<cnt;j++){ const x=(j+1)/(cnt+1); slots.push({type,x,y,side:(cnt===1?'C':sideFromX(x))}); }
   });
   return slots;
 }
-function posCat(name){ const m=members.find(x=>x.name===name); const p=m?m.pos:''; return (p==='GK'||p==='DF'||p==='FW')?p:'MF'; }
+// ── 포지션 체계: 라인(GK/DF/MF/FW) + 좌우중앙(L/C/R) · 사이드 없는 값=좌우중앙 무관(전방향) ──
+const SIDE_KO={L:'좌',C:'중',R:'우'};
+const POS_OPTIONS=['GK','DF','DFL','DFC','DFR','MF','MFL','MFC','MFR','FW','FWL','FWC','FWR']; // 선택 옵션(라인 + 세분화)
+function lineOf(pos){ pos=pos||''; const c=pos[0]; return c==='G'?'GK':c==='D'?'DF':c==='F'?'FW':c==='M'?'MF':'MF'; }
+function sideOf(pos){ pos=pos||''; const c=pos.slice(-1); return (pos.length>2&&(c==='L'||c==='C'||c==='R'))?c:''; }
+function posLabel(pos){ if(!pos)return ''; const s=sideOf(pos); return s?lineOf(pos)+SIDE_KO[s]:lineOf(pos); }
+function posLabelFull(p){ if(!p)return '(없음)'; if(lineOf(p)==='GK')return 'GK'; const s=sideOf(p); return s?`${lineOf(p)} ${SIDE_KO[s]}`:`${lineOf(p)} (전방향)`; }
+function posSelOpts(sel,withNone){ return (withNone?`<option value="">(없음)</option>`:'') + POS_OPTIONS.map(p=>`<option value="${p}" ${p===sel?'selected':''}>${posLabelFull(p)}</option>`).join(''); }
+function posCat(name){ const m=members.find(x=>x.name===name); return lineOf(m?m.pos:''); }  // 라인만 반환(사이드 무시)
 const CATRANK={GK:0,DF:0,MF:1,FW:2};   // GK는 수비(0)로 취급해 배치 누락 방지
-// 당일 포지션: 이 경기에서만 적용하는 포지션 지정(qFormation.dayPos) → 없으면 선수탭 등록 포지션
-function dayPosOf(name){ const d=(qFormation.dayPos||{})[name]; return (d==='DF'||d==='MF'||d==='FW'||d==='GK')?d:posCat(name); }
-function hasDayPos(name){ const d=(qFormation.dayPos||{})[name]; return d==='DF'||d==='MF'||d==='FW'||d==='GK'; }
+// 선호 포지션 목록 [1순위, 2순위] — 당일 지정(dayPos/dayPos2) 우선, 없으면 등록(pos/pos2)
+function posPrefs(name){
+  const dp=(qFormation.dayPos||{})[name], dp2=(qFormation.dayPos2||{})[name];
+  const m=members.find(x=>x.name===name)||{};
+  const p1 = dp || m.pos || '';
+  const p2 = dp2 || m.pos2 || '';
+  const list=[]; if(p1)list.push(p1); if(p2&&p2!==p1)list.push(p2);
+  if(!list.length)list.push('MF');
+  return list;
+}
+// 1순위 라인 — 기존 로직(catRank·effectivePos 폴백) 호환
+function dayPosOf(name){ return lineOf(posPrefs(name)[0]); }
+function hasDayPos(name){ const d=(qFormation.dayPos||{})[name]; return !!d; }
 function catRank(name){ const r=CATRANK[dayPosOf(name)]; return r!=null?r:1; }
 // 선택된 선수들을 슬롯에 배치 → [{n,x,y}]
-// 우선순위: 1) 기여도 — 기여도 높은 선수가 먼저 자리를 고름 · 2) 포메이션 — 각자 자기(당일/등록) 포지션에 가장 맞는 빈 슬롯 선택
-// 랜덤 가미: 같은 적합도(주로 같은 라인·좌우) 사이를 무작위로 섞어 매번 조금씩 달라지게 함
-const ASSIGN_JITTER=1.1; // 포지션 거리 1칸 언저리 — 대부분 포메이션 유지, 가끔 한 라인 이동(랜덤)
+// 우선순위: 1) 기여도(높은 선수가 먼저 자리 선택) · 2) 포메이션 — 1순위 포지션 우선, 그 라인이 다 차면 2순위 포지션, 좌우중앙 맞으면 가산 · 3) 확률(랜덤 가미)
+const ASSIGN_JITTER=0.55; // 확률 요소 — 선호(1>2순위)를 뒤집진 않고 같은 선호 내 좌우·동률을 무작위화
+// 선수 n이 슬롯 slot에 얼마나 맞는지(클수록 적합)
+function slotFit(name, slot){
+  const prefs=posPrefs(name);
+  let best=-99;
+  prefs.forEach((p,r)=>{
+    if(lineOf(p)!==slot.type) return;                 // 라인이 맞아야 선호로 인정
+    const rankBonus = r===0 ? 3.0 : 1.6;              // 1순위 > 2순위
+    const sd=sideOf(p);
+    const sideScore = sd==='' ? 0.15 : (sd===slot.side ? 0.6 : -0.35); // 전방향=무난 · 정확한 좌우중앙=가산 · 반대측=감점
+    best=Math.max(best, rankBonus+sideScore);
+  });
+  if(best>-99) return best;
+  // 선호 라인이 하나도 안 맞으면 라인 거리 폴백(음수 = 최후)
+  return -1.0 - Math.abs(catRank(name)-CATRANK[slot.type]);
+}
 function assignPlayersToSlots(players, slots){
-  // 1순위 기여도: 기여도 높은 순, 동점은 랜덤
+  // 1순위 기여도: 기여도 높은 선수부터 자리 선택(동점 랜덤)
   const order=players.slice().sort((a,b)=> (contribScore(b)-contribScore(a)) || (Math.random()-0.5));
   const used=new Array(slots.length).fill(false);
   const res=[];
@@ -2027,8 +2081,7 @@ function assignPlayersToSlots(players, slots){
     let best=-1, bestScore=-1e9;
     for(let k=0;k<slots.length;k++){
       if(used[k]) continue;
-      const dist=Math.abs(catRank(n)-CATRANK[slots[k].type]); // 2순위 포메이션: 거리 작을수록 적합
-      const score=-dist + Math.random()*ASSIGN_JITTER;        // 랜덤 가미
+      const score=slotFit(n,slots[k]) + Math.random()*ASSIGN_JITTER;  // 2순위 적합 + 3순위 확률
       if(score>bestScore){ bestScore=score; best=k; }
     }
     if(best>=0){ used[best]=true; const s=slots[best]; res.push({n, x:s.x, y:s.y}); }
@@ -2269,35 +2322,78 @@ function computeBestFirst(order){
 // 최소 보장 쿼터 값 (기본 2)
 function getMinQ(){ const v=parseInt(document.getElementById('q-minq')?.value); return isNaN(v)?2:Math.max(0,v); }
 function getMinPlaySet(){ return new Set((qFormation.minPlay||[])); } // 최소출전(부상·체력) 지명
+// 3연속 쿼터 금지 하에서 한 선수가 뛸 수 있는 최대 쿼터 수 (예: 4쿼터→3, PP_P)
+function maxNonConsec(qCnt){ return Math.max(1, Math.ceil(2*qCnt/3)); }
 // 온전한 쿼터 단위 배분: 각 선수의 출전 쿼터 수를 정함 (합 = S×qCnt, 반쿼터 없음)
-//  · 전원 최소 floorQ쿼터 보장  · 최소출전(minPlay) 선수는 floorQ만  · 남는 쿼터는 기여도 순위(★우선 포함)로 배분
-function meritQuarters(bestFirst, S, qCnt, minQ, minPlaySet){
+//  · 전원 최소 floorQ쿼터 보장  · 최소출전(minPlay) 선수는 floorQ만
+//  · 남는 쿼터는 기여도 가중(★우선 포함)으로 배분 — rand=true면 확률 추첨, false면 결정적(표시용)
+//  · 캡: 3연속 금지가 가능하도록 maxNonConsec, 단 인원이 부족하면 슬롯을 채우기 위해 상향
+function meritQuarters(bestFirst, S, qCnt, minQ, minPlaySet, rand){
   const N=bestFirst.length; const q={};
-  if(N===0) return {q,floorQ:qCnt,feasibleQ:qCnt};
-  if(N<=S){ bestFirst.forEach(n=>q[n]=qCnt); return {q,floorQ:qCnt,feasibleQ:qCnt}; } // 전원 풀타임
-  const totalSlots=S*qCnt;                                   // 총 쿼터-슬롯
-  const feasibleQ=Math.floor(totalSlots/N);                 // 인원 대비 전원 보장 가능한 최대 쿼터
-  const floorQ=Math.max(0, Math.min(minQ, feasibleQ));      // 실제 보장 쿼터
+  if(N===0) return {q,floorQ:qCnt,feasibleQ:qCnt,cap:qCnt};
+  if(N<=S){ bestFirst.forEach(n=>q[n]=qCnt); return {q,floorQ:qCnt,feasibleQ:qCnt,cap:qCnt}; } // 전원 풀타임(로테이션 불가)
+  const totalSlots=S*qCnt;
+  const feasibleQ=Math.floor(totalSlots/N);
+  const restCap=maxNonConsec(qCnt);
+  const cap=Math.max(restCap, Math.ceil(totalSlots/N));      // 인원 부족 시 캡 상향(슬롯 충족 우선)
+  const floorQ=Math.max(0, Math.min(minQ, feasibleQ, cap));
   bestFirst.forEach(n=>q[n]=floorQ);
   let remaining=totalSlots - floorQ*N;
   minPlaySet=minPlaySet||new Set();
-  // 남는 쿼터-슬롯을 순위 가중 대비 부족한 선수부터 하나씩 (최소출전 선수는 제외, 캡 qCnt)
+  const prio=new Set((qFormation.priority||[]));
+  const wgtOf=(n,i)=>{ let w=N-i; if(prio.has(n)) w*=1.8; return w; };
   let guard=0;
   while(remaining>0 && guard++<100000){
-    let best=-1, bestRatio=Infinity;
-    for(let i=0;i<N;i++){ const n=bestFirst[i];
-      if(q[n]>=qCnt) continue;
-      if(minPlaySet.has(n)) continue;                        // 최소출전 지명 → 추가 없음
-      const wgt=N-i; const ratio=(q[n]-floorQ)/wgt;
-      if(ratio<bestRatio-1e-9){ bestRatio=ratio; best=i; }
+    if(rand){
+      // 기여도 가중 확률 추첨 (#2 — 기여도 높을수록 많이 뛸 확률 큼)
+      let pool=[]; for(let i=0;i<N;i++){ const n=bestFirst[i]; if(q[n]<cap && !minPlaySet.has(n)) pool.push([n,wgtOf(n,i)]); }
+      if(!pool.length){ for(let i=0;i<N;i++){ const n=bestFirst[i]; if(q[n]<cap) pool.push([n,wgtOf(n,i)]); } }
+      if(!pool.length) break;
+      const tot=pool.reduce((a,x)=>a+x[1],0); let r=Math.random()*tot, pick=pool[0][0];
+      for(const x of pool){ r-=x[1]; if(r<=0){ pick=x[0]; break; } }
+      q[pick]++; remaining--;
+    } else {
+      // 결정적: 순위 가중 대비 부족한 선수부터 (표시용, 안정적)
+      let best=-1, bestRatio=Infinity;
+      for(let i=0;i<N;i++){ const n=bestFirst[i];
+        if(q[n]>=cap || minPlaySet.has(n)) continue;
+        const ratio=(q[n]-floorQ)/(N-i);
+        if(ratio<bestRatio-1e-9){ bestRatio=ratio; best=i; }
+      }
+      if(best<0){ for(let i=0;i<N;i++){ if(q[bestFirst[i]]<cap){ best=i; break; } } if(best<0) break; }
+      q[bestFirst[best]]++; remaining--;
     }
-    if(best<0){ // 남는 슬롯이 최소출전 선수에게만 갈 수 있는 경우 → 그래도 배분(용량 소진)
-      for(let i=0;i<N;i++){ if(q[bestFirst[i]]<qCnt){ best=i; break; } }
-      if(best<0) break;
-    }
-    q[bestFirst[best]]++; remaining--;
   }
-  return {q,floorQ,feasibleQ};
+  return {q,floorQ,feasibleQ,cap};
+}
+// 각 선수의 출전 쿼터 수(q)를 실제 쿼터에 배치 — 3연속 금지(#1), 인원 부족 시에만 최후로 허용
+// 반환 {play:{1:[names],...}, consec:3연속 발생 수}
+function scheduleQuarters(qAssign, qCnt, S, bestFirst){
+  const need={}; bestFirst.forEach(n=>need[n]=qAssign[n]||0);
+  const rankIdx={}; bestFirst.forEach((n,i)=>rankIdx[n]=i);
+  const played={}; bestFirst.forEach(n=>played[n]=new Set());
+  const play={}; let consec=0;
+  for(let qq=1; qq<=qCnt; qq++){
+    const remainQ=qCnt-qq+1;
+    const blocked=(n)=> played[n].has(qq-1) && played[n].has(qq-2); // 직전 2쿼터 연속 → 이번에 뛰면 3연속
+    const playedLast=(n)=> played[n].has(qq-1)?1:0;                 // 직전 쿼터에 뛴 선수(연속 방지 위해 쉬게 우선)
+    const urgency=(n)=> need[n]-remainQ;                            // >=0이면 이번에 반드시 뛰어야 배분 완료
+    // 정렬: 1) 반드시 뛰어야 하는(급한) 선수 · 2) 직전에 쉰 선수(연속 끊기) · 3) 남은 need · 4) 기여도 순위 · 5) 랜덤
+    const sortFn=(a,b)=> (urgency(b)-urgency(a)) || (playedLast(a)-playedLast(b)) || (need[b]-need[a]) || (rankIdx[a]-rankIdx[b]) || (Math.random()-0.5);
+    let cand=bestFirst.filter(n=> need[n]>0 && !blocked(n)).sort(sortFn);
+    let pick=cand.slice(0,S);
+    if(pick.length<S){ // 1차 폴백: 목표 남은 선수 중 3연속이라도(인원 부족 시)
+      const extra=bestFirst.filter(n=> need[n]>0 && pick.indexOf(n)<0).sort(sortFn);
+      for(const n of extra){ if(pick.length>=S) break; pick.push(n); if(blocked(n)) consec++; }
+    }
+    if(pick.length<S){ // 2차 폴백: 목표 채운 선수라도 투입해 필드는 항상 채움(비차단 우선)
+      const extra=bestFirst.filter(n=> pick.indexOf(n)<0 && !blocked(n)).sort((a,b)=>(playedLast(a)-playedLast(b))||(rankIdx[a]-rankIdx[b])||(Math.random()-0.5));
+      for(const n of extra){ if(pick.length>=S) break; pick.push(n); }
+    }
+    play[qq]=pick;
+    pick.forEach(n=>{ need[n]--; played[n].add(qq); });
+  }
+  return {play,consec};
 }
 // 출전 풀: 편집된 명단(roster)이 있으면 우선, 없으면 투표 참석자, 그것도 없으면 전체(비휴면)
 function getAttendeePool(){
@@ -2333,48 +2429,63 @@ function renderRosterList(){
   const va=voteAttendees(); const vt=(va.ref&&va.ref.votes)||{};
   const voters=Object.values(vt).filter(v=>v.vote==='o'&&v.ts).sort((a,b)=>a.ts-b.ts).map(v=>v.name);
   const minPlay=Array.isArray(qFormation.minPlay)?qFormation.minPlay:[];
+  const coach=isCoach();
   const row=(n,isMerc)=>{
     const on=rosterDraft.has(n);
     const isP=prio.includes(n);
     const isMin=minPlay.includes(n);
     const m=members.find(x=>x.name===n); const pos=m?m.pos:(isMerc?'용병':'');
     const s=getStats(n); const sc=scoreOf(n); const vo=voters.indexOf(n);
-    const ep=effectivePos(n); const posBadge=(ep!==posCat(n))?` <span style="color:#f1d36b">→${ep} 배치</span>`:'';
-    const dp=(qFormation.dayPos||{})[n]||''; // 당일 포지션 지정값
-    const dayPosSel = (isCoach()&&on) ? `<select onchange="setDayPos('${escAttr(n)}',this.value)" onclick="event.stopPropagation()" title="당일 포지션 — 자동배치가 이 포지션으로 자리 잡음" style="margin:0;padding:4px 3px;font-size:10px;min-width:52px;flex-shrink:0;background-color:${dp?'rgba(212,175,55,0.16)':'#0f1a33'};border-color:${dp?'var(--cl-gold)':'var(--cl-border2)'};color:${dp?'var(--cl-gold)':'var(--cl-silver)'}">
-        <option value="">당일:등록${pos?'('+pos+')':''}</option>
-        <option value="DF"${dp==='DF'?' selected':''}>당일 DF</option>
-        <option value="MF"${dp==='MF'?' selected':''}>당일 MF</option>
-        <option value="FW"${dp==='FW'?' selected':''}>당일 FW</option>
-        <option value="GK"${dp==='GK'?' selected':''}>당일 GK</option>
-      </select>` : '';
     const cw=hasPlayerWeight(n);
+    const dp=(qFormation.dayPos||{})[n]||''; const dp2=(qFormation.dayPos2||{})[n]||'';
+    const posTxt=isMerc?'용병':posLabel(pos);
+    // 태그 줄 (기여도·순위·상태·기록)
     const flag = isMin?' · <span style="color:#ff8080;font-weight:700">🩹최소출전</span>':(isP?' · <span style="color:var(--cl-gold);font-weight:700">★많이뛰기</span>':'');
-    const tag = `기여 <b style="color:${cw?'#f1d36b':'inherit'}">${Math.round(sc)}점</b>${cw?'<span style="color:#f1d36b" title="선수별 가중치 적용중">⚙</span>':''}${on&&rankMap[n]?` · ${rankMap[n]}위`:''}${flag}${posBadge}` + ` · 출전${s.played}·⚽${s.goals}·🅰${s.assists}` + (vo>=0?` · 투표${vo+1}번`:'');
-    return `<div style="display:flex;align-items:center;gap:6px;padding:9px 8px;border-bottom:1px solid rgba(212,175,55,0.07)">
-      <div onclick="toggleRoster('${escAttr(n)}')" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;min-width:0">
-        <div style="width:20px;height:20px;border-radius:4px;border:1.5px solid ${on?'var(--cl-gold)':'rgba(160,176,202,0.4)'};background:${on?'var(--grad-gold)':'transparent'};display:flex;align-items:center;justify-content:center;color:var(--cl-navy);font-size:13px;font-weight:900;flex-shrink:0">${on?'✓':''}</div>
-        <span style="font-size:9px;color:var(--cl-silver);min-width:28px">${pos}</span>
-        <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:700;color:${on?'var(--cl-white)':'var(--cl-silver)'}">${n}${isMerc?' <span style="font-size:9px;color:#7fc1eb">(용병)</span>':''}</span>${tag?`<span style="display:block;font-size:9px;color:rgba(160,176,202,0.6);letter-spacing:0.2px">${tag}</span>`:''}</span>
+    const tag = `기여 <b style="color:${cw?'#f1d36b':'inherit'}">${Math.round(sc)}점</b>${cw?'⚙':''}${on&&rankMap[n]?` · ${rankMap[n]}위`:''}${flag} · 출전${s.played}·⚽${s.goals}·🅰${s.assists}${vo>=0?` · 투표${vo+1}번`:''}`;
+    // 액션 버튼 (상단 우측)
+    const btns = `${coach?`<button onclick="event.stopPropagation();openPlayerWeight('${escAttr(n)}')" title="선수별 골·어시 가중치" style="background:${cw?'rgba(212,175,55,0.22)':'rgba(255,255,255,0.06)'};border:1px solid ${cw?'var(--cl-gold)':'var(--cl-border2)'};border-radius:5px;color:${cw?'var(--cl-gold)':'var(--cl-silver)'};font-size:12px;cursor:pointer;padding:5px 8px;flex-shrink:0">⚙</button>`:''}`
+      + `${on?`<button onclick="event.stopPropagation();toggleMinPlay('${escAttr(n)}')" title="최소 출전(부상·체력)" style="background:${isMin?'rgba(214,69,69,0.18)':'rgba(255,255,255,0.04)'};border:1px solid ${isMin?'rgba(214,69,69,0.5)':'var(--cl-border2)'};border-radius:5px;font-size:14px;cursor:pointer;padding:4px 7px;flex-shrink:0;opacity:${isMin?1:0.5}">🩹</button>`:''}`
+      + `${on?`<button onclick="event.stopPropagation();togglePriority('${escAttr(n)}')" title="많이 뛰기(우선)" style="background:${isP?'rgba(212,175,55,0.18)':'rgba(255,255,255,0.04)'};border:1px solid ${isP?'var(--cl-gold)':'var(--cl-border2)'};border-radius:5px;font-size:14px;cursor:pointer;padding:4px 7px;flex-shrink:0;color:${isP?'var(--cl-gold)':'var(--cl-silver)'}">${isP?'★':'☆'}</button>`:''}`
+      + `${isMerc?`<button onclick="event.stopPropagation();removeMercenary('${escAttr(n)}')" title="용병 삭제" style="background:rgba(214,69,69,0.1);border:1px solid rgba(214,69,69,0.3);border-radius:5px;color:#ff6b6b;font-size:14px;cursor:pointer;padding:4px 8px;flex-shrink:0">×</button>`:''}`;
+    // 당일 포지션 줄 (선택 시에만 · 전체폭)
+    const daySel = (coach&&on) ? `<div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:5px;margin-top:7px;padding-left:30px">
+        <span style="font-size:9px;color:var(--cl-silver);flex-shrink:0">당일</span>
+        <select onchange="setDayPos('${escAttr(n)}',this.value)" title="당일 1순위 포지션" style="flex:1;min-width:0;margin:0;padding:5px 4px;font-size:10px;background-color:${dp?'rgba(212,175,55,0.16)':'#0f1a33'};border-color:${dp?'var(--cl-gold)':'var(--cl-border2)'};color:${dp?'var(--cl-gold)':'var(--cl-silver)'}"><option value="">1순위: 등록 포지션</option>${posSelOpts(dp,false)}</select>
+        <select onchange="setDayPos2('${escAttr(n)}',this.value)" title="당일 2순위 포지션 — 1순위 자리가 찼을 때" style="flex:1;min-width:0;margin:0;padding:5px 4px;font-size:10px;background-color:${dp2?'rgba(126,193,235,0.16)':'#0f1a33'};border-color:${dp2?'#7fc1eb':'var(--cl-border2)'};color:${dp2?'#7fc1eb':'var(--cl-silver)'}"><option value="">2순위: 없음</option>${posSelOpts(dp2,false)}</select>
+      </div>` : '';
+    return `<div style="padding:9px 6px;border-bottom:1px solid rgba(212,175,55,0.08)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div onclick="toggleRoster('${escAttr(n)}')" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;min-width:0">
+          <div style="width:22px;height:22px;border-radius:5px;border:1.5px solid ${on?'var(--cl-gold)':'rgba(160,176,202,0.4)'};background:${on?'var(--grad-gold)':'transparent'};display:flex;align-items:center;justify-content:center;color:var(--cl-navy);font-size:13px;font-weight:900;flex-shrink:0">${on?'✓':''}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:baseline;gap:6px;min-width:0">
+              <span style="font-size:13px;font-weight:700;color:${on?'var(--cl-white)':'var(--cl-silver)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${n}</span>
+              <span style="font-size:9px;color:var(--cl-silver);flex-shrink:0">${posTxt}${isMerc?' <span style="color:#7fc1eb">(용병)</span>':''}</span>
+            </div>
+            <div style="font-size:9px;color:rgba(160,176,202,0.65);letter-spacing:0.2px;line-height:1.5;margin-top:1px">${tag}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">${btns}</div>
       </div>
-      ${dayPosSel}
-      ${isCoach()?`<button onclick="event.stopPropagation();openPlayerWeight('${escAttr(n)}')" title="선수별 가중치 수정 (골·어시)" style="background:${cw?'rgba(212,175,55,0.22)':'rgba(255,255,255,0.06)'};border:1px solid ${cw?'var(--cl-gold)':'var(--cl-border2)'};border-radius:4px;color:${cw?'var(--cl-gold)':'var(--cl-silver)'};font-size:12px;cursor:pointer;padding:4px 7px;flex-shrink:0">⚙</button>`:''}
-      ${on?`<button onclick="toggleMinPlay('${escAttr(n)}')" title="최소 출전(부상·체력) — 최소 쿼터만 배치" style="background:${isMin?'rgba(214,69,69,0.18)':'none'};border:${isMin?'1px solid rgba(214,69,69,0.5)':'none'};border-radius:4px;font-size:15px;cursor:pointer;padding:2px 5px;opacity:${isMin?1:0.4}">🩹</button>`:''}
-      ${on?`<button onclick="togglePriority('${escAttr(n)}')" title="많이 뛰기(우선) — 기여도 높은 인원과 비슷하게 배치" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 4px;color:${isP?'var(--cl-gold)':'rgba(160,176,202,0.35)'}">${isP?'★':'☆'}</button>`:''}
-      ${isMerc?`<button onclick="removeMercenary('${escAttr(n)}')" style="background:none;border:none;color:#ff6b6b;font-size:16px;cursor:pointer;padding:0 4px">×</button>`:''}
+      ${daySel}
     </div>`;
   };
   const list=document.getElementById('roster-list');
   const prioCount=[...rosterDraft].filter(n=>prio.includes(n)).length;
   const minCount=[...rosterDraft].filter(n=>minPlay.includes(n)).length;
-  list.innerHTML = `<div style="font-size:10px;color:rgba(160,176,202,0.7);margin-bottom:8px;letter-spacing:0.2px;line-height:1.6"><span style="color:var(--cl-gold)">★</span> 많이 뛰기(우선) ${prioCount}명 · <span style="color:#ff8080">🩹</span> 최소 출전(부상·체력) ${minCount}명${isCoach()?' · <span style="color:var(--cl-gold)">⚙</span> 선수별 골·어시 가중치':''}</div>`
+  list.innerHTML = `<div style="font-size:9px;color:rgba(160,176,202,0.7);margin-bottom:8px;letter-spacing:0.2px;line-height:1.6"><span style="color:var(--cl-gold)">★</span> 많이뛰기 ${prioCount}명 · <span style="color:#ff8080">🩹</span> 최소출전 ${minCount}명${coach?' · <span style="color:var(--cl-gold)">⚙</span> 골·어시 가중치 · 당일 포지션 1·2순위':''}</div>`
     + mercs.map(n=>row(n,true)).join('') + memberNames.map(n=>row(n,false)).join('');
   document.getElementById('roster-count').textContent=rosterDraft.size;
 }
 window.toggleRoster=function(n){ if(rosterDraft.has(n))rosterDraft.delete(n); else rosterDraft.add(n); renderRosterList(); };
 window.setDayPos=function(n,v){
   if(!qFormation.dayPos) qFormation.dayPos={};
-  if(v==='DF'||v==='MF'||v==='FW'||v==='GK') qFormation.dayPos[n]=v; else delete qFormation.dayPos[n];
+  if(POS_OPTIONS.includes(v)) qFormation.dayPos[n]=v; else delete qFormation.dayPos[n];
+  renderRosterList();
+};
+window.setDayPos2=function(n,v){
+  if(!qFormation.dayPos2) qFormation.dayPos2={};
+  if(POS_OPTIONS.includes(v)) qFormation.dayPos2[n]=v; else delete qFormation.dayPos2[n];
   renderRosterList();
 };
 window.addMercenary=function(){
@@ -2485,8 +2596,8 @@ function renderQView(){
   }).join('');
   // 우측 벤치(미출전) — 기여도 높은 순, 기여도 표시
   const benchChips=bench.slice().sort((a,b)=>contribScore(b)-contribScore(a)).map(n=>{
-    const dp=hasDayPos(n)?dayPosOf(n):(members.find(mm=>mm.name===n)?.pos||'');
-    const dpTag=dp?`<span class="bp"${hasDayPos(n)?' style="color:var(--cl-gold);opacity:1"':''}>${dp}</span>`:'';
+    const p1=posPrefs(n)[0];
+    const dpTag=p1?`<span class="bp"${hasDayPos(n)?' style="color:var(--cl-gold);opacity:1"':''}>${posLabel(p1)}</span>`:'';
     const c=Math.round(contribScore(n));
     return `<div class="q-bench-chip" data-name="${escAttr(n)}" data-from="bench" style="${coach?'':'cursor:default'}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dpTag}${n}</span><span class="bc-c">${c}</span></div>`;
   }).join('');
@@ -2649,7 +2760,7 @@ function extractPlan(){
   const gv=(id,d)=>{ const e=document.getElementById(id); return e&&e.value!=null?e.value:d; };
   return JSON.parse(JSON.stringify({
     q1:qFormation.q1||{field:[]}, q2:qFormation.q2||{field:[]}, q3:qFormation.q3||{field:[]}, q4:qFormation.q4||{field:[]},
-    roster:qFormation.roster||null, priority:qFormation.priority||[], minPlay:qFormation.minPlay||[], dayPos:qFormation.dayPos||{},
+    roster:qFormation.roster||null, priority:qFormation.priority||[], minPlay:qFormation.minPlay||[], dayPos:qFormation.dayPos||{}, dayPos2:qFormation.dayPos2||{},
     settings:{ total:gv('q-total','120'), cnt:gv('q-cnt','4'), formation:gv('q-formation','4-3-3'), gk:gv('q-gk',''), minq:gv('q-minq','2') }
   }));
 }
@@ -2657,7 +2768,7 @@ function loadPlan(plan){
   if(!plan) return;
   ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]=plan[k]||{field:[]}; });
   if(plan.roster) qFormation.roster=plan.roster; else delete qFormation.roster;
-  qFormation.priority=plan.priority||[]; qFormation.minPlay=plan.minPlay||[]; qFormation.dayPos=plan.dayPos||{};
+  qFormation.priority=plan.priority||[]; qFormation.minPlay=plan.minPlay||[]; qFormation.dayPos=plan.dayPos||{}; qFormation.dayPos2=plan.dayPos2||{};
   const st=plan.settings||{}; const sv=(id,v)=>{ const e=document.getElementById(id); if(e&&v!=null&&v!=='') e.value=v; };
   sv('q-total',st.total); sv('q-cnt',st.cnt); sv('q-formation',st.formation); sv('q-gk',st.gk); sv('q-minq',st.minq);
 }
@@ -2665,7 +2776,7 @@ window.setQGame=function(id){
   qFormation.gameId=id||'';
   const g=id?games.find(x=>x.id===id):null;
   if(g&&g.plan){ loadPlan(g.plan); }          // 저장된 라인업 있으면 그대로(명단 포함)
-  else { delete qFormation.roster; delete qFormation.dayPos; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; }); } // 없으면 명단 해제 + 당일포지션 해제 + 라인업 비움 → 이 경기 참석자 전원 벤치
+  else { delete qFormation.roster; delete qFormation.dayPos; delete qFormation.dayPos2; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; }); } // 없으면 명단 해제 + 당일포지션 해제 + 라인업 비움 → 이 경기 참석자 전원 벤치
   toast(id?'경기 연결 · 이 경기 참석자로 명단 갱신':'경기 연결 해제');
   renderQGameSelect();
   if(document.getElementById('s-quarter')?.classList.contains('on')) renderQView();
@@ -3009,20 +3120,19 @@ window.autoRotate=function(){
   const minPlaySet=getMinPlaySet();
   const minPlayNames=[...minPlaySet].filter(n=>order.includes(n));
   const minQ=getMinQ();
-  // 온전한 쿼터 단위 배분 (반쿼터 없음) — 전원 최소보장 + 최소출전은 최소만 + 남는 쿼터는 기여도 순
-  const {q:qAssign, floorQ}=meritQuarters(bestFirst, S, qCnt, minQ, minPlaySet);
+  // 출전 쿼터 수 배분 — 기여도 가중 확률(#2) + 3연속 금지 가능한 캡
+  const {q:qAssign, floorQ, cap}=meritQuarters(bestFirst, S, qCnt, minQ, minPlaySet, true);
+  // 3연속 회피 가능 여부(추정): 3쿼터 이상 뛰는 인원 ≤ 가운데 쿼터들의 벤치 여유, 전쿼터 선수 없음
+  const threePlus = bestFirst.filter(n=>(qAssign[n]||0)>=3).length;
+  const fourPlus = bestFirst.some(n=>(qAssign[n]||0)>=qCnt);
+  const middleCap = Math.max(0,(qCnt-2))*(N-S);
+  const restEnforceable = !fourPlus && threePlus<=middleCap;
   const warnFloor = floorQ<minQ ? `\n⚠ 출전 인원이 많아 최소 ${minQ}쿼터를 모두 보장할 수 없어 최소 ${floorQ}쿼터(${floorQ*qMin}분)로 배분합니다.` : '';
-  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\nGK 고정: ${gk||'미지정'}\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터(${floorQ*qMin}분) · 남는 쿼터는 기여도 순 배분${warnFloor}\n배치할까요? (현재 배치 덮어씀)`)) return;
+  const warnConsec = restEnforceable ? '' : `\n⚠ 인원이 부족해 일부 선수는 3쿼터 연속으로 뛸 수 있습니다(전원 휴식 보장 불가).`;
+  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\nGK 고정: ${gk||'미지정'}\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 높은 선수 위주(확률)\n최대 연속 2쿼터 — 중간 1쿼터 휴식${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
 
-  // 각 쿼터 S슬롯을 '남은 쿼터수 많은(우선순위 높은)' 선수부터 채움 → 온전한 쿼터 로테이션
-  const need={}; order.forEach(n=>need[n]=qAssign[n]||0);
-  const rankIdx={}; bestFirst.forEach((n,i)=>rankIdx[n]=i);
-  const play={};
-  for(let qq=qCnt; qq>=1; qq--){
-    const cand=order.filter(n=>need[n]>0).sort((a,b)=> need[b]-need[a] || (rankIdx[a]-rankIdx[b]));
-    play[qq]=cand.slice(0,S);
-    play[qq].forEach(n=>need[n]--);
-  }
+  // 3연속 금지 스케줄 (#1) — 어느 쿼터에 누가 뛸지
+  const {play, consec}=scheduleQuarters(qAssign, qCnt, S, bestFirst);
   // 배치 (교체 없이 온전한 쿼터 · 필요하면 이후 수기로 교체 추가)
   for(let qq=1; qq<=qCnt; qq++){
     const placed=assignPlayersToSlots(play[qq],useSlots);
@@ -3032,7 +3142,7 @@ window.autoRotate=function(){
     qFormation['q'+qq]={field,subs:[]};
   }
   currentQTab=1; switchQTab(1);
-  toast(`${fname} 배치 완료 · 최소 ${floorQ}쿼터 보장${priority.length?` · ★우선 ${priority.length}명`:''}${minPlayNames.length?` · 최소출전 ${minPlayNames.length}명`:''} — 확인 후 저장`);
+  toast(`${fname} 배치 완료 · 최소 ${floorQ}쿼터 · 연속 최대 2쿼터${consec>0?`(부득이 3연속 ${consec}건)`:''}${priority.length?` · ★우선 ${priority.length}명`:''}${minPlayNames.length?` · 최소출전 ${minPlayNames.length}명`:''} — 확인 후 저장`);
 };
 function qRebalance(qCnt,qMin,half,outfield,gk,target){
   target=target||{};
@@ -3320,19 +3430,21 @@ function renderQSel(){} // 레거시 호환용
 
 
 // ── 통계 ──
+// ── 통계 캐시: 같은 tick(동기 렌더 1회) 안에서만 유효, 마이크로태스크 경계에서 자동 소멸 →
+//    tick 내 games/기록은 불변이므로 안전. contribScore 정렬 등으로 인한 반복 스캔 제거 ──
+let _tickStats=null;
+function _statCache(){ if(!_tickStats){ _tickStats={s:new Map(),bp:new Map()}; Promise.resolve().then(()=>{ _tickStats=null; }); } return _tickStats; }
 function getStats(name){
+  const c=_statCache().s; if(c.has(name)) return c.get(name);
   // 1) 경기 기록에서 자동 집계
   let played=0,goals=0,assists=0;
   games.forEach(g=>{const p=g.players&&g.players[name];if(p){if(p.played)played++;goals+=p.goals||0;assists+=p.assists||0;}});
   // 2) 수동 보정값(델타)이 있으면 더함 — 음수도 가능 (예: 잘못 입력된 기록 차감)
   const ov=statOverrides[name];
-  if(ov){
-    played += (ov.played||0);
-    goals += (ov.goals||0);
-    assists += (ov.assists||0);
-  }
+  if(ov){ played+=(ov.played||0); goals+=(ov.goals||0); assists+=(ov.assists||0); }
   // 음수가 되지 않도록 클램프 + 출전은 전체 경기수를 넘지 못하도록 상한
-  return{played:Math.min(games.length,Math.max(0,played)),goals:Math.max(0,goals),assists:Math.max(0,assists)};
+  const r={played:Math.min(games.length,Math.max(0,played)),goals:Math.max(0,goals),assists:Math.max(0,assists)};
+  c.set(name,r); return r;
 }
 // 자동 집계만 (보정값 제외) - override 모달에서 현재값 표시용
 function getAutoStats(name){
@@ -3342,6 +3454,7 @@ function getAutoStats(name){
 }
 // 경기별 '뛴 포지션'으로 골·어시를 포지션별 집계 (경기에 pos 없으면 산정 포지션 폴백) — 기여도 골·어시 계산용
 function getStatsByPos(name){
+  const c=_statCache().bp; if(c.has(name)) return c.get(name);
   const fixed=scorePos(name); const pw=playerWeightsOf(name);
   // OV 버킷 = '뛴P' 미기록 기존 기록 (선수별 가중치가 설정돼 있으면 그 가중치로 산정)
   const gp={DF:0,MF:0,FW:0,GK:0,OV:0}, ap={DF:0,MF:0,FW:0,GK:0,OV:0};
@@ -3368,7 +3481,8 @@ function getStatsByPos(name){
     gp[gk]+=ov.goals||0; ap[ak]+=ov.assists||0; goals+=ov.goals||0; assists+=ov.assists||0; }
   played=Math.min(games.length,Math.max(0,played));
   ['DF','MF','FW','GK','OV'].forEach(k=>{ gp[k]=Math.max(0,gp[k]); ap[k]=Math.max(0,ap[k]); });
-  return {played,goals:Math.max(0,goals),assists:Math.max(0,assists),goalsByPos:gp,assistsByPos:ap};
+  const r={played,goals:Math.max(0,goals),assists:Math.max(0,assists),goalsByPos:gp,assistsByPos:ap};
+  c.set(name,r); return r;
 }
 window.openStatEdit=function(name){
   if(!isAdmin()){toast('관리자만 수정 가능합니다');return;}
@@ -3535,7 +3649,7 @@ function renderStats(){
     });
   document.getElementById('stats-body').innerHTML=rows.map(({m,s,paid,fs,cs})=>`<tr>
     <td style="font-weight:700;color:var(--cl-white)">${m.name}${statOverrides[m.name]?`<span title="수동 보정값 적용중" style="margin-left:5px;font-size:9px;color:var(--cl-gold);font-weight:700">⚙</span>`:''}</td>
-    <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${m.pos}</span></td>
+    <td><span class="badge ${posB(m.pos)}" style="font-size:10px">${posLabel(m.pos)}</span></td>
     <td style="color:var(--cl-silver)">${s.played}</td>
     <td><span class="badge bgg">${s.goals}</span></td>
     <td><span class="badge bgb">${s.assists}</span></td>
@@ -3576,7 +3690,7 @@ window.createGameFromSchedule=async function(sid){
     players:initPlayers
   });
   // 생성된 경기를 쿼터/콘솔에 자동 연결 + 명단 해제 + 라인업 비움 → 이 경기 참석자 전원 벤치로 즉시 반영
-  qFormation.gameId=id; delete qFormation.roster; delete qFormation.dayPos; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; });
+  qFormation.gameId=id; delete qFormation.roster; delete qFormation.dayPos; delete qFormation.dayPos2; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; });
   toast('경기 생성 완료! 쿼터·콘솔에 참석자 반영됩니다');
   setTimeout(()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
@@ -3633,6 +3747,8 @@ window.openMemberEdit=function(id,name,num,pos){
   document.getElementById('edit-mname').value=name;
   document.getElementById('edit-mnum').value=num;
   document.getElementById('edit-mpos').value=pos;
+  const mm=members.find(x=>x.id===id)||{};
+  const p2=document.getElementById('edit-mpos2'); if(p2) p2.value=mm.pos2||'';
   document.getElementById('member-edit-modal').style.display='flex';
 };
 window.closeMemberEdit=function(){
@@ -3644,6 +3760,7 @@ window.saveMemberEdit=async function(){
   const newName=document.getElementById('edit-mname').value.trim();
   const num=parseInt(document.getElementById('edit-mnum').value)||0;
   const pos=document.getElementById('edit-mpos').value;
+  const pos2=document.getElementById('edit-mpos2')?.value||'';
   if(!newName){toast('이름을 입력하세요');return;}
   // 이름이 변경된 경우 회비·경기기록 키도 이전
   if(newName!==origName){
@@ -3683,7 +3800,7 @@ window.saveMemberEdit=async function(){
     }
   }
   // 선수 정보 업데이트
-  await update(ref(db,'suchon/members/'+id),{name:newName,num,pos});
+  await update(ref(db,'suchon/members/'+id),{name:newName,num,pos,pos2});
   closeMemberEdit();
   toast(origName+(newName!==origName?' → '+newName:'')+'  수정 완료');
 };
