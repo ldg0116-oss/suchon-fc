@@ -2558,8 +2558,11 @@ function loadPlan(plan){
 }
 window.setQGame=function(id){
   qFormation.gameId=id||'';
-  if(id){ const g=games.find(x=>x.id===id); if(g&&g.plan) loadPlan(g.plan); }
-  toast(id?'경기 연결됨 · 이 경기 라인업 불러옴':'경기 연결 해제');
+  const g=id?games.find(x=>x.id===id):null;
+  if(g&&g.plan){ loadPlan(g.plan); }          // 저장된 라인업 있으면 그대로(명단 포함)
+  else { delete qFormation.roster; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; }); } // 없으면 명단 해제 + 라인업 비움 → 이 경기 참석자 전원 벤치
+  toast(id?'경기 연결 · 이 경기 참석자로 명단 갱신':'경기 연결 해제');
+  renderQGameSelect();
   if(document.getElementById('s-quarter')?.classList.contains('on')) renderQView();
   if(document.getElementById('s-console')?.classList.contains('on')) renderConsole();
 };
@@ -3467,7 +3470,9 @@ window.createGameFromSchedule=async function(sid){
     our:0, them:0,
     players:initPlayers
   });
-  toast('경기 생성 완료! 경기 탭으로 이동합니다');
+  // 생성된 경기를 쿼터/콘솔에 자동 연결 + 명단 해제 + 라인업 비움 → 이 경기 참석자 전원 벤치로 즉시 반영
+  qFormation.gameId=id; delete qFormation.roster; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; });
+  toast('경기 생성 완료! 쿼터·콘솔에 참석자 반영됩니다');
   setTimeout(()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
     document.querySelectorAll('.sec').forEach(sc=>sc.classList.remove('on'));
