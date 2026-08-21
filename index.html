@@ -86,9 +86,13 @@ body{background:radial-gradient(ellipse at top,#0e1a3a 0%,#060b1a 60%)}
 .admin-crown{display:inline-flex;align-items:center;gap:3px;font-size:9px;letter-spacing:1.5px;font-weight:700;padding:2px 7px;background:var(--grad-gold);color:var(--cl-navy);border-radius:2px;margin-left:6px;text-transform:uppercase;vertical-align:middle;box-shadow:0 2px 8px rgba(212,175,55,0.35)}
 
 /* ── TABS ── */
-.tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-top:1px solid var(--cl-border);position:relative}
+.tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;border-top:1px solid var(--cl-border);position:relative;cursor:grab;-webkit-overflow-scrolling:touch;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--fadeL,0px),#000 calc(100% - var(--fadeR,0px)),transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 var(--fadeL,0px),#000 calc(100% - var(--fadeR,0px)),transparent 100%)}
+.tabs.dragging{cursor:grabbing}
+.tabs.dragging .tab{pointer-events:none}
 .tabs::-webkit-scrollbar{display:none}
-.tab{flex:0 0 auto;padding:11px 16px;font-size:11px;font-weight:700;border:none;background:transparent;color:var(--cl-silver);cursor:pointer;white-space:nowrap;letter-spacing:1.5px;text-transform:uppercase;border-bottom:2px solid transparent;transition:all 0.25s;position:relative;font-family:var(--font-body)}
+.tab{flex:0 0 auto;padding:11px 16px;font-size:11px;font-weight:700;border:none;background:transparent;color:var(--cl-silver);cursor:pointer;white-space:nowrap;letter-spacing:1.5px;text-transform:uppercase;border-bottom:2px solid transparent;transition:color 0.25s,border-color 0.25s;position:relative;font-family:var(--font-body);user-select:none;-webkit-user-select:none}
 .tab.on{color:var(--cl-gold);border-bottom-color:var(--cl-gold);text-shadow:0 0 12px rgba(212,175,55,0.6)}
 .tab.on::after{content:'';position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);width:30px;height:2px;background:var(--cl-gold);box-shadow:0 0 10px var(--cl-gold)}
 .tab:hover:not(.on){color:var(--cl-white)}
@@ -181,12 +185,27 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 .q-jersey{position:absolute;transform:translate(-50%,-50%);width:46px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:grab;touch-action:none;z-index:2}
 .q-jersey:active{cursor:grabbing}
 .q-jersey .sh{position:relative;width:38px;height:36px;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4))}
-.q-jersey .num{position:absolute;top:52%;left:0;right:0;transform:translateY(-50%);text-align:center;font-family:var(--font-display);font-size:15px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);letter-spacing:1px}
+.q-jersey .num{position:absolute;top:52%;left:0;right:0;transform:translateY(-50%);text-align:center;font-family:var(--font-display);font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6);letter-spacing:0}
 .q-jersey .nm{max-width:56px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,0.45);border-radius:3px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;letter-spacing:0.2px}
 .q-drag-clone{position:fixed;transform:translate(-50%,-50%);pointer-events:none;z-index:3000;opacity:0.92}
+/* 교체 선수 마커 (피치 위 표시 전용, 드래그 X) */
+.q-submark{position:absolute;transform:translate(-50%,-50%);z-index:1;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;opacity:0.96}
+.q-submark .sm-sh{position:relative;width:28px;height:27px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45))}
+.q-submark .sm-c{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);text-align:center;font-family:var(--font-display);font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6)}
+.q-submark .sm-nm{font-size:9px;font-weight:700;color:#fff;background:rgba(20,90,50,0.85);border:1px solid rgba(76,217,131,0.6);border-radius:3px;padding:0 4px;white-space:nowrap;max-width:60px;overflow:hidden;text-overflow:ellipsis}
+.q-submark .sm-tag{font-size:8px;color:#bff0d3;letter-spacing:0.2px;margin-top:-1px}
+/* 피치 + 우측 벤치 나란히 */
+.q-fieldwrap{display:flex;gap:7px;align-items:stretch}
+.q-fieldwrap .q-pitch{flex:1 1 auto;width:auto;min-width:0}
+.q-benchcol{flex:0 0 88px;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overflow-x:hidden;border:1px dashed var(--cl-border2);border-radius:6px;padding:6px 5px;background:rgba(0,0,0,0.24);scrollbar-width:thin}
+.q-benchcol::-webkit-scrollbar{width:4px}.q-benchcol::-webkit-scrollbar-thumb{background:rgba(160,176,202,0.3);border-radius:2px}
+.q-benchcol .bc-hd{font-size:9px;font-weight:700;letter-spacing:0.5px;color:var(--cl-silver);text-align:center;padding-bottom:3px;border-bottom:1px solid rgba(160,176,202,0.15);margin-bottom:2px;position:sticky;top:-6px;background:rgba(10,20,40,0.9);z-index:1}
+.q-benchcol .q-bench-chip{width:100%;box-sizing:border-box;display:flex;justify-content:space-between;gap:3px;padding:6px 6px;border-radius:6px;font-size:11px}
+.q-benchcol .q-bench-chip .bc-c{font-size:9px;color:var(--cl-gold);font-weight:800;flex-shrink:0}
+.q-benchcol .bc-empty{font-size:9px;color:rgba(160,176,202,0.4);text-align:center;padding:10px 2px;line-height:1.5}
 .q-bench{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .q-bench-chip{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.35);border-radius:20px;color:var(--cl-white);font-size:12px;font-weight:700;cursor:grab;touch-action:none;letter-spacing:0.2px}
-.q-bench-chip .bp{font-size:9px;color:var(--cl-silver);opacity:0.85}
+.q-bench-chip .bp{font-size:9px;color:var(--cl-silver);opacity:0.85;flex-shrink:0}
 .q-benchzone{border:1px dashed var(--cl-border2);border-radius:6px;padding:10px 11px;background:rgba(0,0,0,0.22)}
 
 /* ── STATS ── */
@@ -454,7 +473,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
         <span id="rttxt">LIVE</span>
       </div>
     </div>
-    <div class="tabs">
+    <div class="tabs" id="tabbar">
       <button class="tab on" onclick="go('schedule',this)">일정·투표</button>
       <button class="tab" onclick="go('members',this)">선수</button>
       <button class="tab" onclick="go('fee',this)">회비</button>
@@ -681,7 +700,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
         <div style="font-family:var(--font-display);font-size:15px;letter-spacing:3px;color:var(--cl-gold);text-transform:uppercase">출전 명단 편집</div>
         <button onclick="closeRosterEdit()" style="background:rgba(255,255,255,0.06);border:1px solid var(--cl-border2);border-radius:3px;color:var(--cl-silver);font-size:10px;padding:5px 12px;cursor:pointer;letter-spacing:1.5px;font-weight:700">CLOSE</button>
       </div>
-      <div style="font-size:10px;color:var(--cl-silver);margin-bottom:12px;letter-spacing:0.3px">체크 = 출전 · 해제 = 제외(부상/불참) · 용병은 아래에서 추가</div>
+      <div style="font-size:10px;color:var(--cl-silver);margin-bottom:12px;letter-spacing:0.3px">체크 = 출전 · 해제 = 제외(부상/불참) · 용병은 아래에서 추가 · <span style="color:var(--cl-gold)">당일 포지션</span> 지정 시 자동배치가 그 포지션으로 자리 잡음</div>
       <div style="display:flex;gap:6px;margin-bottom:12px">
         <input id="roster-merc" placeholder="용병 이름 입력 후 추가" autocomplete="off" style="margin:0;flex:1" onkeydown="if(event.key==='Enter')addMercenary()">
         <button class="btn btn-gold" style="width:auto;margin:0;padding:0 18px;flex:0 0 auto" onclick="addMercenary()">＋ 용병</button>
@@ -1045,6 +1064,7 @@ window.enterApp=function(){
     document.getElementById('sc-date').valueAsDate=new Date();
     const ltd=document.getElementById('lt-date'); if(ltd) ltd.valueAsDate=new Date();
     renderAll();
+    setupTabDrag();
     initFirebase();
     if(!myName){
       setTimeout(()=>{ fillNameSelect(); document.getElementById('name-modal').style.display='flex'; },800);
@@ -1068,6 +1088,44 @@ window.enterApp=function(){
   });
 };
 
+// ── 탭바 드래그 스크롤(마우스로 밀기) · 휠 가로 스크롤 · 양옆 페이드 힌트 ──
+function updTabFade(){
+  const bar=document.getElementById('tabbar'); if(!bar) return;
+  const maxL=bar.scrollWidth-bar.clientWidth;
+  bar.style.setProperty('--fadeL', bar.scrollLeft>4 ? '26px':'0px');
+  bar.style.setProperty('--fadeR', (maxL-bar.scrollLeft)>4 ? '26px':'0px');
+}
+function setupTabDrag(){
+  const bar=document.getElementById('tabbar'); if(!bar||bar._dragInit) return; bar._dragInit=true;
+  const TH=5;                                   // 이 픽셀 이상 움직여야 '드래그'로 간주(그 전엔 클릭)
+  let down=false,startX=0,startL=0,moved=0,dragging=false,pid=null;
+  bar.addEventListener('pointerdown',e=>{
+    if(e.pointerType!=='mouse') return;         // 터치는 브라우저 기본 스크롤 사용
+    if(e.button!==0) return;
+    down=true; moved=0; dragging=false; startX=e.clientX; startL=bar.scrollLeft; pid=e.pointerId;
+  });
+  bar.addEventListener('pointermove',e=>{
+    if(!down || e.pointerType!=='mouse') return;
+    const dx=e.clientX-startX; moved=Math.abs(dx);
+    if(!dragging && moved>TH){                  // 실제 이동 시작 → 그때만 드래그 모드(버튼 클릭 방해 안 함)
+      dragging=true; bar.classList.add('dragging'); try{bar.setPointerCapture(pid);}catch(_){}
+    }
+    if(dragging){ bar.scrollLeft=startL-dx; }
+  });
+  const end=()=>{
+    if(!down) return; down=false;
+    if(dragging){ bar.classList.remove('dragging'); bar._suppress=true; setTimeout(()=>{bar._suppress=false;},80); try{bar.releasePointerCapture(pid);}catch(_){} }
+    dragging=false;
+  };
+  bar.addEventListener('pointerup',end);
+  bar.addEventListener('pointercancel',end);
+  bar.addEventListener('pointerleave',end);
+  bar.addEventListener('click',e=>{ if(bar._suppress){ e.stopPropagation(); e.preventDefault(); } },true);  // 밀었을 땐 탭 전환 무시
+  bar.addEventListener('wheel',e=>{ if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ bar.scrollLeft+=e.deltaY; e.preventDefault(); } },{passive:false});
+  bar.addEventListener('scroll',updTabFade,{passive:true});
+  window.addEventListener('resize',updTabFade);
+  updTabFade();
+}
 // ── Enter 버튼 이벤트 바인딩 (모듈 로드 완료 후 활성화) ──
 const _enterBtn = document.getElementById('enter-btn');
 if(_enterBtn){
@@ -1084,6 +1142,7 @@ window.go=function(tab,btn){
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
   document.getElementById('s-'+tab).classList.add('on');
   btn.classList.add('on');
+  try{ btn.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}); }catch(_){}
   if(tab==='fee')renderFee();
   if(tab==='late')renderLate();
   if(tab==='stats')renderStats();
@@ -1950,15 +2009,29 @@ function formationSlots(name){
   return slots;
 }
 function posCat(name){ const m=members.find(x=>x.name===name); const p=m?m.pos:''; return (p==='GK'||p==='DF'||p==='FW')?p:'MF'; }
-const CATRANK={DF:0,MF:1,FW:2};
-// 선택된 선수들을 포지션 거리(수비-미드-공격)가 가장 가까운 슬롯에 배치 → [{n,x,y}]
-// 예: 수비 슬롯은 DF → (없으면) MF → FW 순으로 채움
+const CATRANK={GK:0,DF:0,MF:1,FW:2};   // GK는 수비(0)로 취급해 배치 누락 방지
+// 당일 포지션: 이 경기에서만 적용하는 포지션 지정(qFormation.dayPos) → 없으면 선수탭 등록 포지션
+function dayPosOf(name){ const d=(qFormation.dayPos||{})[name]; return (d==='DF'||d==='MF'||d==='FW'||d==='GK')?d:posCat(name); }
+function hasDayPos(name){ const d=(qFormation.dayPos||{})[name]; return d==='DF'||d==='MF'||d==='FW'||d==='GK'; }
+function catRank(name){ const r=CATRANK[dayPosOf(name)]; return r!=null?r:1; }
+// 선택된 선수들을 슬롯에 배치 → [{n,x,y}]
+// 우선순위: 1) 기여도 — 기여도 높은 선수가 먼저 자리를 고름 · 2) 포메이션 — 각자 자기(당일/등록) 포지션에 가장 맞는 빈 슬롯 선택
+// 랜덤 가미: 같은 적합도(주로 같은 라인·좌우) 사이를 무작위로 섞어 매번 조금씩 달라지게 함
+const ASSIGN_JITTER=1.1; // 포지션 거리 1칸 언저리 — 대부분 포메이션 유지, 가끔 한 라인 이동(랜덤)
 function assignPlayersToSlots(players, slots){
-  const avail=players.slice(), res=[];
-  slots.forEach(s=>{
-    let bi=-1, bd=99;
-    avail.forEach((n,i)=>{ const d=Math.abs(CATRANK[posCat(n)]-CATRANK[s.type]); if(d<bd){bd=d;bi=i;} });
-    if(bi>=0){ res.push({n:avail[bi],x:s.x,y:s.y}); avail.splice(bi,1); }
+  // 1순위 기여도: 기여도 높은 순, 동점은 랜덤
+  const order=players.slice().sort((a,b)=> (contribScore(b)-contribScore(a)) || (Math.random()-0.5));
+  const used=new Array(slots.length).fill(false);
+  const res=[];
+  order.forEach(n=>{
+    let best=-1, bestScore=-1e9;
+    for(let k=0;k<slots.length;k++){
+      if(used[k]) continue;
+      const dist=Math.abs(catRank(n)-CATRANK[slots[k].type]); // 2순위 포메이션: 거리 작을수록 적합
+      const score=-dist + Math.random()*ASSIGN_JITTER;        // 랜덤 가미
+      if(score>bestScore){ bestScore=score; best=k; }
+    }
+    if(best>=0){ used[best]=true; const s=slots[best]; res.push({n, x:s.x, y:s.y}); }
   });
   return res;
 }
@@ -2023,7 +2096,7 @@ function effectivePos(name){
     (getQField(q)||[]).forEach(sl=>{ if(sl.n===name){ any=true; counts[slotPosFromY(sl.y)]++; } });
     (getQSubs(q)||[]).forEach(s=>{ if(s.in===name){ any=true; counts[slotPosFromY(s.y)]++; } });
   }
-  if(!any) return posCat(name);
+  if(!any) return dayPosOf(name);   // 아직 배치 전이면 당일 포지션(없으면 등록 포지션)
   let best='MF',bc=-1; ['GK','DF','MF','FW'].forEach(k=>{ if(counts[k]>bc){bc=counts[k];best=k;} });
   return best;
 }
@@ -2267,6 +2340,14 @@ function renderRosterList(){
     const m=members.find(x=>x.name===n); const pos=m?m.pos:(isMerc?'용병':'');
     const s=getStats(n); const sc=scoreOf(n); const vo=voters.indexOf(n);
     const ep=effectivePos(n); const posBadge=(ep!==posCat(n))?` <span style="color:#f1d36b">→${ep} 배치</span>`:'';
+    const dp=(qFormation.dayPos||{})[n]||''; // 당일 포지션 지정값
+    const dayPosSel = (isCoach()&&on) ? `<select onchange="setDayPos('${escAttr(n)}',this.value)" onclick="event.stopPropagation()" title="당일 포지션 — 자동배치가 이 포지션으로 자리 잡음" style="margin:0;padding:4px 3px;font-size:10px;min-width:52px;flex-shrink:0;background-color:${dp?'rgba(212,175,55,0.16)':'#0f1a33'};border-color:${dp?'var(--cl-gold)':'var(--cl-border2)'};color:${dp?'var(--cl-gold)':'var(--cl-silver)'}">
+        <option value="">당일:등록${pos?'('+pos+')':''}</option>
+        <option value="DF"${dp==='DF'?' selected':''}>당일 DF</option>
+        <option value="MF"${dp==='MF'?' selected':''}>당일 MF</option>
+        <option value="FW"${dp==='FW'?' selected':''}>당일 FW</option>
+        <option value="GK"${dp==='GK'?' selected':''}>당일 GK</option>
+      </select>` : '';
     const cw=hasPlayerWeight(n);
     const flag = isMin?' · <span style="color:#ff8080;font-weight:700">🩹최소출전</span>':(isP?' · <span style="color:var(--cl-gold);font-weight:700">★많이뛰기</span>':'');
     const tag = `기여 <b style="color:${cw?'#f1d36b':'inherit'}">${Math.round(sc)}점</b>${cw?'<span style="color:#f1d36b" title="선수별 가중치 적용중">⚙</span>':''}${on&&rankMap[n]?` · ${rankMap[n]}위`:''}${flag}${posBadge}` + ` · 출전${s.played}·⚽${s.goals}·🅰${s.assists}` + (vo>=0?` · 투표${vo+1}번`:'');
@@ -2276,6 +2357,7 @@ function renderRosterList(){
         <span style="font-size:9px;color:var(--cl-silver);min-width:28px">${pos}</span>
         <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:700;color:${on?'var(--cl-white)':'var(--cl-silver)'}">${n}${isMerc?' <span style="font-size:9px;color:#7fc1eb">(용병)</span>':''}</span>${tag?`<span style="display:block;font-size:9px;color:rgba(160,176,202,0.6);letter-spacing:0.2px">${tag}</span>`:''}</span>
       </div>
+      ${dayPosSel}
       ${isCoach()?`<button onclick="event.stopPropagation();openPlayerWeight('${escAttr(n)}')" title="선수별 가중치 수정 (골·어시)" style="background:${cw?'rgba(212,175,55,0.22)':'rgba(255,255,255,0.06)'};border:1px solid ${cw?'var(--cl-gold)':'var(--cl-border2)'};border-radius:4px;color:${cw?'var(--cl-gold)':'var(--cl-silver)'};font-size:12px;cursor:pointer;padding:4px 7px;flex-shrink:0">⚙</button>`:''}
       ${on?`<button onclick="toggleMinPlay('${escAttr(n)}')" title="최소 출전(부상·체력) — 최소 쿼터만 배치" style="background:${isMin?'rgba(214,69,69,0.18)':'none'};border:${isMin?'1px solid rgba(214,69,69,0.5)':'none'};border-radius:4px;font-size:15px;cursor:pointer;padding:2px 5px;opacity:${isMin?1:0.4}">🩹</button>`:''}
       ${on?`<button onclick="togglePriority('${escAttr(n)}')" title="많이 뛰기(우선) — 기여도 높은 인원과 비슷하게 배치" style="background:none;border:none;font-size:16px;cursor:pointer;padding:2px 4px;color:${isP?'var(--cl-gold)':'rgba(160,176,202,0.35)'}">${isP?'★':'☆'}</button>`:''}
@@ -2290,6 +2372,11 @@ function renderRosterList(){
   document.getElementById('roster-count').textContent=rosterDraft.size;
 }
 window.toggleRoster=function(n){ if(rosterDraft.has(n))rosterDraft.delete(n); else rosterDraft.add(n); renderRosterList(); };
+window.setDayPos=function(n,v){
+  if(!qFormation.dayPos) qFormation.dayPos={};
+  if(v==='DF'||v==='MF'||v==='FW'||v==='GK') qFormation.dayPos[n]=v; else delete qFormation.dayPos[n];
+  renderRosterList();
+};
 window.addMercenary=function(){
   const el=document.getElementById('roster-merc'); const n=(el.value||'').trim();
   if(!n){toast('용병 이름을 입력하세요');return;}
@@ -2319,13 +2406,12 @@ function pitchLinesHtml(){
 }
 
 function jerseyHtml(n,x,y,coach){
-  const m=members.find(mm=>mm.name===n);
-  const num=m&&m.num?m.num:'';
   const col=QJ[slotPosFromY(y)]||qJerseyColor(n); // 배치된 자리(포지션) 색상
+  const contrib=Math.round(contribScore(n)); // 등번호 대신 기여도 표시
   return `<div class="q-jersey" data-name="${escAttr(n)}" data-from="field" style="left:${(x*100).toFixed(2)}%;top:${(y*100).toFixed(2)}%;${coach?'':'cursor:default'}">
     <div class="sh">
       <svg viewBox="0 0 38 36" width="38" height="36"><path d="M13 2 L2 8 L6 15 L10 13 L10 34 L28 34 L28 13 L32 15 L36 8 L25 2 L22 5 Q19 8 16 5 Z" fill="${col}" stroke="rgba(0,0,0,0.3)" stroke-width="1"/></svg>
-      <div class="num">${num}</div>
+      <div class="num" title="기여도">${contrib}</div>
     </div>
     <div class="nm">${n}</div>
   </div>`;
@@ -2342,7 +2428,7 @@ function qPlanInfo(){
   const fname=document.getElementById('q-formation')?.value||'4-3-3';
   const slots=formationSlots(fname);
   let gk=document.getElementById('q-gk')?.value||'';
-  if(!gk || !pool.includes(gk)) gk=pool.find(n=>posCat(n)==='GK')||'';
+  if(!gk || !pool.includes(gk)) gk=pool.find(n=>dayPosOf(n)==='GK')||'';
   const outfield=pool.filter(n=>n!==gk);
   const No=outfield.length;
   const S=Math.min(slots.length,No);
@@ -2365,8 +2451,9 @@ function renderQView(){
   const coach=isCoach();
   const pool=getAttendeePool();
   const onNames=new Set(field.map(f=>f.n));
-  const bench=pool.names.filter(n=>!onNames.has(n));
   const subs=getQSubs(q);
+  const subIn=new Set(subs.map(s=>s.in).filter(Boolean)); // 교체 투입 선수는 피치에 표시 → 벤치에서 제외
+  const bench=pool.names.filter(n=>!onNames.has(n)&&!subIn.has(n));
 
   renderQGameSelect(); // 기록할 경기 연동 셀렉트
   // 고정 GK 셀렉트 채우기 (선택 유지)
@@ -2381,9 +2468,27 @@ function renderQView(){
     if(prev && pool.names.includes(prev)) gkSel.value=prev;
   }
   const jerseys=field.map(f=>jerseyHtml(f.n,f.x,f.y,coach)).join('');
-  const benchChips=bench.map(n=>{
-    const m=members.find(mm=>mm.name===n); const pos=m?m.pos:'';
-    return `<div class="q-bench-chip" data-name="${escAttr(n)}" data-from="bench" style="${coach?'':'cursor:default'}"><span class="bp">${pos}</span>${n}</div>`;
+  // 교체선수 마커 (피치 위 표시 전용) — OUT 자리 근처에 IN 선수를 🔄로 표시
+  const fieldPos={}; field.forEach(f=>fieldPos[f.n]=f);
+  const subMarks=subs.map(s=>{
+    if(!s.out||!s.in) return '';
+    let px=s.x, py=s.y;
+    if(px==null||py==null){ const fp=fieldPos[s.out]; if(fp){px=fp.x;py=fp.y;} }
+    if(px==null||py==null) return '';
+    const col=QJ[slotPosFromY(py)]||qJerseyColor(s.in);
+    const c=Math.round(contribScore(s.in));
+    const mn=(s.min!=null?s.min:Math.round(qMin/2));
+    return `<div class="q-submark" style="left:${(px*100).toFixed(2)}%;top:${(py*100).toFixed(2)}%;transform:translate(-50%,-50%) translate(19px,21px)">
+      <div class="sm-sh"><svg viewBox="0 0 38 36" width="28" height="27"><path d="M13 2 L2 8 L6 15 L10 13 L10 34 L28 34 L28 13 L32 15 L36 8 L25 2 L22 5 Q19 8 16 5 Z" fill="${col}" stroke="rgba(0,0,0,0.35)" stroke-width="1"/></svg><div class="sm-c">${c}</div></div>
+      <div class="sm-nm">🔄 ${s.in}</div><div class="sm-tag">${s.out}↔${mn}'</div>
+    </div>`;
+  }).join('');
+  // 우측 벤치(미출전) — 기여도 높은 순, 기여도 표시
+  const benchChips=bench.slice().sort((a,b)=>contribScore(b)-contribScore(a)).map(n=>{
+    const dp=hasDayPos(n)?dayPosOf(n):(members.find(mm=>mm.name===n)?.pos||'');
+    const dpTag=dp?`<span class="bp"${hasDayPos(n)?' style="color:var(--cl-gold);opacity:1"':''}>${dp}</span>`:'';
+    const c=Math.round(contribScore(n));
+    return `<div class="q-bench-chip" data-name="${escAttr(n)}" data-from="bench" style="${coach?'':'cursor:default'}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dpTag}${n}</span><span class="bc-c">${c}</span></div>`;
   }).join('');
 
   const info = pool.custom
@@ -2444,17 +2549,17 @@ function renderQView(){
       <div style="font-size:10px;color:var(--cl-silver);letter-spacing:0.3px">${info}</div>
     </div>
     ${planHtml?`<div style="font-size:11px;color:var(--cl-silver);background:rgba(0,0,0,0.22);border:1px solid var(--cl-border2);border-radius:5px;padding:9px 11px;margin-bottom:10px;letter-spacing:0.2px;line-height:1.5">📊 ${planHtml}${!plan.full?`<span style="display:block;margin-top:3px;font-size:10px;color:rgba(160,176,202,0.7)">★많이뛰기 ${(qFormation.priority||[]).length}명 · 🩹최소출전 ${(qFormation.minPlay||[]).length}명 · 그 외 기여도→투표 순</span>`:''}</div>`:''}
-    <div class="q-pitch" id="q-pitch">${pitchLinesHtml()}${jerseys}
-      ${field.length===0?`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.65);font-size:12px;text-align:center;padding:24px;pointer-events:none;line-height:1.6">${coach?'아래 벤치에서 선수를<br>피치로 끌어다 배치하세요':'아직 배치된 선수가 없습니다'}</div>`:''}
+    <div class="q-fieldwrap">
+      <div class="q-pitch" id="q-pitch">${pitchLinesHtml()}${jerseys}${subMarks}
+        ${field.length===0?`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.65);font-size:12px;text-align:center;padding:24px;pointer-events:none;line-height:1.6">${coach?'오른쪽 벤치에서 선수를<br>피치로 끌어다 배치하세요':'아직 배치된 선수가 없습니다'}</div>`:''}
+      </div>
+      <div class="q-benchcol" id="q-bench">
+        <div class="bc-hd">벤치 ${bench.length}</div>
+        ${benchChips||'<div class="bc-empty">전원<br>배치됨</div>'}
+      </div>
     </div>
-    ${subBlock}
-    <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px">
-      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--cl-silver);text-transform:uppercase">벤치 · 미출전 (${bench.length})</div>
-      ${coach?'<div style="font-size:9px;color:rgba(160,176,202,0.6)">칩 → 피치 드래그 · 피치 밖으로 빼면 제외</div>':''}
-    </div>
-    <div class="q-benchzone" id="q-bench">
-      ${benchChips||'<span style="font-size:11px;color:rgba(160,176,202,0.4)">모든 참석자가 배치되었습니다</span>'}
-    </div>`;
+    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin:5px 2px 0;letter-spacing:0.2px">숫자=기여도 · 🔄=교체선수${coach?' · 우측 벤치 칩을 피치로 드래그, 피치 밖으로 빼면 제외':''}</div>
+    ${subBlock}`;
 
   bindQDrag();
   renderPlayTime(totalMin,qCnt,pool.names);
@@ -2544,7 +2649,7 @@ function extractPlan(){
   const gv=(id,d)=>{ const e=document.getElementById(id); return e&&e.value!=null?e.value:d; };
   return JSON.parse(JSON.stringify({
     q1:qFormation.q1||{field:[]}, q2:qFormation.q2||{field:[]}, q3:qFormation.q3||{field:[]}, q4:qFormation.q4||{field:[]},
-    roster:qFormation.roster||null, priority:qFormation.priority||[], minPlay:qFormation.minPlay||[],
+    roster:qFormation.roster||null, priority:qFormation.priority||[], minPlay:qFormation.minPlay||[], dayPos:qFormation.dayPos||{},
     settings:{ total:gv('q-total','120'), cnt:gv('q-cnt','4'), formation:gv('q-formation','4-3-3'), gk:gv('q-gk',''), minq:gv('q-minq','2') }
   }));
 }
@@ -2552,7 +2657,7 @@ function loadPlan(plan){
   if(!plan) return;
   ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]=plan[k]||{field:[]}; });
   if(plan.roster) qFormation.roster=plan.roster; else delete qFormation.roster;
-  qFormation.priority=plan.priority||[]; qFormation.minPlay=plan.minPlay||[];
+  qFormation.priority=plan.priority||[]; qFormation.minPlay=plan.minPlay||[]; qFormation.dayPos=plan.dayPos||{};
   const st=plan.settings||{}; const sv=(id,v)=>{ const e=document.getElementById(id); if(e&&v!=null&&v!=='') e.value=v; };
   sv('q-total',st.total); sv('q-cnt',st.cnt); sv('q-formation',st.formation); sv('q-gk',st.gk); sv('q-minq',st.minq);
 }
@@ -2560,7 +2665,7 @@ window.setQGame=function(id){
   qFormation.gameId=id||'';
   const g=id?games.find(x=>x.id===id):null;
   if(g&&g.plan){ loadPlan(g.plan); }          // 저장된 라인업 있으면 그대로(명단 포함)
-  else { delete qFormation.roster; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; }); } // 없으면 명단 해제 + 라인업 비움 → 이 경기 참석자 전원 벤치
+  else { delete qFormation.roster; delete qFormation.dayPos; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; }); } // 없으면 명단 해제 + 당일포지션 해제 + 라인업 비움 → 이 경기 참석자 전원 벤치
   toast(id?'경기 연결 · 이 경기 참석자로 명단 갱신':'경기 연결 해제');
   renderQGameSelect();
   if(document.getElementById('s-quarter')?.classList.contains('on')) renderQView();
@@ -2891,7 +2996,7 @@ window.autoRotate=function(){
   const slots=formationSlots(fname);
   // 고정 GK 결정 (지정값 → 없으면 GK 포지션 선수 자동)
   let gk=document.getElementById('q-gk')?.value||'';
-  if(!gk || !pool.includes(gk)) gk=pool.find(n=>posCat(n)==='GK')||'';
+  if(!gk || !pool.includes(gk)) gk=pool.find(n=>dayPosOf(n)==='GK')||'';
   const order=pool.filter(n=>n!==gk);   // 필드 선수(명단 순)
   const N=order.length;
   if(N===0){toast('필드 선수가 없습니다');return;}
@@ -3471,7 +3576,7 @@ window.createGameFromSchedule=async function(sid){
     players:initPlayers
   });
   // 생성된 경기를 쿼터/콘솔에 자동 연결 + 명단 해제 + 라인업 비움 → 이 경기 참석자 전원 벤치로 즉시 반영
-  qFormation.gameId=id; delete qFormation.roster; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; });
+  qFormation.gameId=id; delete qFormation.roster; delete qFormation.dayPos; ['q1','q2','q3','q4'].forEach(k=>{ qFormation[k]={field:[],subs:[]}; });
   toast('경기 생성 완료! 쿼터·콘솔에 참석자 반영됩니다');
   setTimeout(()=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
