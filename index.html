@@ -189,7 +189,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 .q-jersey .nm{max-width:56px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,0.45);border-radius:3px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;letter-spacing:0.2px}
 .q-drag-clone{position:fixed;transform:translate(-50%,-50%);pointer-events:none;z-index:3000;opacity:0.92}
 /* 심판 마커 (피치 상단 사이드) */
-.q-refmark{position:absolute;top:6px;right:6px;z-index:3;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;background:rgba(10,20,40,0.72);border:1px solid rgba(255,255,255,0.35);border-radius:6px;padding:3px 7px}
+.q-refmark{position:absolute;top:6px;right:6px;z-index:4;display:flex;flex-direction:column;align-items:center;gap:1px;background:rgba(10,20,40,0.78);border:1px solid rgba(127,193,235,0.5);border-radius:6px;padding:3px 5px}
 .q-refmark .rf-badge{font-size:8px;font-weight:700;color:#ffd76b;letter-spacing:0.3px}
 .q-refmark .rf-nm{font-size:10px;font-weight:700;color:#fff;white-space:nowrap;max-width:72px;overflow:hidden;text-overflow:ellipsis}
 /* 교체 선수 마커 (피치 위 표시 전용, 드래그 X) */
@@ -207,6 +207,15 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 .q-benchcol .q-bench-chip{width:100%;box-sizing:border-box;display:flex;justify-content:space-between;gap:3px;padding:6px 6px;border-radius:6px;font-size:11px}
 .q-benchcol .q-bench-chip .bc-c{font-size:9px;color:var(--cl-gold);font-weight:800;flex-shrink:0}
 .q-benchcol .bc-empty{font-size:9px;color:rgba(160,176,202,0.4);text-align:center;padding:10px 2px;line-height:1.5}
+/* 쿼터 탭 버튼 — 통일된 배율 */
+.qbtn-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.qbtn{padding:11px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.3px;line-height:1.2;transition:filter 0.15s;font-family:var(--font-body)}
+.qbtn:active{filter:brightness(1.15)}
+.qbtn-grey{background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.35);color:var(--cl-silver)}
+.qbtn-green{background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.4);color:#4cd983}
+.qbtn-gold{background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.35);color:var(--cl-gold)}
+.qbtn-red{background:rgba(214,69,69,0.1);border:1px solid rgba(214,69,69,0.35);color:#ff8080}
+.qbtn-blue{background:rgba(93,173,226,0.1);border:1px solid rgba(93,173,226,0.35);color:#7fc1eb}
 .q-bench{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .q-bench-chip{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.35);border-radius:20px;color:var(--cl-white);font-size:12px;font-weight:700;cursor:grab;touch-action:none;letter-spacing:0.2px}
 .q-bench-chip .bp{font-size:9px;color:var(--cl-silver);opacity:0.85;flex-shrink:0}
@@ -690,24 +699,27 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
         </label>
         <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:6px;line-height:1.5">🧤 GK: 참석자 중 등록 GK가 있으면 4쿼터 고정, 없으면 매 쿼터 랜덤 · 고정 GK 드롭다운으로 수동 지정 가능</div>
         <div style="font-size:9px;color:rgba(160,176,202,0.5);text-align:center;margin-top:10px">⚙ 기여도 가중치 설정은 <b style="color:#7fc1eb">경기콘솔</b> 탭으로 이동했습니다</div>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button onclick="openRosterEdit()" style="flex:1;padding:10px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.35);border-radius:3px;color:var(--cl-silver);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">👥 출전 명단 편집</button>
-          <button onclick="syncRosterToVotes()" title="편집한 명단을 지우고 현재 최신 투표 참석자로 되돌립니다 (라인업은 유지)" style="flex:0 0 auto;padding:10px 12px;background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.35);border-radius:3px;color:#4cd983;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">🔄 최신 투표 반영</button>
+        <!-- 자동배치 (주요 액션) -->
+        <button onclick="autoRotate()" class="qbtn" style="width:100%;margin-top:12px;padding:13px;background:linear-gradient(135deg,rgba(46,204,113,0.16),rgba(46,204,113,0.05));border:1px solid rgba(46,204,113,0.45);color:#4cd983;font-size:13px;letter-spacing:1px">⚽ 포메이션 자동배치</button>
+        <!-- 명단 -->
+        <div class="qbtn-grid">
+          <button onclick="openRosterEdit()" class="qbtn qbtn-grey">👥 출전 명단 편집</button>
+          <button onclick="syncRosterToVotes()" title="편집한 명단을 지우고 최신 투표 참석자로 되돌립니다 (라인업 유지)" class="qbtn qbtn-green">🔄 최신 투표 반영</button>
         </div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button onclick="autoRotate()" style="flex:1;padding:11px;background:linear-gradient(135deg,rgba(46,204,113,0.14),rgba(46,204,113,0.04));border:1px solid rgba(46,204,113,0.4);border-radius:3px;color:#4cd983;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px">⚽ 포메이션 자동배치</button>
+        <!-- 편집 -->
+        <div class="qbtn-grid">
+          <button onclick="qUndoLast()" class="qbtn qbtn-gold">↩ 되돌리기</button>
+          <button onclick="clearQFormation()" class="qbtn qbtn-red">🗑 이 쿼터 비우기</button>
         </div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button onclick="qUndoLast()" style="flex:1;padding:10px;background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.35);border-radius:3px;color:var(--cl-gold);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">↩ 되돌리기</button>
-          <button onclick="clearQFormation()" style="flex:1;padding:10px;background:rgba(214,69,69,0.1);border:1px solid rgba(214,69,69,0.3);border-radius:3px;color:#ff6b6b;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">🗑 이 쿼터 비우기</button>
+        <button onclick="clearAllQ()" class="qbtn qbtn-red" style="width:100%;margin-top:8px">🗑 전 쿼터 초기화</button>
+        <!-- 백업·조회 -->
+        <div class="qbtn-grid">
+          <button onclick="saveQBackup()" class="qbtn qbtn-blue">💾 경기 기록 백업</button>
+          <button onclick="openBackupModal()" class="qbtn qbtn-grey">📁 백업 목록</button>
         </div>
-        <button onclick="clearAllQ()" style="width:100%;margin-top:8px;padding:10px;background:rgba(214,69,69,0.08);border:1px solid rgba(214,69,69,0.3);border-radius:3px;color:#ff8080;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">🗑 전 쿼터 초기화</button>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button onclick="saveQBackup()" style="flex:1;padding:10px;background:rgba(93,173,226,0.1);border:1px solid rgba(93,173,226,0.35);border-radius:3px;color:#7fc1eb;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">💾 이 경기 기록 백업</button>
-          <button onclick="openBackupModal()" style="flex:1;padding:10px;background:rgba(160,176,202,0.1);border:1px solid rgba(160,176,202,0.35);border-radius:3px;color:var(--cl-silver);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">📁 백업 목록</button>
-        </div>
-        <button onclick="viewCurrentQ()" style="width:100%;margin-top:8px;padding:10px;background:rgba(93,173,226,0.08);border:1px solid rgba(93,173,226,0.3);border-radius:3px;color:#7fc1eb;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px">📊 현재 배치 전체 기록 보기 (쿼터별 라인업·교체·플레이타임)</button>
-        <button onclick="saveQFormation()" style="width:100%;margin-top:8px;padding:12px;background:linear-gradient(135deg,rgba(212,175,55,0.2),rgba(212,175,55,0.08));border:1px solid var(--cl-gold);border-radius:3px;color:var(--cl-gold);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase">💾 저장 (팀원 화면 반영)</button>
+        <button onclick="viewCurrentQ()" class="qbtn qbtn-blue" style="width:100%;margin-top:8px">📊 전체 기록 보기 (쿼터별 라인업·교체·시간)</button>
+        <!-- 저장 (주요 액션) -->
+        <button onclick="saveQFormation()" class="qbtn" style="width:100%;margin-top:12px;padding:13px;background:linear-gradient(135deg,rgba(212,175,55,0.22),rgba(212,175,55,0.08));border:1px solid var(--cl-gold);color:var(--cl-gold);font-size:13px;letter-spacing:2px;text-transform:uppercase">💾 저장 (팀원 화면 반영)</button>
       </div>
     </div>
 
@@ -2006,7 +2018,7 @@ window.switchQTab = function(q){
 };
 
 // ── 쿼터 라인업 (드래그 포메이션) ──
-const QJ={GK:'#f2a33d',DF:'#4a90d9',MF:'#2ecc71',FW:'#e0574b'};
+const QJ={GK:'#7fc1eb',DF:'#4a90d9',MF:'#2ecc71',FW:'#e0574b'};
 function qJerseyColor(name){ const m=members.find(x=>x.name===name); return QJ[lineOf(m?m.pos:'')]||'#c9a84c'; }
 function escAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 
@@ -2652,7 +2664,14 @@ function renderQView(){
     </div>`;
   }).join('');
   // 심판 마커 (피치 상단 사이드 · 자동배치 랜덤 지정) — 표시 전용
-  const refMark = referee ? `<div class="q-refmark" title="이 경기 심판(자동 랜덤)"><span class="rf-badge">🕵 심판</span><span class="rf-nm">${referee}</span></div>` : '';
+  // 심판 마커 — 관리자는 드롭다운으로 변경/공석, 팀원은 표시만
+  let refMark='';
+  if(coach){
+    const opts=['<option value="">🕵 심판: 공석</option>'].concat(pool.names.map(n=>`<option value="${escAttr(n)}" ${n===referee?'selected':''}>🕵 ${n}</option>`)).join('');
+    refMark=`<div class="q-refmark"><select onchange="setQRef(${q},this.value)" title="이 쿼터 심판 지정/공석" style="margin:0;padding:2px 4px;font-size:10px;background-color:#0f1a33;color:${referee?'#7fc1eb':'var(--cl-silver)'};border:1px solid ${referee?'#7fc1eb':'var(--cl-border2)'};border-radius:5px;max-width:96px">${opts}</select></div>`;
+  } else if(referee){
+    refMark=`<div class="q-refmark" style="pointer-events:none"><span class="rf-badge">🕵 심판</span><span class="rf-nm">${referee}</span></div>`;
+  }
   // 우측 벤치(미출전) — 기여도 높은 순, 기여도 표시
   const benchChips=bench.slice().sort((a,b)=>contribScore(b)-contribScore(a)).map(n=>{
     const p1=posPrefs(n)[0];
@@ -3211,18 +3230,31 @@ window.autoRotate=function(){
 
   // 3연속 금지 스케줄 — 각 쿼터 on-field 스팟(GK 포함 시 spots) 채우기
   const {play, consec}=scheduleQuarters(qAssign, qCnt, spots, bestFirst);
+  const usedRole=new Set();   // 한 경기에 GK/심판은 1인당 1번만 (등록 GK 고정은 예외)
   for(let qq=1; qq<=qCnt; qq++){
     let gkThis, outfielders;
     if(fixedGK){ gkThis=fixedGK; outfielders=play[qq].slice(); }
-    else { const chosen=play[qq].slice(); gkThis=chosen.length?rnd(chosen):''; outfielders=chosen.filter(n=>n!==gkThis); }
+    else {
+      const chosen=play[qq].slice();
+      const cand=chosen.filter(n=>!usedRole.has(n));           // 아직 GK/심판 안 한 사람 우선
+      gkThis = cand.length?rnd(cand):(chosen.length?rnd(chosen):'');
+      if(gkThis) usedRole.add(gkThis);
+      outfielders=chosen.filter(n=>n!==gkThis);
+    }
     const uslots=slots.slice(0, Math.min(Souf, outfielders.length));
     const placed=assignPlayersToSlots(outfielders, uslots);
     const field=[];
     if(gkThis) field.push({n:gkThis,x:GK_COORD.x,y:GK_COORD.y});
     field.push(...placed);
-    // 심판: 이 쿼터 벤치(미출전)에서 랜덤 · 없으면 공석
+    // 심판: 이 쿼터 벤치(미출전) 중 아직 GK/심판 안 한 사람에서 랜덤 · 없으면 공석
     let ref='';
-    if(refOn){ const onF=new Set(field.map(f=>f.n)); const bench=pool.filter(n=>!onF.has(n)); ref = bench.length?rnd(bench):''; }
+    if(refOn){
+      const onF=new Set(field.map(f=>f.n));
+      let bench=pool.filter(n=>!onF.has(n) && !usedRole.has(n));
+      if(!bench.length) bench=pool.filter(n=>!onF.has(n) && n!==fixedGK); // 대체(그래도 없으면 공석)
+      ref = bench.length?rnd(bench):'';
+      if(ref) usedRole.add(ref);
+    }
     qFormation['q'+qq]={field,subs:[],ref};
   }
   currentQTab=1; switchQTab(1);
@@ -3499,17 +3531,17 @@ function renderPlayTime(totalMin,qCnt,poolNames){
       <div style="font-family:var(--font-display);font-size:12px;letter-spacing:2.5px;color:var(--cl-silver)">PLAY TIME · 전체 ${rows.length}명</div>
       <div style="font-size:10px;color:${balance<=half?'#4cd983':balance<=qMin?'var(--cl-gold)':'#ff8080'};font-weight:700;letter-spacing:0.5px">필드 편차 ${balance}분</div>
     </div>
-    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-bottom:8px">🟡 필드 · <span style="color:#f2a33d">🧤 GK</span> · <span style="color:#7fc1eb">🕵 심판</span> 시간 구분 표시</div>
+    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-bottom:8px">🟡 필드 · <span style="color:#7fc1eb">🧤 GK</span> · <span style="color:#7fc1eb">🕵 심판</span> 시간 구분 표시</div>
     ${rows.map(s=>{
       const fieldW=Math.round(s.f/maxMin*100), gkW=Math.round(s.g/maxMin*100), refW=Math.round(s.r/maxMin*100);
-      const badges=[s.g>0?`<span style="color:#f2a33d;font-weight:700">🧤${s.g}분</span>`:'',s.r>0?`<span style="color:#7fc1eb;font-weight:700">🕵${s.r}분</span>`:''].filter(Boolean).join(' ');
+      const badges=[s.g>0?`<span style="color:#7fc1eb;font-weight:700">🧤${s.g}분</span>`:'',s.r>0?`<span style="color:#7fc1eb;font-weight:700">🕵${s.r}분</span>`:''].filter(Boolean).join(' ');
       const zero=s.total===0;
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.06);${zero?'opacity:0.75':''}">
         <div style="font-size:12px;font-weight:700;color:${zero?'#ff8080':'var(--cl-white)'};min-width:56px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.n}</div>
         <div style="font-size:9px;color:var(--cl-silver);min-width:24px">${s.q}Q</div>
         <div style="flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;display:flex">
           <div style="height:100%;width:${fieldW}%;background:linear-gradient(90deg,var(--cl-gold),rgba(212,175,55,0.5))"></div>
-          <div style="height:100%;width:${gkW}%;background:#f2a33d"></div>
+          <div style="height:100%;width:${gkW}%;background:#7fc1eb"></div>
           <div style="height:100%;width:${refW}%;background:#7fc1eb"></div>
         </div>
         <div style="min-width:78px;text-align:right;font-size:10px">
