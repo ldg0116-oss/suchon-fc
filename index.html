@@ -2460,6 +2460,62 @@ function scheduleQuarters(qAssign, qCnt, S, bestFirst){
   }
   return {play,consec};
 }
+// ── 연속 출전 최소화 (가능하면 1·3 / 2·4 처럼 쉬는 쿼터를 끼움) ──
+//  · 쿼터별 인원수와 각 선수의 총 출전 쿼터 수는 그대로 유지 (X↔Y 교환) → 인접(연속)만 줄임
+//  · 4쿼터 전원출전처럼 어쩔 수 없는 경우는 자연히 그대로 둠 (줄일 여지가 없으면 교환 안 함)
+//  · 3연속(3쿼터 내리)은 절대 새로 만들지 않음
+function reduceConsecutive(play, qCnt){
+  const qs=[]; for(let q=1;q<=qCnt;q++) qs.push(q);
+  const inQ=(n,q)=> play[q].indexOf(n)>=0;
+  const players=new Set(); qs.forEach(q=>(play[q]||[]).forEach(n=>players.add(n)));
+  const quartersOf=(n)=> qs.filter(q=>inQ(n,q));
+  const triples=(arr)=>{ const s=new Set(arr); let c=0; arr.forEach(q=>{ if(s.has(q+1)&&s.has(q+2)) c++; }); return c; };
+  const adjPairs=(arr)=>{ const s=new Set(arr); let c=0; arr.forEach(q=>{ if(s.has(q+1)) c++; }); return c; };
+  // 비용: 3연속(내리 3쿼터)은 아주 무겁게(×10), 그다음 인접(연속 2쿼터) → 3연속을 최우선으로 없앰
+  const cost=(arr)=> adjPairs(arr) + 10*triples(arr);
+  const totalCost=()=>{ let c=0; players.forEach(n=>c+=cost(quartersOf(n))); return c; };
+  const shuffle=(a)=>{ for(let k=a.length-1;k>0;k--){ const j=Math.floor(Math.random()*(k+1)); [a[k],a[j]]=[a[j],a[k]]; } return a; };
+  // 교환 1건 시도 (쿼터별 인원수·개인 총 쿼터수 유지, 비용 비교) — force면 비용 무관 실행(교란용)
+  const trySwap=(q,qp,force)=>{
+    const xs=shuffle((play[q]||[]).filter(n=>!inQ(n,qp)));
+    const ys=shuffle((play[qp]||[]).filter(n=>!inQ(n,q)));
+    for(const X of xs){
+      const xq=quartersOf(X); const xq2=xq.filter(t=>t!==q).concat(qp).sort((a,b)=>a-b);
+      for(const Y of ys){
+        const yq=quartersOf(Y); const yq2=yq.filter(t=>t!==qp).concat(q).sort((a,b)=>a-b);
+        const better=cost(xq2)+cost(yq2) < cost(xq)+cost(yq);
+        if(force || better){
+          play[q]=play[q].filter(n=>n!==X); play[q].push(Y);
+          play[qp]=play[qp].filter(n=>n!==Y); play[qp].push(X);
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  // 한 번의 언덕오르기 (더 낮출 교환이 없을 때까지)
+  const climb=()=>{ let improved=true, guard=0;
+    while(improved && guard++<4000){ improved=false;
+      const pairs=shuffle(qs.flatMap(a=>qs.map(b=>[a,b]))).filter(([a,b])=>a!==b);
+      for(const [q,qp] of pairs){ if(trySwap(q,qp,false)){ improved=true; break; } }
+    } };
+  const snap=()=>{ const o={}; qs.forEach(q=>o[q]=play[q].slice()); return o; };
+  const restore=(o)=>{ qs.forEach(q=>play[q]=o[q].slice()); };
+  // ── 반복 지역탐색(ILS): 최적점에서 교란 후 재수렴, 최저 비용 유지 → 지역최소 탈출 ──
+  climb();
+  let best=snap(), bestCost=totalCost();
+  for(let r=0;r<40 && bestCost>0;r++){
+    restore(best);
+    const kicks=1+Math.floor(Math.random()*3);            // 교란: 무작위 유효 교환 몇 번
+    for(let k=0;k<kicks;k++){ const p=shuffle(qs.slice()); trySwap(p[0],p[1%p.length],true); }
+    climb();
+    const c=totalCost();
+    if(c<bestCost){ bestCost=c; best=snap(); }
+  }
+  restore(best);
+  let consec=0; players.forEach(n=>{ consec+=triples(quartersOf(n)); }); // 남은 3연속 수(참고)
+  return consec;
+}
 // 출전 풀: 편집된 명단(roster)이 있으면 우선, 없으면 투표 참석자, 그것도 없으면 전체(비휴면)
 function getAttendeePool(){
   if(Array.isArray(qFormation.roster) && qFormation.roster.length){
@@ -3257,7 +3313,9 @@ window.autoRotate=function(){
   if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK: ${gkDesc}\n🕵 심판: ${refOn?'매 쿼터 랜덤(벤치)':'공석(상대팀/미배정)'}\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 순(동점 랜덤)\n최대 연속 2쿼터 — 중간 1쿼터 휴식${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
 
   // 3연속 금지 스케줄 — 각 쿼터 on-field 스팟(GK 포함 시 spots) 채우기
-  const {play, consec}=scheduleQuarters(qAssign, qCnt, spots, bestFirst);
+  const {play}=scheduleQuarters(qAssign, qCnt, spots, bestFirst);
+  // 연속 출전 최소화 — 가능하면 1·3 / 2·4 처럼 쉬는 쿼터를 끼움 (인원수·총 쿼터수는 유지)
+  const consec=reduceConsecutive(play, qCnt);
   const usedRole=new Set();   // 한 경기에 GK/심판은 1인당 1번만 (등록 GK 고정은 예외)
   for(let qq=1; qq<=qCnt; qq++){
     let gkThis, outfielders;
