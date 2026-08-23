@@ -696,11 +696,12 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
           <input id="q-minq" type="number" min="0" step="1" value="2" onchange="renderQView()">
           <div style="font-size:9px;color:rgba(160,176,202,0.6);line-height:1.5;margin-top:5px">이 쿼터만큼은 전원 보장 · 남는 시간은 기여도 높은 선수에게 더 배분</div>
         </div>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;font-size:11px;color:var(--cl-silver);letter-spacing:0.3px;text-transform:none;font-weight:400">
-          <input type="checkbox" id="q-ref-auto" checked style="width:auto;margin:0;flex:0 0 auto;transform:scale(1.15)">
-          🕵 심판 자동배정 (벤치에서 매 쿼터 랜덤 · 끄면 공석/상대팀)
-        </label>
-        <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:6px;line-height:1.5">🧤 GK: 참석자 중 등록 GK가 있으면 4쿼터 고정, 없으면 매 쿼터 랜덤 · 고정 GK 드롭다운으로 수동 지정 가능</div>
+        <div style="margin-top:14px">
+          <label style="display:block;font-size:11px;color:var(--cl-silver);letter-spacing:0.3px;text-transform:none;font-weight:700">🕵 당일 심판 지정 <span style="font-weight:400;color:rgba(160,176,202,0.7);font-size:10px">(관리자가 직접 · 2쿼터만 봐도 됨)</span></label>
+          <div id="q-refplan" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px"></div>
+          <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:6px;line-height:1.5">비워두면 그 쿼터는 <b>공석</b>(상대팀/미배정) · 심판은 자동으로 배정되지 않으며 여기서 지정한 대로만 표시됩니다</div>
+        </div>
+        <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:10px;line-height:1.5">🧤 GK: 참석자 중 등록 GK가 있으면 4쿼터 고정, 없으면 매 쿼터 랜덤 · 고정 GK 드롭다운으로 수동 지정 가능</div>
         <div style="font-size:9px;color:rgba(160,176,202,0.5);text-align:center;margin-top:10px">⚙ 기여도 가중치 설정은 <b style="color:#7fc1eb">경기콘솔</b> 탭으로 이동했습니다</div>
         <!-- 자동배치 (주요 액션) -->
         <button onclick="autoRotate()" class="qbtn" style="width:100%;margin-top:12px;padding:13px;background:linear-gradient(135deg,rgba(46,204,113,0.16),rgba(46,204,113,0.05));border:1px solid rgba(46,204,113,0.45);color:#4cd983;font-size:13px;letter-spacing:1px">⚽ 포메이션 자동배치</button>
@@ -2043,9 +2044,29 @@ function getQField(q){
 }
 // 쿼터별 15분 교체 목록 [{out,in,x,y}]
 function getQSubs(q){ const c=qFormation['q'+q]; return (c&&Array.isArray(c.subs))?c.subs:[]; }
-// 쿼터별 심판 (자동배치가 랜덤 지정) — 피치 표시·기록용
-function getQRef(q){ const c=qFormation['q'+q]; return (c&&c.ref)||''; }
-window.setQRef=function(q,name){ if(!isCoach())return; if(!qFormation['q'+q])qFormation['q'+q]={field:[],subs:[]}; qFormation['q'+q].ref=name||''; renderQView(); };
+// 쿼터별 심판 (관리자가 당일 직접 지정) — 피치 표시·기록용
+//  refPlan을 단일 소스로 사용 (없으면 예전 q.ref 폴백)
+function getQRef(q){ const rp=qFormation.refPlan; if(rp && rp[q]!==undefined) return rp[q]||''; const c=qFormation['q'+q]; return (c&&c.ref)||''; }
+function setRefPlan(q,name){ if(!qFormation.refPlan) qFormation.refPlan={}; qFormation.refPlan[q]=name||''; if(qFormation['q'+q]) qFormation['q'+q].ref=name||''; }
+window.setQRef=function(q,name){ if(!isCoach())return; setRefPlan(q,name); renderQView(); };
+window.qSetRefPlan=function(q,name){ if(!isCoach()){toast('권한이 없습니다');return;} setRefPlan(q,name); renderQView(); };
+// 당일 심판 지정 패널 (쿼터별 드롭다운) — 참석자 중 선택 · 비우면 공석
+function renderRefPlan(){
+  const box=document.getElementById('q-refplan'); if(!box) return;
+  const qCnt=parseInt(document.getElementById('q-cnt')?.value)||4;
+  const names=getAttendeePool().names;
+  const coach=isCoach();
+  let html='';
+  for(let q=1;q<=qCnt;q++){
+    const cur=getQRef(q);
+    const opts=['<option value="">공석</option>'].concat(names.map(n=>`<option value="${escAttr(n)}"${n===cur?' selected':''}>${n}</option>`)).join('');
+    html+=`<div style="display:flex;flex-direction:column;gap:3px">
+      <span style="font-size:9px;color:var(--cl-silver);text-align:center;letter-spacing:1px;font-family:var(--font-display)">Q${q}</span>
+      <select onchange="qSetRefPlan(${q},this.value)" ${coach?'':'disabled'} style="width:100%;font-size:11px;padding:6px 4px;background:${cur?'rgba(127,193,235,0.12)':'rgba(0,0,0,0.25)'};border:1px solid ${cur?'rgba(127,193,235,0.5)':'var(--cl-border2)'};color:${cur?'#7fc1eb':'var(--cl-silver)'};border-radius:5px;font-weight:${cur?'700':'400'}">${opts}</select>
+    </div>`;
+  }
+  box.innerHTML=html;
+}
 
 // ── 포메이션 (11인제, 아웃필드 10명) ──
 // 라인은 수비 → 공격 순서의 인원수
@@ -2814,11 +2835,12 @@ function renderQView(){
         ${benchChips||'<div class="bc-empty">전원<br>배치됨</div>'}
       </div>
     </div>
-    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin:5px 2px 0;letter-spacing:0.2px">숫자=기여도 · 🔄=교체 · 🧤GK·🕵심판=자동배치 랜덤${coach?' · 우측 벤치 칩을 피치로 드래그':''}</div>
+    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin:5px 2px 0;letter-spacing:0.2px">숫자=기여도 · 🔄=교체 · 🧤GK=자동 · 🕵심판=관리자 지정${coach?' · 우측 벤치 칩을 피치로 드래그':''}</div>
     ${subBlock}`;
 
   bindQDrag();
   renderPlayTime(totalMin,qCnt,pool.names);
+  renderRefPlan();   // 당일 심판 지정 패널 갱신
 }
 window.renderQView=renderQView; // 인라인 onchange 핸들러용
 
@@ -2878,7 +2900,7 @@ function qPointerUp(e){
   const cur=qFormation['q'+currentQTab]||(qFormation['q'+currentQTab]={field:[],subs:[]});
   if(qDrag.from==='ref'){
     // 심판 칩 드래그 — 심판존 안이면 유지, 밖이면 공석
-    qUndoPush(); if(!inRef) cur.ref='';
+    qUndoPush(); if(!inRef) setRefPlan(currentQTab,'');
     qDrag.clone.remove(); qDrag=null; qEndListeners(false); renderQView(); return;
   }
   if(inRef){
@@ -2886,13 +2908,13 @@ function qPointerUp(e){
     qUndoPush();
     if(idx>=0) field.splice(idx,1);
     (cur.subs||[]).forEach((s,i)=>{ if(s.in===qDrag.name){ cur.subs.splice(i,1); } });
-    cur.ref=qDrag.name;
+    setRefPlan(currentQTab,qDrag.name);
     qValidateSubs(cur);
     qDrag.clone.remove(); qDrag=null; qEndListeners(false); renderQView(); return;
   }
   qUndoPush(); // 배치 변경 전 스냅샷 (되돌리기용)
   // 심판이던 선수를 필드/벤치로 옮기면 심판 해제
-  if(cur.ref===qDrag.name) cur.ref='';
+  if(getQRef(currentQTab)===qDrag.name) setRefPlan(currentQTab,'');
   if(inside){
     let x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
     x=Math.min(0.95,Math.max(0.05,x)); y=Math.min(0.95,Math.max(0.05,y));
@@ -3289,7 +3311,6 @@ window.autoRotate=function(){
   const fname=document.getElementById('q-formation')?.value||'4-3-3';
   const slots=formationSlots(fname);
   const rnd=(arr)=> arr[Math.floor(Math.random()*arr.length)];
-  const refOn = document.getElementById('q-ref-auto') ? document.getElementById('q-ref-auto').checked : true;
   // GK: 수동 지정 > 참석자 중 등록 GK → 있으면 4쿼터 고정 · 없으면 매 쿼터 랜덤
   let fixedGK=document.getElementById('q-gk')?.value||''; if(fixedGK && !pool.includes(fixedGK)) fixedGK='';
   if(!fixedGK){ const regGK=pool.find(n=>posCat(n)==='GK'); if(regGK) fixedGK=regGK; }
@@ -3314,26 +3335,26 @@ window.autoRotate=function(){
   const warnFloor = floorQ<minQ ? `\n⚠ 인원이 많아 최소 ${minQ}쿼터 보장 불가 → 최소 ${floorQ}쿼터로 배분` : '';
   const warnConsec = restEnforceable ? '' : `\n⚠ 2쿼터 선수를 1·3/2·4로 배치하느라 일부 3쿼터 선수는 3연속으로 뛸 수 있습니다`;
   const gkDesc = fixedGK ? `${fixedGK} (4쿼터 고정)` : '매 쿼터 랜덤';
-  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK: ${gkDesc}\n🕵 심판: ${refOn?'매 쿼터 랜덤(벤치)':'공석(상대팀/미배정)'}\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 순(동점 랜덤)\n2쿼터 선수는 1·3/2·4로 연속 회피 우선${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
+  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK: ${gkDesc}\n🕵 심판: 관리자 지정대로 유지(자동배정 없음)\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 순(동점 랜덤)\n2쿼터 선수는 1·3/2·4로 연속 회피 우선${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
 
   // 3연속 금지 스케줄 — 각 쿼터 on-field 스팟(GK 포함 시 spots) 채우기
   const {play}=scheduleQuarters(qAssign, qCnt, spots, bestFirst);
   // 연속 출전 최소화 — 가능하면 1·3 / 2·4 처럼 쉬는 쿼터를 끼움 (인원수·총 쿼터수는 유지)
   const consec=reduceConsecutive(play, qCnt);
-  const usedRole=new Set();   // 한 경기에 GK/심판은 1인당 1번만 (등록 GK 고정은 예외)
+  const usedGK=new Set();     // 한 경기에 GK는 1인당 1번만 (등록 GK 고정은 예외)
   for(let qq=1; qq<=qCnt; qq++){
     let gkThis, outfielders;
     if(fixedGK){ gkThis=fixedGK; outfielders=play[qq].slice(); }
     else {
       const chosen=play[qq].slice();
-      let cand=chosen.filter(n=>!usedRole.has(n));             // 아직 GK/심판 안 한 사람 우선
+      let cand=chosen.filter(n=>!usedGK.has(n));               // 아직 GK 안 한 사람 우선
       if(!cand.length) cand=chosen.slice();
       // GK는 그 쿼터 배정 인원 중 '총 출전 쿼터가 많은' 선수 우선 →
       //  최소출전(2쿼터)자가 GK로 필드 쿼터를 뺏기지 않도록 보호 (동점 랜덤)
       const topQ=Math.max(...cand.map(n=>qAssign[n]||0));
       const top=cand.filter(n=>(qAssign[n]||0)===topQ);
       gkThis = top.length?rnd(top):(chosen.length?rnd(chosen):'');
-      if(gkThis) usedRole.add(gkThis);
+      if(gkThis) usedGK.add(gkThis);
       outfielders=chosen.filter(n=>n!==gkThis);
     }
     const uslots=slots.slice(0, Math.min(Souf, outfielders.length));
@@ -3341,18 +3362,12 @@ window.autoRotate=function(){
     const field=[];
     if(gkThis) field.push({n:gkThis,x:GK_COORD.x,y:GK_COORD.y});
     field.push(...placed);
-    // 심판: 이 쿼터 벤치(미출전) 중 아직 GK/심판 안 한 사람에서만 랜덤 · 없으면 공석(재사용 금지)
-    let ref='';
-    if(refOn){
-      const onF=new Set(field.map(f=>f.n));
-      const bench=pool.filter(n=>!onF.has(n) && !usedRole.has(n));
-      ref = bench.length?rnd(bench):'';   // 새 인물 없으면 공석 (34쿼터 동일 방지)
-      if(ref) usedRole.add(ref);
-    }
+    // 심판: 자동배정 없음 — 관리자가 '당일 심판 지정'에서 정한 값을 그대로 유지
+    const ref=getQRef(qq);
     qFormation['q'+qq]={field,subs:[],ref};
   }
   currentQTab=1; switchQTab(1);
-  toast(`${fname} 배치 완료 · 🧤${fixedGK?fixedGK:'쿼터별 랜덤'} · 🕵${refOn?'쿼터별 랜덤':'공석'} · 최소 ${floorQ}쿼터${consec>0?`(3연속 ${consec}건)`:''} — 확인 후 저장`);
+  toast(`${fname} 배치 완료 · 🧤${fixedGK?fixedGK:'쿼터별 랜덤'} · 🕵심판 지정 유지 · 최소 ${floorQ}쿼터${consec>0?`(3연속 ${consec}건)`:''} — 확인 후 저장`);
 };
 function qRebalance(qCnt,qMin,half,outfield,gk,target){
   target=target||{};
