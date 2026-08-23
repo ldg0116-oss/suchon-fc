@@ -188,6 +188,10 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 .q-jersey .num{position:absolute;top:52%;left:0;right:0;transform:translateY(-50%);text-align:center;font-family:var(--font-display);font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6);letter-spacing:0}
 .q-jersey .nm{max-width:56px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,0.45);border-radius:3px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;letter-spacing:0.2px}
 .q-drag-clone{position:fixed;transform:translate(-50%,-50%);pointer-events:none;z-index:3000;opacity:0.92}
+/* 심판 마커 (피치 상단 사이드) */
+.q-refmark{position:absolute;top:6px;right:6px;z-index:3;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;background:rgba(10,20,40,0.72);border:1px solid rgba(255,255,255,0.35);border-radius:6px;padding:3px 7px}
+.q-refmark .rf-badge{font-size:8px;font-weight:700;color:#ffd76b;letter-spacing:0.3px}
+.q-refmark .rf-nm{font-size:10px;font-weight:700;color:#fff;white-space:nowrap;max-width:72px;overflow:hidden;text-overflow:ellipsis}
 /* 교체 선수 마커 (피치 위 표시 전용, 드래그 X) */
 .q-submark{position:absolute;transform:translate(-50%,-50%);z-index:1;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;opacity:0.96}
 .q-submark .sm-sh{position:relative;width:28px;height:27px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45))}
@@ -1914,12 +1918,13 @@ function recQuarterDetailRow(gid,name,p){
   </td></tr>`;
 }
 window.toggleRecExpand=function(name){ if(recExpand.has(name))recExpand.delete(name); else recExpand.add(name); if(currentRecordGid) selectGame(currentRecordGid,false); };
-function domPosOf(name){ // 현재 쿼터 배치에서 쿼터별 포지션 추출
+function domPosOf(name){ // 현재 쿼터 배치에서 쿼터별 포지션 추출 (심판 포함)
   const out=[];
   for(let q=1;q<=REC_QC;q++){
     let pos=null;
     const fs=(getQField(q)||[]).find(x=>x.n===name); if(fs) pos=slotPosFromY(fs.y);
     if(!pos){ const su=(getQSubs(q)||[]).find(s=>s.in===name); if(su) pos=slotPosFromY(su.y); }
+    if(!pos && getQRef(q)===name) pos='REF';   // 그 쿼터 심판
     out.push(pos);
   }
   return out;
@@ -2018,6 +2023,9 @@ function getQField(q){
 }
 // 쿼터별 15분 교체 목록 [{out,in,x,y}]
 function getQSubs(q){ const c=qFormation['q'+q]; return (c&&Array.isArray(c.subs))?c.subs:[]; }
+// 쿼터별 심판 (자동배치가 랜덤 지정) — 피치 표시·기록용
+function getQRef(q){ const c=qFormation['q'+q]; return (c&&c.ref)||''; }
+window.setQRef=function(q,name){ if(!isCoach())return; if(!qFormation['q'+q])qFormation['q'+q]={field:[],subs:[]}; qFormation['q'+q].ref=name||''; renderQView(); };
 
 // ── 포메이션 (11인제, 아웃필드 10명) ──
 // 라인은 수비 → 공격 순서의 인원수
@@ -2184,14 +2192,14 @@ function contribBreak(name){
   const bonus=attBonusOf(name); const pw=playerWeightsOf(name);
   // 참석: 경기당 1회 (산정 포지션의 참석 가중치 + 개인 보너스)
   const att=(wAtt+bonus)*s.played;
-  // 포지션기여(role): 쿼터별 단위 합 (pq 경기=쿼터마다, legacy=경기당 1) × 각 포지션 role 가중
-  let role=0; ['DF','MF','FW','GK','REF'].forEach(k=>{ role += (W[k]?W[k].role:0)*(s.roleUnits[k]||0); });
+  // 포지션기여(role): 경기당 '그 경기 상위 2개 포지션 role 합' (getStatsByPos에서 계산)
+  const role=s.roleSum||0;
   let goal=0, assist=0;
   ['DF','MF','FW','GK'].forEach(k=>{ goal += W[k].goal*(s.goalsByPos[k]||0); assist += W[k].assist*(s.assistsByPos[k]||0); });
   goal += (pw.goal||0)*(s.goalsByPos.OV||0);
   assist += (pw.assist||0)*(s.assistsByPos.OV||0);
   return {att,goal,assist,role,total:att+goal+assist+role,played:s.played,goals:s.goals,assists:s.assists,pos:spos,bonus,
-    goalsByPos:s.goalsByPos,assistsByPos:s.assistsByPos,roleUnits:s.roleUnits,fieldQ:s.fieldQ,gkQ:s.gkQ,refQ:s.refQ,custom:hasPlayerWeight(name)};
+    goalsByPos:s.goalsByPos,assistsByPos:s.assistsByPos,roleSum:s.roleSum,fieldQ:s.fieldQ,gkQ:s.gkQ,refQ:s.refQ,custom:hasPlayerWeight(name)};
 }
 // posK 인자는 호환용(무시) — 기여도는 쿼터별 role + scorePos 참석으로 통일
 function contribScoreWith(name,posK){ return contribBreak(name).total; }
@@ -2607,7 +2615,8 @@ function renderQView(){
   const onNames=new Set(field.map(f=>f.n));
   const subs=getQSubs(q);
   const subIn=new Set(subs.map(s=>s.in).filter(Boolean)); // 교체 투입 선수는 피치에 표시 → 벤치에서 제외
-  const bench=pool.names.filter(n=>!onNames.has(n)&&!subIn.has(n));
+  const referee=getQRef(q);                               // 이 쿼터 심판(자동배치 랜덤) → 피치에 표시, 벤치 제외
+  const bench=pool.names.filter(n=>!onNames.has(n)&&!subIn.has(n)&&n!==referee);
 
   renderQGameSelect(); // 기록할 경기 연동 셀렉트
   // 고정 GK 셀렉트 채우기 (선택 유지)
@@ -2637,6 +2646,8 @@ function renderQView(){
       <div class="sm-nm">🔄 ${s.in}</div><div class="sm-tag">${s.out}↔${mn}'</div>
     </div>`;
   }).join('');
+  // 심판 마커 (피치 상단 사이드 · 자동배치 랜덤 지정) — 표시 전용
+  const refMark = referee ? `<div class="q-refmark" title="이 경기 심판(자동 랜덤)"><span class="rf-badge">🕵 심판</span><span class="rf-nm">${referee}</span></div>` : '';
   // 우측 벤치(미출전) — 기여도 높은 순, 기여도 표시
   const benchChips=bench.slice().sort((a,b)=>contribScore(b)-contribScore(a)).map(n=>{
     const p1=posPrefs(n)[0];
@@ -2704,7 +2715,7 @@ function renderQView(){
     </div>
     ${planHtml?`<div style="font-size:11px;color:var(--cl-silver);background:rgba(0,0,0,0.22);border:1px solid var(--cl-border2);border-radius:5px;padding:9px 11px;margin-bottom:10px;letter-spacing:0.2px;line-height:1.5">📊 ${planHtml}${!plan.full?`<span style="display:block;margin-top:3px;font-size:10px;color:rgba(160,176,202,0.7)">★많이뛰기 ${(qFormation.priority||[]).length}명 · 🩹최소출전 ${(qFormation.minPlay||[]).length}명 · 그 외 기여도→투표 순</span>`:''}</div>`:''}
     <div class="q-fieldwrap">
-      <div class="q-pitch" id="q-pitch">${pitchLinesHtml()}${jerseys}${subMarks}
+      <div class="q-pitch" id="q-pitch">${pitchLinesHtml()}${jerseys}${subMarks}${refMark}
         ${field.length===0?`<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.65);font-size:12px;text-align:center;padding:24px;pointer-events:none;line-height:1.6">${coach?'오른쪽 벤치에서 선수를<br>피치로 끌어다 배치하세요':'아직 배치된 선수가 없습니다'}</div>`:''}
       </div>
       <div class="q-benchcol" id="q-bench">
@@ -2712,7 +2723,7 @@ function renderQView(){
         ${benchChips||'<div class="bc-empty">전원<br>배치됨</div>'}
       </div>
     </div>
-    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin:5px 2px 0;letter-spacing:0.2px">숫자=기여도 · 🔄=교체선수${coach?' · 우측 벤치 칩을 피치로 드래그, 피치 밖으로 빼면 제외':''}</div>
+    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin:5px 2px 0;letter-spacing:0.2px">숫자=기여도 · 🔄=교체 · 🧤GK·🕵심판=자동배치 랜덤${coach?' · 우측 벤치 칩을 피치로 드래그':''}</div>
     ${subBlock}`;
 
   bindQDrag();
@@ -2911,10 +2922,13 @@ function gameContribBreak(name,g){
   const p=(g.players&&g.players[name])||{}; const s=gameStatsByPos(name,g);
   const att=((W[spos]||W.MF).att+bonus);   // 참석: 경기당 1회
   let role=0, fieldQ=0, gkQ=0, refQ=0;
-  if(p.pq && Array.isArray(p.qd) && p.qd.length){   // 쿼터별: 뛴 쿼터마다 role
-    p.qd.forEach(d=>{ if(!d.pos)return; const rk=roleKeyOf(d.pos); role+=(W[rk]?W[rk].role:0);
-      if(rk==='GK')gkQ++; else if(rk==='REF')refQ++; else fieldQ++; });
-  } else {                                          // legacy: 경기당 1회(대표 포지션)
+  if(p.pq && Array.isArray(p.qd) && p.qd.length){   // 실제 뛴 쿼터 role 중 상위 2개 합 · 시간 쿼터별
+    const wq=[];
+    p.qd.forEach(d=>{ if(!d.pos)return; const rk=roleKeyOf(d.pos);
+      if(rk==='GK')gkQ++; else if(rk==='REF')refQ++; else fieldQ++;
+      wq.push(W[rk]?W[rk].role:0); });
+    wq.sort((a,b)=>b-a); role=(wq[0]||0)+(wq[1]||0);
+  } else {                                          // legacy: 경기당 등록 포지션 1개
     const mp0=gameMainPos(name,g); role=(W[mp0]||W.MF).role; fieldQ=1;
   }
   let goal=0,assist=0; ['DF','MF','FW','GK'].forEach(k=>{ goal+=W[k].goal*(s.gp[k]||0); assist+=W[k].assist*(s.ap[k]||0); });
@@ -3162,10 +3176,14 @@ window.autoRotate=function(){
   const half=Math.round(qMin/2);
   const fname=document.getElementById('q-formation')?.value||'4-3-3';
   const slots=formationSlots(fname);
-  // 고정 GK 결정 (지정값 → 없으면 GK 포지션 선수 자동)
+  const rnd=(arr)=> arr[Math.floor(Math.random()*arr.length)];
+  // GK: 지정값 있으면 사용, 없으면 참석자 중 랜덤
   let gk=document.getElementById('q-gk')?.value||'';
-  if(!gk || !pool.includes(gk)) gk=pool.find(n=>dayPosOf(n)==='GK')||'';
-  const order=pool.filter(n=>n!==gk);   // 필드 선수(명단 순)
+  if(!gk || !pool.includes(gk)) gk=pool.length?rnd(pool):'';
+  // 심판: 참석자 중 GK 제외하고 랜덤 (한 명, 경기 내내)
+  const refPool=pool.filter(n=>n!==gk);
+  const referee = refPool.length>=1 ? rnd(refPool) : '';
+  const order=pool.filter(n=>n!==gk && n!==referee);   // 필드 선수 (GK·심판 제외)
   const N=order.length;
   if(N===0){toast('필드 선수가 없습니다');return;}
   const S=Math.min(slots.length,N);
@@ -3186,20 +3204,20 @@ window.autoRotate=function(){
   const restEnforceable = !fourPlus && threePlus<=middleCap;
   const warnFloor = floorQ<minQ ? `\n⚠ 출전 인원이 많아 최소 ${minQ}쿼터를 모두 보장할 수 없어 최소 ${floorQ}쿼터(${floorQ*qMin}분)로 배분합니다.` : '';
   const warnConsec = restEnforceable ? '' : `\n⚠ 인원이 부족해 일부 선수는 3쿼터 연속으로 뛸 수 있습니다(전원 휴식 보장 불가).`;
-  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\nGK 고정: ${gk||'미지정'}\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 높은 선수 위주(확률)\n최대 연속 2쿼터 — 중간 1쿼터 휴식${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
+  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK: ${gk||'미지정'} (랜덤${document.getElementById('q-gk')?.value?'·수동':''})\n🕵 심판: ${referee||'없음'} (랜덤)\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 높은 선수 위주(확률)\n최대 연속 2쿼터 — 중간 1쿼터 휴식${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
 
   // 3연속 금지 스케줄 (#1) — 어느 쿼터에 누가 뛸지
   const {play, consec}=scheduleQuarters(qAssign, qCnt, S, bestFirst);
-  // 배치 (교체 없이 온전한 쿼터 · 필요하면 이후 수기로 교체 추가)
+  // 배치 (교체 없이 온전한 쿼터 · 필요하면 이후 수기로 교체 추가) · GK·심판은 매 쿼터 동일
   for(let qq=1; qq<=qCnt; qq++){
     const placed=assignPlayersToSlots(play[qq],useSlots);
     const field=[];
     if(gk) field.push({n:gk,x:GK_COORD.x,y:GK_COORD.y});
     field.push(...placed);
-    qFormation['q'+qq]={field,subs:[]};
+    qFormation['q'+qq]={field,subs:[],ref:referee||''};
   }
   currentQTab=1; switchQTab(1);
-  toast(`${fname} 배치 완료 · 최소 ${floorQ}쿼터 · 연속 최대 2쿼터${consec>0?`(부득이 3연속 ${consec}건)`:''}${priority.length?` · ★우선 ${priority.length}명`:''}${minPlayNames.length?` · 최소출전 ${minPlayNames.length}명`:''} — 확인 후 저장`);
+  toast(`${fname} 배치 완료 · 🧤${gk||'-'} · 🕵${referee||'-'} · 최소 ${floorQ}쿼터${consec>0?`(3연속 ${consec}건)`:''} — 확인 후 저장`);
 };
 function qRebalance(qCnt,qMin,half,outfield,gk,target){
   target=target||{};
@@ -3515,9 +3533,10 @@ function getAutoStats(name){
 function roleKeyOf(pos){ return pos==='REF'?'REF':lineOf(pos); }  // 포지션기여/시간 버킷
 function getStatsByPos(name){
   const c=_statCache().bp; if(c.has(name)) return c.get(name);
-  const fixed=lineOf(scorePos(name)); const pw=playerWeightsOf(name);
+  const fixed=lineOf(scorePos(name)); const pw=playerWeightsOf(name); const RW=posWeights();
+  const roleWof=(k)=> (RW[k]?RW[k].role:0);
   const gp={DF:0,MF:0,FW:0,GK:0,OV:0}, ap={DF:0,MF:0,FW:0,GK:0,OV:0};
-  const roleU={DF:0,MF:0,FW:0,GK:0,REF:0};          // 포지션기여 단위 수
+  let roleSum=0;                                      // 포지션기여 합(경기당 상위 2개 합)
   let played=0,goals=0,assists=0;
   let fieldQ=0, gkQ=0, refQ=0;                        // 시간(쿼터) — 필드/GK/심판
   const vpos=(x)=>(x==='DF'||x==='MF'||x==='FW'||x==='GK');
@@ -3535,26 +3554,29 @@ function getStatsByPos(name){
       const ak = hasPos ? p.pos : (pw.assist!=null ? 'OV' : fixed);
       gp[gk]+=gg; ap[ak]+=ga; goals+=gg; assists+=ga;
     }
-    // ── 포지션기여(role) + 시간 · 출전 ──
-    if(p.pq && hasQd){                                // 쿼터별: 뛴 쿼터마다 1단위
-      let anyQ=false;
+    // ── 포지션기여(role): 실제 뛴 쿼터들의 role 중 상위 2개 합산 (중복 포함) · 시간은 쿼터별 ──
+    //    예: 공격 2쿼터 → 0.2+0.2 · 공격 3 + 심판 1 → 0.8+0.2 · 1쿼터만 → 그 1개
+    if(p.pq && hasQd){
+      const wq=[]; let anyQ=false;
       p.qd.forEach(d=>{ const pos=d.pos; if(!pos) return; anyQ=true;
-        const rk=roleKeyOf(pos); if(roleU[rk]!=null) roleU[rk]++;
-        if(rk==='GK') gkQ++; else if(rk==='REF') refQ++; else fieldQ++; });
-      if(anyQ||p.played) played++;
-    } else if(p.played){                              // legacy: 경기당 1단위(산정 포지션)
-      played++; roleU[fixed]=(roleU[fixed]||0)+1; fieldQ++;
+        const rk=roleKeyOf(pos);
+        if(rk==='GK') gkQ++; else if(rk==='REF') refQ++; else fieldQ++;   // 시간(쿼터별)
+        wq.push(roleWof(rk)); });
+      if(anyQ){ wq.sort((a,b)=>b-a); roleSum += (wq[0]||0)+(wq[1]||0); played++; }  // 상위 2개
+      else if(p.played) played++;
+    } else if(p.played){                              // legacy(쿼터 정보 없음): 경기당 등록 포지션 1개
+      played++; roleSum += roleWof(fixed); fieldQ++;
     }
   });
-  // 수동 보정값(델타): 포지션기여 = 산정 포지션 1단위/경기
+  // 수동 보정값(델타): 포지션기여 = 등록 포지션 1개/경기
   const ov=statOverrides[name];
-  if(ov){ const add=ov.played||0; played+=add; if(add>0){ roleU[fixed]=(roleU[fixed]||0)+add; fieldQ+=add; }
+  if(ov){ const add=ov.played||0; played+=add; if(add>0){ roleSum += roleWof(fixed)*add; fieldQ+=add; }
     const gk=(pw.goal!=null?'OV':fixed), ak=(pw.assist!=null?'OV':fixed);
     gp[gk]+=ov.goals||0; ap[ak]+=ov.assists||0; goals+=ov.goals||0; assists+=ov.assists||0; }
   played=Math.min(games.length,Math.max(0,played));
   ['DF','MF','FW','GK','OV'].forEach(k=>{ gp[k]=Math.max(0,gp[k]); ap[k]=Math.max(0,ap[k]); });
   const r={played,goals:Math.max(0,goals),assists:Math.max(0,assists),goalsByPos:gp,assistsByPos:ap,
-    roleUnits:roleU, fieldQ, gkQ, refQ};
+    roleSum:Math.max(0,roleSum), fieldQ, gkQ, refQ};
   c.set(name,r); return r;
 }
 window.openStatEdit=function(name){
