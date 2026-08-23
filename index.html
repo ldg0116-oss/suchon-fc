@@ -689,7 +689,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
               <option value="4-4-2">4-4-2</option>
             </select>
           </div>
-          <div><label>고정 GK</label><select id="q-gk"><option value="">자동 선택</option></select></div>
+          <select id="q-gk" style="display:none"><option value="">자동 선택</option></select>
         </div>
         <div>
           <label title="모두에게 보장하는 최소 출전 쿼터 (나머지 시간은 기여도 순 배분)">최소 보장 쿼터</label>
@@ -717,8 +717,10 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
           <button onclick="openBackupModal()" class="qbtn qbtn-grey">📁 백업 목록</button>
         </div>
         <button onclick="viewCurrentQ()" class="qbtn qbtn-blue" style="width:100%;margin-top:8px">📊 전체 기록 보기 (쿼터별 라인업·교체·시간)</button>
+        <!-- 기여도 반영 (수동 GK·심판 포함) -->
+        <button onclick="applyFormationContribution()" class="qbtn" style="width:100%;margin-top:10px;padding:11px;background:linear-gradient(135deg,rgba(93,173,226,0.14),rgba(93,173,226,0.05));border:1px solid rgba(93,173,226,0.45);color:#7fc1eb;font-size:12px;letter-spacing:0.5px">🏅 이 경기 기여도 반영 (전원 쿼터 포지션 저장 · GK·심판 포함)</button>
         <!-- 저장 (주요 액션) -->
-        <button onclick="saveQFormation()" class="qbtn" style="width:100%;margin-top:12px;padding:13px;background:linear-gradient(135deg,rgba(212,175,55,0.22),rgba(212,175,55,0.08));border:1px solid var(--cl-gold);color:var(--cl-gold);font-size:13px;letter-spacing:2px;text-transform:uppercase">💾 저장 (팀원 화면 반영)</button>
+        <button onclick="saveQFormation()" class="qbtn" style="width:100%;margin-top:8px;padding:13px;background:linear-gradient(135deg,rgba(212,175,55,0.22),rgba(212,175,55,0.08));border:1px solid var(--cl-gold);color:var(--cl-gold);font-size:13px;letter-spacing:2px;text-transform:uppercase">💾 저장 (팀원 화면 반영 · 기여도 자동 반영)</button>
       </div>
     </div>
 
@@ -1969,6 +1971,41 @@ window.recLoadPos=async function(gid,name){
   const qd=[]; for(let i=0;i<REC_QC;i++){ const d=(Array.isArray(cur.qd)&&cur.qd[i])||{g:0,a:0}; qd.push({pos:doms[i]||d.pos||cur.pos||posCat(name),g:d.g||0,a:d.a||0}); }
   await saveQd(gid,name,qd);
   toast(name+' 쿼터별 포지션 불러옴');
+};
+// ── 현재 쿼터 배치(수동 GK·심판 포함) 전원을 경기 기록에 반영 → 기여도 합산 ──
+//  · 골/어시는 기존 값 보존 (포지션·쿼터만 기록) · GK(골문)·심판(지정)도 0.8 기여로 인정됨
+async function recordFormationPositions(gid){
+  const g=games.find(x=>x.id===gid); if(!g) return 0;
+  const names=new Set();
+  for(let q=1;q<=REC_QC;q++){
+    (getQField(q)||[]).forEach(f=>{ if(f.n)names.add(f.n); });
+    (getQSubs(q)||[]).forEach(s=>{ if(s.in)names.add(s.in); });
+    const rf=getQRef(q); if(rf) names.add(rf);
+  }
+  const updates={}; let cnt=0;
+  names.forEach(name=>{
+    const doms=domPosOf(name);                 // 쿼터별 포지션 (GK=골문, REF=지정 심판 포함)
+    if(!doms.some(Boolean)) return;
+    const cur=(g.players&&g.players[name])||{};
+    const qd=[]; for(let i=0;i<REC_QC;i++){ const d=(Array.isArray(cur.qd)&&cur.qd[i])||{}; qd.push({pos:doms[i]||d.pos||'', g:d.g||0, a:d.a||0}); }
+    const goals=qd.reduce((s,d)=>s+(d.g||0),0), assists=qd.reduce((s,d)=>s+(d.a||0),0);
+    const byPos={}; qd.forEach(d=>{ if(d.pos) byPos[d.pos]=(byPos[d.pos]||0)+(d.g||0)+1; });
+    let pos=(qd.find(d=>d.pos)||{}).pos||''; let mx=-1; Object.keys(byPos).forEach(k=>{ if(byPos[k]>mx){mx=byPos[k];pos=k;} });
+    const base='games/'+gid+'/players/'+name+'/';
+    updates[base+'qd']=qd; updates[base+'pos']=pos; updates[base+'played']=true; updates[base+'pq']=true;
+    updates[base+'goals']=goals; updates[base+'assists']=assists;
+    cnt++;
+  });
+  if(cnt) await update(ref(db,'suchon'),updates);
+  return cnt;
+}
+window.applyFormationContribution=async function(){
+  if(!isCoach()){toast('권한이 없습니다');return;}
+  const gid=qFormation.gameId;
+  if(!gid || !games.find(g=>g.id===gid)){ toast('먼저 이 배치를 경기에 연결하세요 (쿼터탭 상단 "기록할 경기")'); return; }
+  if(!confirm('현재 쿼터 배치(수동 GK·심판 포함)를 이 경기 기록에 반영할까요?\n각 선수의 쿼터별 포지션이 저장되어 기여도에 합산됩니다.\n(골·어시 기록은 그대로 보존)')) return;
+  try{ const n=await recordFormationPositions(gid); toast(n?`${n}명 기여도 반영 완료 (GK·심판 포함)`:'반영할 선수가 없습니다'); renderConsole&&renderConsole(); }
+  catch(e){ toast('반영 실패: '+(e&&e.message||e)); }
 };
 window.recClearQd=async function(gid,name){
   if(!isAdmin()){toast('관리자만 가능합니다');return;}
@@ -3324,14 +3361,10 @@ window.autoRotate=function(){
   const fname=document.getElementById('q-formation')?.value||'4-3-3';
   const slots=formationSlots(fname);
   const rnd=(arr)=> arr[Math.floor(Math.random()*arr.length)];
-  // GK: 수동 지정 > 참석자 중 등록 GK → 있으면 4쿼터 고정 · 없으면 매 쿼터 랜덤
-  let fixedGK=document.getElementById('q-gk')?.value||''; if(fixedGK && !pool.includes(fixedGK)) fixedGK='';
-  if(!fixedGK){ const regGK=pool.find(n=>posCat(n)==='GK'); if(regGK) fixedGK=regGK; }
-  const rotateGK=!fixedGK;                               // 등록/지정 GK 없으면 GK도 매 쿼터 랜덤
-  const Souf=slots.length;                               // 아웃필드 슬롯(예: 10)
-  // 로테이션 대상 · 쿼터당 on-field 스팟 수 (rotateGK면 GK 포함해 +1)
-  const order = fixedGK ? pool.filter(n=>n!==fixedGK) : pool.slice();
-  const spots = Math.min(fixedGK ? Souf : Souf+1, order.length);
+  // ★ GK·심판은 자동배정하지 않음 — 아웃필드 선수만 배치, GK/심판은 관리자가 벤치에서 수동 지정
+  const Souf=slots.length;                               // 아웃필드 슬롯(예: 4-3-3 → 10)
+  const order = pool.slice();                            // 전원 아웃필드 로테이션 대상
+  const spots = Math.min(Souf, order.length);            // 쿼터당 필드(아웃필드) 스팟 수
   const N=order.length;
   if(N===0){toast('필드 선수가 없습니다');return;}
   const bestFirst=computeBestFirst(order);
@@ -3347,36 +3380,18 @@ window.autoRotate=function(){
   const restEnforceable = !fourPlus && threePlus<=middleCap;
   const warnFloor = floorQ<minQ ? `\n⚠ 인원이 많아 최소 ${minQ}쿼터 보장 불가 → 최소 ${floorQ}쿼터로 배분` : '';
   const warnConsec = restEnforceable ? '' : `\n⚠ 2쿼터 선수를 1·3/2·4로 배치하느라 일부 3쿼터 선수는 3연속으로 뛸 수 있습니다`;
-  const gkDesc = fixedGK ? `${fixedGK} (4쿼터 고정)` : '매 쿼터 랜덤';
-  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK: ${gkDesc}\n🕵 심판: 관리자 지정대로 유지(자동배정 없음)\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 순(동점 랜덤)\n2쿼터 선수는 1·3/2·4로 연속 회피 우선${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
+  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK·🕵 심판: 자동배정 안 함 → 관리자가 벤치(쉬는 선수)에서 수동 지정\n필드(아웃필드) ${Souf}자리/쿼터 · 대상 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 순(동점 랜덤)\n2쿼터 선수는 1·3/2·4로 연속 회피 우선${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
 
-  // 3연속 금지 스케줄 — 각 쿼터 on-field 스팟(GK 포함 시 spots) 채우기
+  // 3연속 금지 스케줄 — 각 쿼터 아웃필드 스팟(Souf) 채우기
   const {play}=scheduleQuarters(qAssign, qCnt, spots, bestFirst);
   // 연속 출전 최소화 — 가능하면 1·3 / 2·4 처럼 쉬는 쿼터를 끼움 (인원수·총 쿼터수는 유지)
   const consec=reduceConsecutive(play, qCnt);
-  const usedGK=new Set();     // 한 경기에 GK는 1인당 1번만 (등록 GK 고정은 예외)
   for(let qq=1; qq<=qCnt; qq++){
-    let gkThis, outfielders;
-    if(fixedGK){ gkThis=fixedGK; outfielders=play[qq].slice(); }
-    else {
-      const chosen=play[qq].slice();
-      let cand=chosen.filter(n=>!usedGK.has(n));               // 아직 GK 안 한 사람 우선
-      if(!cand.length) cand=chosen.slice();
-      // GK는 그 쿼터 배정 인원 중 '총 출전 쿼터가 많은' 선수 우선 →
-      //  최소출전(2쿼터)자가 GK로 필드 쿼터를 뺏기지 않도록 보호 (동점 랜덤)
-      const topQ=Math.max(...cand.map(n=>qAssign[n]||0));
-      const top=cand.filter(n=>(qAssign[n]||0)===topQ);
-      gkThis = top.length?rnd(top):(chosen.length?rnd(chosen):'');
-      if(gkThis) usedGK.add(gkThis);
-      outfielders=chosen.filter(n=>n!==gkThis);
-    }
+    // GK 자동배정 없음 → 아웃필드 선수만 포메이션 자리에 배치 (골문 자리는 비워둠)
+    const outfielders=play[qq].slice();
     const uslots=slots.slice(0, Math.min(Souf, outfielders.length));
-    const placed=assignPlayersToSlots(outfielders, uslots);
-    const field=[];
-    if(gkThis) field.push({n:gkThis,x:GK_COORD.x,y:GK_COORD.y});
-    field.push(...placed);
-    // 심판: 자동배정 없음 — 관리자 지정값 유지. 단 지정 심판이 이번 배치에서 필드로 들어갔으면
-    //  한 사람이 두 역할 불가 → 그 쿼터 심판은 공석 처리(중복 방지). 남은 지정은 그대로.
+    const field=assignPlayersToSlots(outfielders, uslots);
+    // 심판도 자동배정 없음 — 이전에 관리자가 지정한 값이 이번 필드와 겹치면 공석 처리
     let ref=getQRef(qq);
     if(ref && field.some(f=>f.n===ref)) ref='';
     if(!qFormation.refPlan) qFormation.refPlan={};
@@ -3384,7 +3399,7 @@ window.autoRotate=function(){
     qFormation['q'+qq]={field,subs:[],ref};
   }
   currentQTab=1; switchQTab(1);
-  toast(`${fname} 배치 완료 · 🧤${fixedGK?fixedGK:'쿼터별 랜덤'} · 🕵심판 지정 유지 · 최소 ${floorQ}쿼터${consec>0?`(3연속 ${consec}건)`:''} — 확인 후 저장`);
+  toast(`${fname} 아웃필드 배치 완료 · 🧤GK·🕵심판은 벤치에서 수동 지정 · 최소 ${floorQ}쿼터${consec>0?`(3연속 ${consec}건)`:''} — 확인 후 저장`);
 };
 function qRebalance(qCnt,qMin,half,outfield,gk,target){
   target=target||{};
@@ -3575,7 +3590,9 @@ window.saveQFormation=async function(){
   await set(ref(db,'suchon/qFormation'),qFormation);
   if(qFormation.gameId && games.find(g=>g.id===qFormation.gameId)){
     await update(ref(db,'suchon/games/'+qFormation.gameId),{plan:extractPlan()});
-    toast('저장 완료 · 이 경기 라인업에 보존됨');
+    // 이 경기에 연결돼 있으면 배치(수동 GK·심판 포함)를 기록에 반영 → 기여도 자동 합산 (골·어시 보존)
+    let n=0; try{ n=await recordFormationPositions(qFormation.gameId); }catch(e){}
+    toast(`저장 완료 · 이 경기 라인업 보존${n?` · ${n}명 기여도 반영(GK·심판 포함)`:''}`);
   } else {
     toast('포메이션 저장 완료 — 팀원 화면에 반영됩니다');
   }
