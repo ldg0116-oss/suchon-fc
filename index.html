@@ -1976,14 +1976,15 @@ window.recLoadPos=async function(gid,name){
 //  · 골/어시는 기존 값 보존 (포지션·쿼터만 기록) · GK(골문)·심판(지정)도 0.8 기여로 인정됨
 async function recordFormationPositions(gid){
   const g=games.find(x=>x.id===gid); if(!g) return 0;
-  const names=new Set();
+  const placed=new Set();
   for(let q=1;q<=REC_QC;q++){
-    (getQField(q)||[]).forEach(f=>{ if(f.n)names.add(f.n); });
-    (getQSubs(q)||[]).forEach(s=>{ if(s.in)names.add(s.in); });
-    const rf=getQRef(q); if(rf) names.add(rf);
+    (getQField(q)||[]).forEach(f=>{ if(f.n)placed.add(f.n); });
+    (getQSubs(q)||[]).forEach(s=>{ if(s.in)placed.add(s.in); });
+    const rf=getQRef(q); if(rf) placed.add(rf);
   }
   const updates={}; let cnt=0;
-  names.forEach(name=>{
+  // 1) 이번 배치에 있는 선수 → 쿼터별 포지션 '덮어쓰기'(누적 아님) · 골·어시는 보존
+  placed.forEach(name=>{
     const doms=domPosOf(name);                 // 쿼터별 포지션 (GK=골문, REF=지정 심판 포함)
     if(!doms.some(Boolean)) return;
     const cur=(g.players&&g.players[name])||{};
@@ -1996,7 +1997,18 @@ async function recordFormationPositions(gid){
     updates[base+'goals']=goals; updates[base+'assists']=assists;
     cnt++;
   });
-  if(cnt) await update(ref(db,'suchon'),updates);
+  // 2) 이전 저장엔 있었지만 이번 배치엔 없는 선수 → 예전 포지션 기록 초기화(스테일 방지). 골·어시 없으면 미출전 처리
+  Object.keys(g.players||{}).forEach(name=>{
+    if(placed.has(name)) return;
+    const cur=g.players[name]||{};
+    const hadPos=cur.pq || (Array.isArray(cur.qd)&&cur.qd.length);
+    if(!hadPos) return;                         // 원래 포지션 기록이 없으면 건드리지 않음
+    const hasScore=(cur.goals||0)||(cur.assists||0)||(Array.isArray(cur.qd)&&cur.qd.some(d=>(d.g||0)||(d.a||0)));
+    const base='games/'+gid+'/players/'+name+'/';
+    updates[base+'qd']=null; updates[base+'pq']=false; updates[base+'pos']='';
+    if(!hasScore) updates[base+'played']=false;  // 골·어시도 없으면 이번 경기 미출전으로 초기화
+  });
+  if(Object.keys(updates).length) await update(ref(db,'suchon'),updates);
   return cnt;
 }
 window.applyFormationContribution=async function(){
