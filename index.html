@@ -3538,19 +3538,27 @@ function renderPlayTime(totalMin,qCnt,poolNames){
   const half=Math.round(qMin/2);
   const active=[1,2,3,4].slice(0,qCnt||4);
   const fieldMin={}, fieldQ={}, gk={}, refr={};   // 필드(아웃필드)만 / GK{분,q} / 심판{분,q} 별도
+  const fieldQset={}, gkQset={}, refQset={};      // 각자 '뛴 쿼터 번호' 집합 (1~4 칸 표시용)
   (poolNames||[]).forEach(n=>{ fieldMin[n]=0; fieldQ[n]=0; });
+  const addQ=(obj,n,q)=>{ (obj[n]||(obj[n]=new Set())).add(q); };
   active.forEach(q=>{
     const fArr=getQField(q);
     const gkThis=(fArr.find(f=>f.y>=0.85)||{}).n;        // 이 쿼터 GK (골 위치)
     const {mins,seen}=quarterPlayMins(fArr, getQSubs(q), qMin);
     Object.keys(mins).forEach(n=>{
-      if(n===gkThis){ if(!gk[n])gk[n]={m:0,q:0}; gk[n].m+=mins[n]; gk[n].q++; }
+      if(n===gkThis){ if(!gk[n])gk[n]={m:0,q:0}; gk[n].m+=mins[n]; gk[n].q++; addQ(gkQset,n,q); }
       else { fieldMin[n]=(fieldMin[n]||0)+mins[n]; }
     });
-    seen.forEach(n=>{ if(n!==gkThis) fieldQ[n]=(fieldQ[n]||0)+1; });
+    seen.forEach(n=>{ if(n!==gkThis){ fieldQ[n]=(fieldQ[n]||0)+1; addQ(fieldQset,n,q); } });
     const rf=getQRef(q);
-    if(rf){ if(!refr[rf])refr[rf]={m:0,q:0}; refr[rf].m+=qMin; refr[rf].q++; }
+    if(rf){ if(!refr[rf])refr[rf]={m:0,q:0}; refr[rf].m+=qMin; refr[rf].q++; addQ(refQset,rf,q); }
   });
+  // 1~4 쿼터 칸: 뛴 쿼터만 색칠
+  const qBoxes=(set,color)=>{ set=set||new Set(); let s='<span style="display:inline-flex;gap:3px">';
+    for(let i=1;i<=(qCnt||4);i++){ const on=set.has(i);
+      s+=`<span style="width:17px;height:17px;border-radius:3px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;`+
+         (on?`background:${color};color:#0a1428;box-shadow:0 1px 2px rgba(0,0,0,0.3)`:`background:rgba(255,255,255,0.05);color:rgba(160,176,202,0.35);border:1px solid rgba(255,255,255,0.09)`)+`">${i}</span>`; }
+    return s+'</span>'; };
   const pt=document.getElementById('q-playtime');
   const fieldNames=Object.keys(fieldMin).filter(n=>fieldMin[n]>0);
   const gkNames=Object.keys(gk), refNames=Object.keys(refr);
@@ -3567,24 +3575,23 @@ function renderPlayTime(totalMin,qCnt,poolNames){
     </div>
     ${rows.length?rows.map(s=>`
       <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.06)">
-        <div style="font-size:12px;font-weight:700;color:var(--cl-white);min-width:56px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.n}</div>
-        <div style="font-size:9px;color:var(--cl-silver);min-width:24px">${s.q}Q</div>
-        <div style="flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${Math.round(s.min/maxMin*100)}%;background:linear-gradient(90deg,var(--cl-gold),rgba(212,175,55,0.5));border-radius:3px"></div>
-        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--cl-white);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.n}</div>
+        ${qBoxes(fieldQset[s.n],'var(--cl-gold)')}
+        <div style="font-size:9px;color:var(--cl-silver);min-width:20px;text-align:right">${s.q}Q</div>
         <div style="font-size:11px;color:var(--cl-gold);font-weight:700;min-width:36px;text-align:right;font-family:var(--font-display);letter-spacing:1px">${s.min}분</div>
       </div>`).join(''):'<div style="font-size:10px;color:rgba(160,176,202,0.4);padding:8px 0">필드 출전 기록 없음</div>'}`;
   // ── GK · 심판 시간 (별도) ──
   if(gkNames.length || refNames.length){
-    const chip=(icon,name,d)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(127,193,235,0.1)">
+    const chip=(icon,name,d,qset)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(127,193,235,0.1)">
         <span style="font-size:12px;flex-shrink:0">${icon}</span>
         <span style="font-size:12px;font-weight:700;color:var(--cl-white);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</span>
-        <span style="font-size:10px;color:#7fc1eb;font-weight:700">${d.q}Q · ${d.m}분</span>
+        ${qBoxes(qset,'#7fc1eb')}
+        <span style="font-size:10px;color:#7fc1eb;font-weight:700;min-width:44px;text-align:right">${d.q}Q · ${d.m}분</span>
       </div>`;
     html+=`<div style="margin-top:14px;padding-top:10px;border-top:1px dashed rgba(127,193,235,0.35)">
       <div style="font-family:var(--font-display);font-size:11px;letter-spacing:2px;color:#7fc1eb;margin-bottom:6px">GK · 심판 시간 (별도)</div>
-      ${gkNames.sort().map(n=>chip('🧤',n,gk[n])).join('')}
-      ${refNames.sort().map(n=>chip('🕵',n,refr[n])).join('')}
+      ${gkNames.sort().map(n=>chip('🧤',n,gk[n],gkQset[n])).join('')}
+      ${refNames.sort().map(n=>chip('🕵',n,refr[n],refQset[n])).join('')}
       ${(!gkNames.length&&!refNames.length)?'<div style="font-size:10px;color:rgba(160,176,202,0.4)">없음</div>':''}
     </div>`;
   }
