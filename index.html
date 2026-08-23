@@ -187,6 +187,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 .q-jersey .sh{position:relative;width:38px;height:36px;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4))}
 .q-jersey .num{position:absolute;top:52%;left:0;right:0;transform:translateY(-50%);text-align:center;font-family:var(--font-display);font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6);letter-spacing:0}
 .q-jersey .nm{max-width:56px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,0.45);border-radius:3px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;letter-spacing:0.2px}
+.q-jersey .gk-tag{font-size:8px;font-weight:800;color:#0a1428;background:#ef8b2c;border-radius:3px;padding:1px 5px;letter-spacing:0.3px;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,0.4)}
 .q-drag-clone{position:fixed;transform:translate(-50%,-50%);pointer-events:none;z-index:3000;opacity:0.92}
 .q-drag-clone.lp-hold{animation:lpHold 2s linear forwards}
 @keyframes lpHold{0%{filter:drop-shadow(0 0 0 rgba(212,175,55,0))}60%{filter:drop-shadow(0 0 2px rgba(212,175,55,0.5))}100%{filter:drop-shadow(0 0 10px rgba(212,175,55,1)) brightness(1.25);transform:translate(-50%,-50%) scale(1.18)}}
@@ -2727,9 +2728,12 @@ function pitchLinesHtml(){
 }
 
 function jerseyHtml(n,x,y,coach){
-  const col=QJ[slotPosFromY(y)]||qJerseyColor(n); // 배치된 자리(포지션) 색상
+  const line=slotPosFromY(y);
+  const col=QJ[line]||qJerseyColor(n); // 배치된 자리(포지션) 색상
   const contrib=Math.round(contribScore(n)); // 등번호 대신 기여도 표시
+  const gkTag = line==='GK' ? `<div class="gk-tag">🧤 GK</div>` : '';  // 골키퍼 표시 (모두에게)
   return `<div class="q-jersey" data-name="${escAttr(n)}" data-from="field" style="left:${(x*100).toFixed(2)}%;top:${(y*100).toFixed(2)}%;${coach?'':'cursor:default'}">
+    ${gkTag}
     <div class="sh">
       <svg viewBox="0 0 38 36" width="38" height="36"><path d="M13 2 L2 8 L6 15 L10 13 L10 34 L28 34 L28 13 L32 15 L36 8 L25 2 L22 5 Q19 8 16 5 Z" fill="${col}" stroke="rgba(0,0,0,0.3)" stroke-width="1"/></svg>
       <div class="num" title="기여도">${contrib}</div>
