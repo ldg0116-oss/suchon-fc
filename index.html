@@ -696,12 +696,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
           <input id="q-minq" type="number" min="0" step="1" value="2" onchange="renderQView()">
           <div style="font-size:9px;color:rgba(160,176,202,0.6);line-height:1.5;margin-top:5px">이 쿼터만큼은 전원 보장 · 남는 시간은 기여도 높은 선수에게 더 배분</div>
         </div>
-        <div style="margin-top:14px">
-          <label style="display:block;font-size:11px;color:var(--cl-silver);letter-spacing:0.3px;text-transform:none;font-weight:700">🕵 당일 심판 지정 <span style="font-weight:400;color:rgba(160,176,202,0.7);font-size:10px">(관리자가 직접 · 2쿼터만 봐도 됨)</span></label>
-          <div id="q-refplan" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px"></div>
-          <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:6px;line-height:1.5">비워두면 그 쿼터는 <b>공석</b>(상대팀/미배정) · 심판은 자동으로 배정되지 않으며 여기서 지정한 대로만 표시됩니다</div>
-        </div>
-        <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:10px;line-height:1.5">🧤 GK: 참석자 중 등록 GK가 있으면 4쿼터 고정, 없으면 매 쿼터 랜덤 · 고정 GK 드롭다운으로 수동 지정 가능</div>
+        <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:14px;line-height:1.5">🧤 GK: 참석자 중 등록 GK가 있으면 4쿼터 고정, 없으면 매 쿼터 랜덤 · 고정 GK 드롭다운으로 수동 지정 가능 · 🕵 심판은 피치 아래에서 쿼터별로 직접 지정</div>
         <div style="font-size:9px;color:rgba(160,176,202,0.5);text-align:center;margin-top:10px">⚙ 기여도 가중치 설정은 <b style="color:#7fc1eb">경기콘솔</b> 탭으로 이동했습니다</div>
         <!-- 자동배치 (주요 액션) -->
         <button onclick="autoRotate()" class="qbtn" style="width:100%;margin-top:12px;padding:13px;background:linear-gradient(135deg,rgba(46,204,113,0.16),rgba(46,204,113,0.05));border:1px solid rgba(46,204,113,0.45);color:#4cd983;font-size:13px;letter-spacing:1px">⚽ 포메이션 자동배치</button>
@@ -2050,19 +2045,28 @@ function getQRef(q){ const rp=qFormation.refPlan; if(rp && rp[q]!==undefined) re
 function setRefPlan(q,name){ if(!qFormation.refPlan) qFormation.refPlan={}; qFormation.refPlan[q]=name||''; if(qFormation['q'+q]) qFormation['q'+q].ref=name||''; }
 window.setQRef=function(q,name){ if(!isCoach())return; setRefPlan(q,name); renderQView(); };
 window.qSetRefPlan=function(q,name){ if(!isCoach()){toast('권한이 없습니다');return;} setRefPlan(q,name); renderQView(); };
-// 당일 심판 지정 패널 (쿼터별 드롭다운) — 참석자 중 선택 · 비우면 공석
+// 그 쿼터에 '안 뛰는(벤치) 선수' 목록 — 심판은 여기서만 지정 (필드/GK와 중복 방지)
+function benchOfQuarter(q){
+  const names=getAttendeePool().names;
+  const field=getQField(q);
+  const onF=new Set(field.map(f=>f.n));
+  (getQSubs(q)||[]).forEach(s=>{ if(s.in) onF.add(s.in); });
+  return names.filter(n=>!onF.has(n));
+}
+// 당일 심판 지정 패널 (쿼터별 드롭다운) — 그 쿼터 벤치 선수만 선택 · 비우면 공석
 function renderRefPlan(){
   const box=document.getElementById('q-refplan'); if(!box) return;
   const qCnt=parseInt(document.getElementById('q-cnt')?.value)||4;
-  const names=getAttendeePool().names;
   const coach=isCoach();
   let html='';
   for(let q=1;q<=qCnt;q++){
     const cur=getQRef(q);
-    const opts=['<option value="">공석</option>'].concat(names.map(n=>`<option value="${escAttr(n)}"${n===cur?' selected':''}>${n}</option>`)).join('');
+    let cand=benchOfQuarter(q);
+    if(cur && !cand.includes(cur)) cand=[cur,...cand];   // 현재 지정자가 필드로 들어간 경우도 보이게
+    const opts=['<option value="">공석</option>'].concat(cand.map(n=>`<option value="${escAttr(n)}"${n===cur?' selected':''}>${n}</option>`)).join('');
     html+=`<div style="display:flex;flex-direction:column;gap:3px">
       <span style="font-size:9px;color:var(--cl-silver);text-align:center;letter-spacing:1px;font-family:var(--font-display)">Q${q}</span>
-      <select onchange="qSetRefPlan(${q},this.value)" ${coach?'':'disabled'} style="width:100%;font-size:11px;padding:6px 4px;background:${cur?'rgba(127,193,235,0.12)':'rgba(0,0,0,0.25)'};border:1px solid ${cur?'rgba(127,193,235,0.5)':'var(--cl-border2)'};color:${cur?'#7fc1eb':'var(--cl-silver)'};border-radius:5px;font-weight:${cur?'700':'400'}">${opts}</select>
+      <select onchange="qSetRefPlan(${q},this.value)" ${coach?'':'disabled'} style="width:100%;font-size:11px;padding:6px 4px;background:${cur?'rgba(127,193,235,0.14)':'rgba(0,0,0,0.25)'};border:1px solid ${cur?'rgba(127,193,235,0.5)':'var(--cl-border2)'};color:${cur?'#7fc1eb':'var(--cl-silver)'};border-radius:5px;font-weight:${cur?'700':'400'}">${opts}</select>
     </div>`;
   }
   box.innerHTML=html;
@@ -2835,7 +2839,16 @@ function renderQView(){
         ${benchChips||'<div class="bc-empty">전원<br>배치됨</div>'}
       </div>
     </div>
-    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin:5px 2px 0;letter-spacing:0.2px">숫자=기여도 · 🔄=교체 · 🧤GK=자동 · 🕵심판=관리자 지정${coach?' · 우측 벤치 칩을 피치로 드래그':''}</div>
+    <!-- 당일 심판 지정 (피치 바로 아래) -->
+    <div style="margin-top:12px;padding:10px 11px;background:rgba(127,193,235,0.06);border:1px solid rgba(127,193,235,0.28);border-radius:6px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:700;color:#7fc1eb;letter-spacing:0.3px">🕵 당일 심판 지정</span>
+        <span style="font-size:9px;color:rgba(160,176,202,0.7)">관리자 직접 · 2쿼터만 봐도 OK · 그 쿼터 벤치(쉬는 선수)만 선택</span>
+      </div>
+      <div id="q-refplan" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px"></div>
+      <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:6px;line-height:1.5">비우면 그 쿼터는 <b>공석</b>(상대팀/미배정) · 심판은 그 쿼터에 <b>안 뛰는 선수</b> 중에서만 지정돼 플레이타임과 겹치지 않습니다</div>
+    </div>
+    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin:8px 2px 0;letter-spacing:0.2px">숫자=기여도 · 🔄=교체 · 🧤GK=자동 · 🕵심판=관리자 지정${coach?' · 우측 벤치 칩을 피치로 드래그':''}</div>
     ${subBlock}`;
 
   bindQDrag();
@@ -3362,8 +3375,12 @@ window.autoRotate=function(){
     const field=[];
     if(gkThis) field.push({n:gkThis,x:GK_COORD.x,y:GK_COORD.y});
     field.push(...placed);
-    // 심판: 자동배정 없음 — 관리자가 '당일 심판 지정'에서 정한 값을 그대로 유지
-    const ref=getQRef(qq);
+    // 심판: 자동배정 없음 — 관리자 지정값 유지. 단 지정 심판이 이번 배치에서 필드로 들어갔으면
+    //  한 사람이 두 역할 불가 → 그 쿼터 심판은 공석 처리(중복 방지). 남은 지정은 그대로.
+    let ref=getQRef(qq);
+    if(ref && field.some(f=>f.n===ref)) ref='';
+    if(!qFormation.refPlan) qFormation.refPlan={};
+    qFormation.refPlan[qq]=ref;
     qFormation['q'+qq]={field,subs:[],ref};
   }
   currentQTab=1; switchQTab(1);
@@ -3621,20 +3638,32 @@ function renderPlayTime(totalMin,qCnt,poolNames){
   active.forEach(q=>{
     const fArr=getQField(q);
     const gkThis=(fArr.find(f=>f.y>=0.85)||{}).n;        // 이 쿼터 GK (골 위치)
+    const rf=getQRef(q);                                  // 이 쿼터 심판(벤치 선수) → 필드 집계서 제외
     const {mins,seen}=quarterPlayMins(fArr, getQSubs(q), qMin);
     Object.keys(mins).forEach(n=>{
+      if(n===rf) return;                                  // 심판은 필드로 절대 중복 집계 안 함 (한 사람 두 역할 금지)
       if(n===gkThis){ if(!gk[n])gk[n]={m:0,q:0}; gk[n].m+=mins[n]; gk[n].q++; addQ(gkQset,n,q); }
       else { fieldMin[n]=(fieldMin[n]||0)+mins[n]; }
     });
-    seen.forEach(n=>{ if(n!==gkThis){ fieldQ[n]=(fieldQ[n]||0)+1; addQ(fieldQset,n,q); } });
-    const rf=getQRef(q);
+    seen.forEach(n=>{ if(n!==gkThis && n!==rf){ fieldQ[n]=(fieldQ[n]||0)+1; addQ(fieldQset,n,q); } });
     if(rf){ if(!refr[rf])refr[rf]={m:0,q:0}; refr[rf].m+=qMin; refr[rf].q++; addQ(refQset,rf,q); }
   });
-  // 1~4 쿼터 칸: 뛴 쿼터만 색칠
+  const CQ_FIELD='var(--cl-gold)', CQ_GK='#7fc1eb', CQ_REF='#4cd983';
+  // 1~4 쿼터 칸: 한 색 (GK·심판 구간 요약용)
   const qBoxes=(set,color)=>{ set=set||new Set(); let s='<span style="display:inline-flex;gap:3px">';
     for(let i=1;i<=(qCnt||4);i++){ const on=set.has(i);
       s+=`<span style="width:17px;height:17px;border-radius:3px;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;`+
          (on?`background:${color};color:#0a1428;box-shadow:0 1px 2px rgba(0,0,0,0.3)`:`background:rgba(255,255,255,0.05);color:rgba(160,176,202,0.35);border:1px solid rgba(255,255,255,0.09)`)+`">${i}</span>`; }
+    return s+'</span>'; };
+  // 필드 행 칸: 필드=골드 · GK=하늘 · 심판=초록 · 쉼=회색 → 실제 활동을 그대로 보여줘 '가짜 2칸 빔' 방지
+  const qBoxesRole=(n)=>{ let s='<span style="display:inline-flex;gap:3px">';
+    for(let i=1;i<=(qCnt||4);i++){
+      let col=null,lab=`${i}`;
+      if(fieldQset[n]&&fieldQset[n].has(i)) col=CQ_FIELD;
+      else if(gkQset[n]&&gkQset[n].has(i)){ col=CQ_GK; lab='🧤'; }
+      else if(refQset[n]&&refQset[n].has(i)){ col=CQ_REF; lab='🕵'; }
+      s+=`<span title="Q${i}${col===CQ_GK?' GK':col===CQ_REF?' 심판':''}" style="width:17px;height:17px;border-radius:3px;font-size:${lab.length>1?'8':'9'}px;font-weight:800;display:flex;align-items:center;justify-content:center;`+
+         (col?`background:${col};color:#0a1428;box-shadow:0 1px 2px rgba(0,0,0,0.3)`:`background:rgba(255,255,255,0.05);color:rgba(160,176,202,0.35);border:1px solid rgba(255,255,255,0.09)`)+`">${lab}</span>`; }
     return s+'</span>'; };
   const pt=document.getElementById('q-playtime');
   const fieldNames=Object.keys(fieldMin).filter(n=>fieldMin[n]>0);
@@ -3650,10 +3679,11 @@ function renderPlayTime(totalMin,qCnt,poolNames){
       <div style="font-family:var(--font-display);font-size:12px;letter-spacing:2.5px;color:var(--cl-silver)">PLAY TIME · 필드 ${rows.length}명</div>
       <div style="font-size:10px;color:${balance<=half?'#4cd983':balance<=qMin?'var(--cl-gold)':'#ff8080'};font-weight:700;letter-spacing:0.5px">필드 편차 ${balance}분</div>
     </div>
+    <div style="font-size:9px;color:rgba(160,176,202,0.6);margin-bottom:6px;letter-spacing:0.2px"><span style="color:var(--cl-gold)">■</span>필드 · <span style="color:#7fc1eb">■</span>🧤GK · <span style="color:#4cd983">■</span>🕵심판 · <span style="color:rgba(160,176,202,0.5)">■</span>휴식 (칸=쿼터)</div>
     ${rows.length?rows.map(s=>`
       <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.06)">
         <div style="font-size:12px;font-weight:700;color:var(--cl-white);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.n}</div>
-        ${qBoxes(fieldQset[s.n],'var(--cl-gold)')}
+        ${qBoxesRole(s.n)}
         <div style="font-size:9px;color:var(--cl-silver);min-width:20px;text-align:right">${s.q}Q</div>
         <div style="font-size:11px;color:var(--cl-gold);font-weight:700;min-width:36px;text-align:right;font-family:var(--font-display);letter-spacing:1px">${s.min}분</div>
       </div>`).join(''):'<div style="font-size:10px;color:rgba(160,176,202,0.4);padding:8px 0">필드 출전 기록 없음</div>'}`;
