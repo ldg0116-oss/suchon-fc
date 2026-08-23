@@ -2471,8 +2471,9 @@ function reduceConsecutive(play, qCnt){
   const quartersOf=(n)=> qs.filter(q=>inQ(n,q));
   const triples=(arr)=>{ const s=new Set(arr); let c=0; arr.forEach(q=>{ if(s.has(q+1)&&s.has(q+2)) c++; }); return c; };
   const adjPairs=(arr)=>{ const s=new Set(arr); let c=0; arr.forEach(q=>{ if(s.has(q+1)) c++; }); return c; };
-  // 비용: 3연속(내리 3쿼터)은 아주 무겁게(×10), 그다음 인접(연속 2쿼터) → 3연속을 최우선으로 없앰
-  const cost=(arr)=> adjPairs(arr) + 10*triples(arr);
+  // 비용(우선순위): ① 2쿼터 선수의 연속(2·3,3·4,1·2) 절대 회피(×90) → 항상 1·3/2·4 ②
+  //   그다음 3연속(내리 3쿼터) 회피(×10) — 단 2쿼터 선수 연속을 풀기 위해서만 부득이 허용 ③ 그 외 인접 최소화
+  const cost=(arr)=>{ const a=adjPairs(arr), t=triples(arr); const two=(arr.length===2)?a:0; return a + 10*t + 90*two; };
   const totalCost=()=>{ let c=0; players.forEach(n=>c+=cost(quartersOf(n))); return c; };
   const shuffle=(a)=>{ for(let k=a.length-1;k>0;k--){ const j=Math.floor(Math.random()*(k+1)); [a[k],a[j]]=[a[j],a[k]]; } return a; };
   // 교환 1건 시도 (쿼터별 인원수·개인 총 쿼터수 유지, 비용 비교) — force면 비용 무관 실행(교란용)
@@ -3308,9 +3309,9 @@ window.autoRotate=function(){
   const middleCap = Math.max(0,(qCnt-2))*(N-spots);
   const restEnforceable = !fourPlus && threePlus<=middleCap;
   const warnFloor = floorQ<minQ ? `\n⚠ 인원이 많아 최소 ${minQ}쿼터 보장 불가 → 최소 ${floorQ}쿼터로 배분` : '';
-  const warnConsec = restEnforceable ? '' : `\n⚠ 인원이 부족해 일부 선수는 3쿼터 연속으로 뛸 수 있습니다`;
+  const warnConsec = restEnforceable ? '' : `\n⚠ 2쿼터 선수를 1·3/2·4로 배치하느라 일부 3쿼터 선수는 3연속으로 뛸 수 있습니다`;
   const gkDesc = fixedGK ? `${fixedGK} (4쿼터 고정)` : '매 쿼터 랜덤';
-  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK: ${gkDesc}\n🕵 심판: ${refOn?'매 쿼터 랜덤(벤치)':'공석(상대팀/미배정)'}\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 순(동점 랜덤)\n최대 연속 2쿼터 — 중간 1쿼터 휴식${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
+  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK: ${gkDesc}\n🕵 심판: ${refOn?'매 쿼터 랜덤(벤치)':'공석(상대팀/미배정)'}\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 순(동점 랜덤)\n2쿼터 선수는 1·3/2·4로 연속 회피 우선${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
 
   // 3연속 금지 스케줄 — 각 쿼터 on-field 스팟(GK 포함 시 spots) 채우기
   const {play}=scheduleQuarters(qAssign, qCnt, spots, bestFirst);
