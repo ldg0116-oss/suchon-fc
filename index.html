@@ -188,6 +188,8 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 .q-jersey .num{position:absolute;top:52%;left:0;right:0;transform:translateY(-50%);text-align:center;font-family:var(--font-display);font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6);letter-spacing:0}
 .q-jersey .nm{max-width:56px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,0.45);border-radius:3px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;letter-spacing:0.2px}
 .q-drag-clone{position:fixed;transform:translate(-50%,-50%);pointer-events:none;z-index:3000;opacity:0.92}
+.q-drag-clone.lp-hold{animation:lpHold 2s linear forwards}
+@keyframes lpHold{0%{filter:drop-shadow(0 0 0 rgba(212,175,55,0))}60%{filter:drop-shadow(0 0 2px rgba(212,175,55,0.5))}100%{filter:drop-shadow(0 0 10px rgba(212,175,55,1)) brightness(1.25);transform:translate(-50%,-50%) scale(1.18)}}
 /* 심판 마커 (피치 상단 사이드) */
 .q-refmark{position:absolute;top:6px;right:6px;z-index:4;background:rgba(10,20,40,0.78);border:1px solid rgba(127,193,235,0.5);border-radius:6px;padding:3px 6px;min-width:58px;text-align:center}
 .q-refmark .rf-badge{display:block;font-size:8px;font-weight:700;color:#7fc1eb;letter-spacing:0.3px}
@@ -696,7 +698,7 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
           <input id="q-minq" type="number" min="0" step="1" value="2" onchange="renderQView()">
           <div style="font-size:9px;color:rgba(160,176,202,0.6);line-height:1.5;margin-top:5px">이 쿼터만큼은 전원 보장 · 남는 시간은 기여도 높은 선수에게 더 배분</div>
         </div>
-        <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:14px;line-height:1.5">🧤 GK: 참석자 중 등록 GK가 있으면 4쿼터 고정, 없으면 매 쿼터 랜덤 · 고정 GK 드롭다운으로 수동 지정 가능 · 🕵 심판은 피치 아래에서 쿼터별로 직접 지정</div>
+        <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:14px;line-height:1.5">자동배치는 <b>아웃필드 선수만</b> 배치합니다. 🧤 GK·🕵 심판은 자동배정하지 않으니, <b>벤치(쉬는 선수)를 피치의 골문/심판 자리로 드래그</b>해 관리자가 수동 지정하세요.</div>
         <div style="font-size:9px;color:rgba(160,176,202,0.5);text-align:center;margin-top:10px">⚙ 기여도 가중치 설정은 <b style="color:#7fc1eb">경기콘솔</b> 탭으로 이동했습니다</div>
         <!-- 자동배치 (주요 액션) -->
         <button onclick="autoRotate()" class="qbtn" style="width:100%;margin-top:12px;padding:13px;background:linear-gradient(135deg,rgba(46,204,113,0.16),rgba(46,204,113,0.05));border:1px solid rgba(46,204,113,0.45);color:#4cd983;font-size:13px;letter-spacing:1px">⚽ 포메이션 자동배치</button>
@@ -2066,7 +2068,7 @@ window.switchQTab = function(q){
 };
 
 // ── 쿼터 라인업 (드래그 포메이션) ──
-const QJ={GK:'#7fc1eb',DF:'#4a90d9',MF:'#2ecc71',FW:'#e0574b'};
+const QJ={GK:'#ef8b2c',DF:'#4a90d9',MF:'#2ecc71',FW:'#e0574b'};  // GK=주황(피치)
 function qJerseyColor(name){ const m=members.find(x=>x.name===name); return QJ[lineOf(m?m.pos:'')]||'#c9a84c'; }
 function escAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 
@@ -2888,21 +2890,11 @@ function renderQView(){
         ${benchChips||'<div class="bc-empty">전원<br>배치됨</div>'}
       </div>
     </div>
-    <!-- 당일 심판 지정 (피치 바로 아래) -->
-    <div style="margin-top:12px;padding:10px 11px;background:rgba(127,193,235,0.06);border:1px solid rgba(127,193,235,0.28);border-radius:6px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:11px;font-weight:700;color:#7fc1eb;letter-spacing:0.3px">🕵 당일 심판 지정</span>
-        <span style="font-size:9px;color:rgba(160,176,202,0.7)">관리자 직접 · 2쿼터만 봐도 OK · 그 쿼터 벤치(쉬는 선수)만 선택</span>
-      </div>
-      <div id="q-refplan" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px"></div>
-      <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-top:6px;line-height:1.5">비우면 그 쿼터는 <b>공석</b>(상대팀/미배정) · 심판은 그 쿼터에 <b>안 뛰는 선수</b> 중에서만 지정돼 플레이타임과 겹치지 않습니다</div>
-    </div>
-    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin:8px 2px 0;letter-spacing:0.2px">숫자=기여도 · 🔄=교체 · 🧤GK=자동 · 🕵심판=관리자 지정${coach?' · 우측 벤치 칩을 피치로 드래그':''}</div>
+    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin:8px 2px 0;letter-spacing:0.2px">숫자=기여도 · 🔄=교체 · 🧤GK·🕵심판=벤치 선수를 피치의 골문/심판 자리로 드래그해 수동 지정${coach?'':''}</div>
     ${subBlock}`;
 
   bindQDrag();
   renderPlayTime(totalMin,qCnt,pool.names);
-  renderRefPlan();   // 당일 심판 지정 패널 갱신
 }
 window.renderQView=renderQView; // 인라인 onchange 핸들러용
 
@@ -2932,27 +2924,41 @@ function qPointerDown(e){
   clone.style.left=e.clientX+'px'; clone.style.top=e.clientY+'px';
   document.body.appendChild(clone);
   el.style.opacity='0.35';
-  qDrag={name:el.dataset.name,from:el.dataset.from,clone,el,sx:e.clientX,sy:e.clientY};
+  qDrag={name:el.dataset.name,from:el.dataset.from,clone,el,sx:e.clientX,sy:e.clientY,lpTimer:null,lpFired:false};
+  // 피치 위 선수를 2초 길게 누르면 → 스탯(골/어시) 입력 (짧게 누르거나 드래그하면 위치 이동만)
+  if(qDrag.from==='field'){
+    clone.classList.add('lp-hold');   // 2초 동안 커지며 빛나는 진행 표시
+    qDrag.lpTimer=setTimeout(()=>{
+      if(!qDrag) return;
+      const nm=qDrag.name; qDrag.lpFired=true;
+      if(qDrag.el) qDrag.el.style.opacity='';
+      if(qDrag.clone) qDrag.clone.remove();
+      qDrag=null; qEndListeners(false);
+      openQGoalEntry(nm,currentQTab);
+    },2000);
+  }
   qEndListeners(true);
 }
 function qPointerMove(e){
   if(!qDrag) return;
   qDrag.clone.style.left=e.clientX+'px';
   qDrag.clone.style.top=e.clientY+'px';
+  // 조금이라도 움직이면 = 위치 이동 의도 → 길게누르기(스탯) 취소
+  if(qDrag.lpTimer && Math.hypot(e.clientX-qDrag.sx, e.clientY-qDrag.sy)>8){ clearTimeout(qDrag.lpTimer); qDrag.lpTimer=null; if(qDrag.clone) qDrag.clone.classList.remove('lp-hold'); }
 }
 function qPointerUp(e){
   if(!qDrag) return;
+  if(qDrag.lpTimer){ clearTimeout(qDrag.lpTimer); qDrag.lpTimer=null; }  // 손 떼면 길게누르기 타이머 해제
   const pitch=document.getElementById('q-pitch');
   const r=pitch.getBoundingClientRect();
   const inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
   const field=getQField(currentQTab);
   const idx=field.findIndex(f=>f.n===qDrag.name);
-  // 거의 안 움직였고 피치 위 선수를 눌렀다면 = 탭 → 그 쿼터 골/어시 입력
+  // 짧게 탭(거의 안 움직임)한 피치 선수 = 아무 동작 안 함 (스탯 입력은 2초 길게 누르기)
   const moved=Math.hypot(e.clientX-qDrag.sx, e.clientY-qDrag.sy);
   if(moved<8 && qDrag.from==='field' && idx>=0){
-    const nm=qDrag.name; if(qDrag.el) qDrag.el.style.opacity='';
+    if(qDrag.el) qDrag.el.style.opacity='';
     qDrag.clone.remove(); qDrag=null; qEndListeners(false);
-    openQGoalEntry(nm,currentQTab);
     return;
   }
   // ── 심판 드롭존 우선 판정 ──
@@ -2992,6 +2998,7 @@ function qPointerUp(e){
 }
 function qPointerCancel(){
   if(!qDrag) return;
+  if(qDrag.lpTimer){ clearTimeout(qDrag.lpTimer); qDrag.lpTimer=null; }
   qDrag.clone.remove(); qDrag=null; qEndListeners(false);
   renderQView();
 }
