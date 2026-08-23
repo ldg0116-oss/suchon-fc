@@ -204,10 +204,10 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 /* 피치 + 우측 벤치 나란히 */
 .q-fieldwrap{display:flex;gap:7px;align-items:stretch}
 .q-fieldwrap .q-pitch{flex:1 1 auto;width:auto;min-width:0}
-.q-benchcol{flex:0 0 88px;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overflow-x:hidden;border:1px dashed var(--cl-border2);border-radius:6px;padding:6px 5px;background:rgba(0,0,0,0.24);scrollbar-width:thin}
+.q-benchcol{flex:0 0 112px;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overflow-x:hidden;border:1px dashed var(--cl-border2);border-radius:6px;padding:6px 5px;background:rgba(0,0,0,0.24);scrollbar-width:thin}
 .q-benchcol::-webkit-scrollbar{width:4px}.q-benchcol::-webkit-scrollbar-thumb{background:rgba(160,176,202,0.3);border-radius:2px}
 .q-benchcol .bc-hd{font-size:9px;font-weight:700;letter-spacing:0.5px;color:var(--cl-silver);text-align:center;padding-bottom:3px;border-bottom:1px solid rgba(160,176,202,0.15);margin-bottom:2px;position:sticky;top:-6px;background:rgba(10,20,40,0.9);z-index:1}
-.q-benchcol .q-bench-chip{width:100%;box-sizing:border-box;display:flex;justify-content:space-between;gap:3px;padding:6px 6px;border-radius:6px;font-size:11px}
+.q-benchcol .q-bench-chip{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:4px;padding:6px 6px;border-radius:6px;font-size:11px}
 .q-benchcol .q-bench-chip .bc-c{font-size:9px;color:var(--cl-gold);font-weight:800;flex-shrink:0}
 .q-benchcol .bc-empty{font-size:9px;color:rgba(160,176,202,0.4);text-align:center;padding:10px 2px;line-height:1.5}
 /* 쿼터 탭 버튼 — 통일된 배율 */
@@ -2376,9 +2376,12 @@ function timePriorityOrder(names){
     a.localeCompare(b,'ko'));
 }
 // 기여도 우선순위 배열: ★수동지정 → 기여도순 (앞쪽=많이 뜀)
+//  · 자동배치 전용: 기여도가 최우선, 동점(같은 기여도)일 때만 랜덤 적용
 function computeBestFirst(order){
   const manual=(qFormation.priority||[]).filter(n=>order.includes(n));
-  const nonPrio=timePriorityOrder(order.filter(n=>!manual.includes(n)));
+  const rest=order.filter(n=>!manual.includes(n));
+  const sc={}; rest.forEach(n=>sc[n]=contribScore(n));
+  const nonPrio=rest.slice().sort((a,b)=> (sc[b]-sc[a]) || (Math.random()-0.5)); // 기여도↓, 동점=랜덤
   return [...manual, ...nonPrio];
 }
 // 최소 보장 쿼터 값 (기본 2)
@@ -2681,7 +2684,7 @@ function renderQView(){
     const p1=posPrefs(n)[0];
     const dpTag=p1?`<span class="bp"${hasDayPos(n)?' style="color:var(--cl-gold);opacity:1"':''}>${posLabel(p1)}</span>`:'';
     const c=Math.round(contribScore(n));
-    return `<div class="q-bench-chip" data-name="${escAttr(n)}" data-from="bench" style="${coach?'':'cursor:default'}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dpTag}${n}</span><span class="bc-c">${c}</span></div>`;
+    return `<div class="q-bench-chip" data-name="${escAttr(n)}" data-from="bench" style="${coach?'':'cursor:default'}"><span style="flex:1;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:break-word;line-height:1.2">${dpTag}${n}</span><span class="bc-c">${c}</span></div>`;
   }).join('');
 
   const info = pool.custom
@@ -3243,7 +3246,7 @@ window.autoRotate=function(){
   const minPlaySet=getMinPlaySet();
   const minPlayNames=[...minPlaySet].filter(n=>order.includes(n));
   const minQ=getMinQ();
-  const {q:qAssign, floorQ, cap}=meritQuarters(bestFirst, spots, qCnt, minQ, minPlaySet, true);
+  const {q:qAssign, floorQ, cap}=meritQuarters(bestFirst, spots, qCnt, minQ, minPlaySet, false);
   const threePlus = bestFirst.filter(n=>(qAssign[n]||0)>=3).length;
   const fourPlus = bestFirst.some(n=>(qAssign[n]||0)>=qCnt);
   const middleCap = Math.max(0,(qCnt-2))*(N-spots);
@@ -3251,7 +3254,7 @@ window.autoRotate=function(){
   const warnFloor = floorQ<minQ ? `\n⚠ 인원이 많아 최소 ${minQ}쿼터 보장 불가 → 최소 ${floorQ}쿼터로 배분` : '';
   const warnConsec = restEnforceable ? '' : `\n⚠ 인원이 부족해 일부 선수는 3쿼터 연속으로 뛸 수 있습니다`;
   const gkDesc = fixedGK ? `${fixedGK} (4쿼터 고정)` : '매 쿼터 랜덤';
-  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK: ${gkDesc}\n🕵 심판: ${refOn?'매 쿼터 랜덤(벤치)':'공석(상대팀/미배정)'}\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 순(확률)\n최대 연속 2쿼터 — 중간 1쿼터 휴식${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
+  if(!confirm(`${fname} · ${qCnt}쿼터 ${qMin}분\n🧤 GK: ${gkDesc}\n🕵 심판: ${refOn?'매 쿼터 랜덤(벤치)':'공석(상대팀/미배정)'}\n필드 ${N}명 · ★우선 ${manual.length}명 · 최소출전 ${minPlayNames.length}명\n최소 보장 ${floorQ}쿼터 · 남는 쿼터는 기여도 순(동점 랜덤)\n최대 연속 2쿼터 — 중간 1쿼터 휴식${warnFloor}${warnConsec}\n배치할까요? (현재 배치 덮어씀)`)) return;
 
   // 3연속 금지 스케줄 — 각 쿼터 on-field 스팟(GK 포함 시 spots) 채우기
   const {play, consec}=scheduleQuarters(qAssign, qCnt, spots, bestFirst);
@@ -3261,8 +3264,13 @@ window.autoRotate=function(){
     if(fixedGK){ gkThis=fixedGK; outfielders=play[qq].slice(); }
     else {
       const chosen=play[qq].slice();
-      const cand=chosen.filter(n=>!usedRole.has(n));           // 아직 GK/심판 안 한 사람 우선
-      gkThis = cand.length?rnd(cand):(chosen.length?rnd(chosen):'');
+      let cand=chosen.filter(n=>!usedRole.has(n));             // 아직 GK/심판 안 한 사람 우선
+      if(!cand.length) cand=chosen.slice();
+      // GK는 그 쿼터 배정 인원 중 '총 출전 쿼터가 많은' 선수 우선 →
+      //  최소출전(2쿼터)자가 GK로 필드 쿼터를 뺏기지 않도록 보호 (동점 랜덤)
+      const topQ=Math.max(...cand.map(n=>qAssign[n]||0));
+      const top=cand.filter(n=>(qAssign[n]||0)===topQ);
+      gkThis = top.length?rnd(top):(chosen.length?rnd(chosen):'');
       if(gkThis) usedRole.add(gkThis);
       outfielders=chosen.filter(n=>n!==gkThis);
     }
