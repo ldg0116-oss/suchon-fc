@@ -189,9 +189,12 @@ select option,select optgroup{background-color:#0f1a33;color:#f4f7ff}
 .q-jersey .nm{max-width:56px;font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,0.45);border-radius:3px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;letter-spacing:0.2px}
 .q-drag-clone{position:fixed;transform:translate(-50%,-50%);pointer-events:none;z-index:3000;opacity:0.92}
 /* 심판 마커 (피치 상단 사이드) */
-.q-refmark{position:absolute;top:6px;right:6px;z-index:4;display:flex;flex-direction:column;align-items:center;gap:1px;background:rgba(10,20,40,0.78);border:1px solid rgba(127,193,235,0.5);border-radius:6px;padding:3px 5px}
-.q-refmark .rf-badge{font-size:8px;font-weight:700;color:#ffd76b;letter-spacing:0.3px}
-.q-refmark .rf-nm{font-size:10px;font-weight:700;color:#fff;white-space:nowrap;max-width:72px;overflow:hidden;text-overflow:ellipsis}
+.q-refmark{position:absolute;top:6px;right:6px;z-index:4;background:rgba(10,20,40,0.78);border:1px solid rgba(127,193,235,0.5);border-radius:6px;padding:3px 6px;min-width:58px;text-align:center}
+.q-refmark .rf-badge{display:block;font-size:8px;font-weight:700;color:#7fc1eb;letter-spacing:0.3px}
+.q-refmark .rf-nm{font-size:10px;font-weight:700;color:#fff;white-space:nowrap;max-width:76px;overflow:hidden;text-overflow:ellipsis}
+.q-refchip{cursor:grab;touch-action:none}
+.q-refchip:active{cursor:grabbing}
+.q-refmark .rf-empty{font-size:9px;font-weight:700;color:rgba(160,176,202,0.7);line-height:1.35}
 /* 교체 선수 마커 (피치 위 표시 전용, 드래그 X) */
 .q-submark{position:absolute;transform:translate(-50%,-50%);z-index:1;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;opacity:0.96}
 .q-submark .sm-sh{position:relative;width:28px;height:27px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.45))}
@@ -2663,12 +2666,13 @@ function renderQView(){
       <div class="sm-nm">🔄 ${s.in}</div><div class="sm-tag">${s.out}↔${mn}'</div>
     </div>`;
   }).join('');
-  // 심판 마커 (피치 상단 사이드 · 자동배치 랜덤 지정) — 표시 전용
-  // 심판 마커 — 관리자는 드롭다운으로 변경/공석, 팀원은 표시만
+  // 심판 마커 — 관리자는 드래그앤드롭(선수 끌어다 놓으면 심판 · 심판을 밖으로 빼면 공석), 팀원은 표시만
   let refMark='';
   if(coach){
-    const opts=['<option value="">🕵 심판: 공석</option>'].concat(pool.names.map(n=>`<option value="${escAttr(n)}" ${n===referee?'selected':''}>🕵 ${n}</option>`)).join('');
-    refMark=`<div class="q-refmark"><select onchange="setQRef(${q},this.value)" title="이 쿼터 심판 지정/공석" style="margin:0;padding:2px 4px;font-size:10px;background-color:#0f1a33;color:${referee?'#7fc1eb':'var(--cl-silver)'};border:1px solid ${referee?'#7fc1eb':'var(--cl-border2)'};border-radius:5px;max-width:96px">${opts}</select></div>`;
+    const inner = referee
+      ? `<div class="q-refchip" data-name="${escAttr(referee)}" data-from="ref" title="밖으로 드래그하면 공석"><span class="rf-badge">🕵 심판</span><span class="rf-nm">${referee}</span></div>`
+      : `<div class="rf-empty">🕵 심판<br>공석<br><span style="font-size:7px;opacity:0.7">선수 끌어다 놓기</span></div>`;
+    refMark=`<div class="q-refmark" id="q-refzone">${inner}</div>`;
   } else if(referee){
     refMark=`<div class="q-refmark" style="pointer-events:none"><span class="rf-badge">🕵 심판</span><span class="rf-nm">${referee}</span></div>`;
   }
@@ -2773,7 +2777,7 @@ function qEndListeners(add){
 }
 function qPointerDown(e){
   if(!isCoach()) return;
-  const el=e.target.closest('.q-jersey,.q-bench-chip');
+  const el=e.target.closest('.q-jersey,.q-bench-chip,.q-refchip');
   if(!el) return;
   e.preventDefault();
   const clone=el.cloneNode(true);
@@ -2804,7 +2808,28 @@ function qPointerUp(e){
     openQGoalEntry(nm,currentQTab);
     return;
   }
+  // ── 심판 드롭존 우선 판정 ──
+  const rz=document.getElementById('q-refzone');
+  let inRef=false;
+  if(rz){ const rr=rz.getBoundingClientRect(); inRef = e.clientX>=rr.left&&e.clientX<=rr.right&&e.clientY>=rr.top&&e.clientY<=rr.bottom; }
+  const cur=qFormation['q'+currentQTab]||(qFormation['q'+currentQTab]={field:[],subs:[]});
+  if(qDrag.from==='ref'){
+    // 심판 칩 드래그 — 심판존 안이면 유지, 밖이면 공석
+    qUndoPush(); if(!inRef) cur.ref='';
+    qDrag.clone.remove(); qDrag=null; qEndListeners(false); renderQView(); return;
+  }
+  if(inRef){
+    // 선수를 심판으로 지정 (필드/교체에서 제거)
+    qUndoPush();
+    if(idx>=0) field.splice(idx,1);
+    (cur.subs||[]).forEach((s,i)=>{ if(s.in===qDrag.name){ cur.subs.splice(i,1); } });
+    cur.ref=qDrag.name;
+    qValidateSubs(cur);
+    qDrag.clone.remove(); qDrag=null; qEndListeners(false); renderQView(); return;
+  }
   qUndoPush(); // 배치 변경 전 스냅샷 (되돌리기용)
+  // 심판이던 선수를 필드/벤치로 옮기면 심판 해제
+  if(cur.ref===qDrag.name) cur.ref='';
   if(inside){
     let x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
     x=Math.min(0.95,Math.max(0.05,x)); y=Math.min(0.95,Math.max(0.05,y));
@@ -3246,13 +3271,12 @@ window.autoRotate=function(){
     const field=[];
     if(gkThis) field.push({n:gkThis,x:GK_COORD.x,y:GK_COORD.y});
     field.push(...placed);
-    // 심판: 이 쿼터 벤치(미출전) 중 아직 GK/심판 안 한 사람에서 랜덤 · 없으면 공석
+    // 심판: 이 쿼터 벤치(미출전) 중 아직 GK/심판 안 한 사람에서만 랜덤 · 없으면 공석(재사용 금지)
     let ref='';
     if(refOn){
       const onF=new Set(field.map(f=>f.n));
-      let bench=pool.filter(n=>!onF.has(n) && !usedRole.has(n));
-      if(!bench.length) bench=pool.filter(n=>!onF.has(n) && n!==fixedGK); // 대체(그래도 없으면 공석)
-      ref = bench.length?rnd(bench):'';
+      const bench=pool.filter(n=>!onF.has(n) && !usedRole.has(n));
+      ref = bench.length?rnd(bench):'';   // 새 인물 없으면 공석 (34쿼터 동일 방지)
       if(ref) usedRole.add(ref);
     }
     qFormation['q'+qq]={field,subs:[],ref};
@@ -3505,50 +3529,58 @@ function renderPlayTime(totalMin,qCnt,poolNames){
   const qMin=Math.floor(totalMin/(qCnt||4));
   const half=Math.round(qMin/2);
   const active=[1,2,3,4].slice(0,qCnt||4);
-  const fieldMin={}, gkMin={}, refMin={}, qcount={};   // 일반 필드 / GK / 심판 시간 구분
-  (poolNames||[]).forEach(n=>{ fieldMin[n]=0; qcount[n]=0; });
-  const add=(o,n,d)=>{ if(n){ o[n]=(o[n]||0)+d; } };
+  const fieldMin={}, fieldQ={}, gk={}, refr={};   // 필드(아웃필드)만 / GK{분,q} / 심판{분,q} 별도
+  (poolNames||[]).forEach(n=>{ fieldMin[n]=0; fieldQ[n]=0; });
   active.forEach(q=>{
     const fArr=getQField(q);
     const gkThis=(fArr.find(f=>f.y>=0.85)||{}).n;        // 이 쿼터 GK (골 위치)
     const {mins,seen}=quarterPlayMins(fArr, getQSubs(q), qMin);
-    Object.keys(mins).forEach(n=>{ if(n===gkThis) add(gkMin,n,mins[n]); else add(fieldMin,n,mins[n]); });
-    seen.forEach(n=>{ qcount[n]=(qcount[n]||0)+1; });
-    const ref=getQRef(q);
-    if(ref){ add(refMin,ref,qMin); qcount[ref]=(qcount[ref]||0)+1; }
+    Object.keys(mins).forEach(n=>{
+      if(n===gkThis){ if(!gk[n])gk[n]={m:0,q:0}; gk[n].m+=mins[n]; gk[n].q++; }
+      else { fieldMin[n]=(fieldMin[n]||0)+mins[n]; }
+    });
+    seen.forEach(n=>{ if(n!==gkThis) fieldQ[n]=(fieldQ[n]||0)+1; });
+    const rf=getQRef(q);
+    if(rf){ if(!refr[rf])refr[rf]={m:0,q:0}; refr[rf].m+=qMin; refr[rf].q++; }
   });
-  const allNames=new Set([...Object.keys(fieldMin),...Object.keys(gkMin),...Object.keys(refMin)]);
   const pt=document.getElementById('q-playtime');
-  if(!allNames.size){ pt.innerHTML='<div style="font-size:11px;color:rgba(160,176,202,0.35);text-align:center;padding:16px;letter-spacing:0.5px">참석자를 배치하면 출전 시간이 표시됩니다</div>'; return; }
-  const rows=[...allNames].map(n=>{ const f=fieldMin[n]||0,g=gkMin[n]||0,r=refMin[n]||0; return {n,f,g,r,play:f+g,total:f+g+r,q:qcount[n]||0}; })
-    .sort((a,b)=>b.total-a.total||a.n.localeCompare(b.n,'ko'));
-  const maxMin=Math.max(1,...rows.map(s=>s.total));
-  // 로테이션 편차 = 일반 필드 시간 기준(GK·심판 제외)
-  const rot=rows.filter(s=>s.f>0).map(s=>s.f);
+  const fieldNames=Object.keys(fieldMin).filter(n=>fieldMin[n]>0);
+  const gkNames=Object.keys(gk), refNames=Object.keys(refr);
+  if(!fieldNames.length && !gkNames.length && !refNames.length){ pt.innerHTML='<div style="font-size:11px;color:rgba(160,176,202,0.35);text-align:center;padding:16px;letter-spacing:0.5px">참석자를 배치하면 출전 시간이 표시됩니다</div>'; return; }
+  // ── 필드 플레이타임 (아웃필드만) ──
+  const rows=fieldNames.map(n=>({n,min:fieldMin[n],q:fieldQ[n]||0})).sort((a,b)=>b.min-a.min||a.n.localeCompare(b.n,'ko'));
+  const maxMin=Math.max(1,...rows.map(s=>s.min));
+  const rot=rows.map(s=>s.min);
   const balance=rot.length?Math.max(...rot)-Math.min(...rot):0;
-  pt.innerHTML=`
+  let html=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--cl-border2)">
-      <div style="font-family:var(--font-display);font-size:12px;letter-spacing:2.5px;color:var(--cl-silver)">PLAY TIME · 전체 ${rows.length}명</div>
+      <div style="font-family:var(--font-display);font-size:12px;letter-spacing:2.5px;color:var(--cl-silver)">PLAY TIME · 필드 ${rows.length}명</div>
       <div style="font-size:10px;color:${balance<=half?'#4cd983':balance<=qMin?'var(--cl-gold)':'#ff8080'};font-weight:700;letter-spacing:0.5px">필드 편차 ${balance}분</div>
     </div>
-    <div style="font-size:9px;color:rgba(160,176,202,0.55);margin-bottom:8px">🟡 필드 · <span style="color:#7fc1eb">🧤 GK</span> · <span style="color:#7fc1eb">🕵 심판</span> 시간 구분 표시</div>
-    ${rows.map(s=>{
-      const fieldW=Math.round(s.f/maxMin*100), gkW=Math.round(s.g/maxMin*100), refW=Math.round(s.r/maxMin*100);
-      const badges=[s.g>0?`<span style="color:#7fc1eb;font-weight:700">🧤${s.g}분</span>`:'',s.r>0?`<span style="color:#7fc1eb;font-weight:700">🕵${s.r}분</span>`:''].filter(Boolean).join(' ');
-      const zero=s.total===0;
-      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.06);${zero?'opacity:0.75':''}">
-        <div style="font-size:12px;font-weight:700;color:${zero?'#ff8080':'var(--cl-white)'};min-width:56px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.n}</div>
+    ${rows.length?rows.map(s=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(212,175,55,0.06)">
+        <div style="font-size:12px;font-weight:700;color:var(--cl-white);min-width:56px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.n}</div>
         <div style="font-size:9px;color:var(--cl-silver);min-width:24px">${s.q}Q</div>
-        <div style="flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;display:flex">
-          <div style="height:100%;width:${fieldW}%;background:linear-gradient(90deg,var(--cl-gold),rgba(212,175,55,0.5))"></div>
-          <div style="height:100%;width:${gkW}%;background:#7fc1eb"></div>
-          <div style="height:100%;width:${refW}%;background:#7fc1eb"></div>
+        <div style="flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(s.min/maxMin*100)}%;background:linear-gradient(90deg,var(--cl-gold),rgba(212,175,55,0.5));border-radius:3px"></div>
         </div>
-        <div style="min-width:78px;text-align:right;font-size:10px">
-          <div style="color:${zero?'#ff8080':'var(--cl-gold)'};font-weight:700;font-family:var(--font-display);letter-spacing:0.5px">${s.play>0?s.play+'분':(s.r>0?'-':'0분')}</div>
-          ${badges?`<div style="font-size:8px;line-height:1.3">${badges}</div>`:''}
-        </div>
-      </div>`;}).join('')}`;
+        <div style="font-size:11px;color:var(--cl-gold);font-weight:700;min-width:36px;text-align:right;font-family:var(--font-display);letter-spacing:1px">${s.min}분</div>
+      </div>`).join(''):'<div style="font-size:10px;color:rgba(160,176,202,0.4);padding:8px 0">필드 출전 기록 없음</div>'}`;
+  // ── GK · 심판 시간 (별도) ──
+  if(gkNames.length || refNames.length){
+    const chip=(icon,name,d)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(127,193,235,0.1)">
+        <span style="font-size:12px;flex-shrink:0">${icon}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--cl-white);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</span>
+        <span style="font-size:10px;color:#7fc1eb;font-weight:700">${d.q}Q · ${d.m}분</span>
+      </div>`;
+    html+=`<div style="margin-top:14px;padding-top:10px;border-top:1px dashed rgba(127,193,235,0.35)">
+      <div style="font-family:var(--font-display);font-size:11px;letter-spacing:2px;color:#7fc1eb;margin-bottom:6px">GK · 심판 시간 (별도)</div>
+      ${gkNames.sort().map(n=>chip('🧤',n,gk[n])).join('')}
+      ${refNames.sort().map(n=>chip('🕵',n,refr[n])).join('')}
+      ${(!gkNames.length&&!refNames.length)?'<div style="font-size:10px;color:rgba(160,176,202,0.4)">없음</div>':''}
+    </div>`;
+  }
+  pt.innerHTML=html;
 }
 
 window.closeQModal=function(){ const m=document.getElementById('q-player-modal'); if(m) m.style.display='none'; };
