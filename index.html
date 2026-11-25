@@ -5,6 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>수촌 FC</title>
 <meta name="theme-color" content="#000000">
+<meta name="description" content="수촌 FC 팀 앱 · 일정·참석 투표·경기 기록·회비">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="수촌 FC">
+<meta property="og:title" content="수촌 FC ⚽ 팀 앱">
+<meta property="og:description" content="일정 · 참석 투표 · 경기 기록 · 회비 — 눌러서 바로 입장">
+<meta property="og:url" content="https://suchon-bcec9.web.app/">
+<meta property="og:image" content="https://suchon-bcec9.web.app/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="수촌 FC">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>
+// 카카오톡 안에서 열리면 → 휴대폰 기본 브라우저(크롬/사파리)로 바로 열기
+(function(){
+  try{
+    var ua=navigator.userAgent||'';
+    if(/KAKAOTALK/i.test(ua) && location.search.indexOf('inapp=1')<0){
+      location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(location.href);
+    }
+  }catch(e){}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
@@ -795,6 +822,23 @@ textarea{width:100%;padding:12px;font:14px/1.6 var(--font-body);color:#fff;resiz
   </div>
 </div>
 
+<!-- 미납 카톡 공지 -->
+<div id="dues-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:999;align-items:flex-end;justify-content:center">
+  <div class="edit-sheet" style="max-height:90vh;overflow-y:auto">
+    <div class="edit-sheet-title"><span>미납자 카톡 공지</span><button onclick="closeDuesNotice()" class="bsm" style="background:#1c1d24;color:#a3a5b0">닫기</button></div>
+    <div id="dues-sum" style="font-size:13px;color:#a3a5b0;margin:-6px 0 10px"></div>
+    <label>입금 계좌 (한 번 입력하면 기억)</label>
+    <input id="dues-acct" placeholder="예) 카카오뱅크 3333-00-0000000 이동근" oninput="saveDuesAcct();buildDuesText()">
+    <label style="margin-top:10px">공지 내용 (수정 가능)</label>
+    <textarea id="dues-txt" rows="14"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-gold" style="margin:0;flex:1" onclick="copyDuesText()">복사하기</button>
+      <button class="btn" style="margin:0;flex:1;background:#fee500;color:#191919" onclick="shareDuesText()">카톡 보내기</button>
+    </div>
+    <div style="font-size:11.5px;color:#71727c;margin-top:8px;text-align:center">복사 후 단톡방에 붙여넣기 · 휴대폰은 '카톡 보내기'로 바로 공유</div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- APP -->
@@ -905,6 +949,7 @@ textarea{width:100%;padding:12px;font:14px/1.6 var(--font-body);color:#fff;resiz
         <div class="ct" style="margin-bottom:0">회비 현황</div>
         <div style="font-size:10px;color:var(--cl-silver);letter-spacing:1px;text-align:right">필드 월 20,000원 · GK 월 10,000원</div>
       </div>
+      <button id="dues-notice-btn" class="btn btn-gold" style="display:none;margin:0 0 14px" onclick="openDuesNotice()">📢 미납자 카톡 공지 만들기</button>
       <div id="fee-list"></div>
     </div>
   </div>
@@ -1652,6 +1697,7 @@ function updateNameBanner(){
     const lateForm=document.getElementById('late-admin-form');
     if(lateForm) lateForm.style.display='none';
   }
+  const dnb=document.getElementById('dues-notice-btn'); if(dnb) dnb.style.display=isAdmin()?'block':'none';
   if(typeof renderHomeHero==='function') renderHomeHero();
   if(typeof maybePromptPos==='function') maybePromptPos();
 }
@@ -2035,6 +2081,7 @@ function maybeShowOverdue(){
 function runOverdueCheck(){
   if(overdueShown || !appReady || !myName) return;
   // 등록된 회원이 아닐 수 있음(관리자 임의 이름 등) — 회원일 때만
+  if(!members.some(m=>m.name===myName)) return;   // admin 등 비회원은 팝업 없음
   overdueShown=true;
   const months=overdueMonths(myName);
   const feeAmt=months.length*monthFee(myName);
@@ -4903,6 +4950,60 @@ function maybePromptPos(){
   _posAsked=true;
   setTimeout(()=>{ if(document.getElementById('overdue-modal')?.style.display==='flex'){ _posAsked=false; try{sessionStorage.removeItem(k);}catch(e){} return; } openPosPicker(true); },900);
 }
+
+
+// ════════ 미납자 카톡 공지 (관리자) ════════
+function duesList(){
+  const now=new Date(); const curM=now.getFullYear()===2026?now.getMonth()+1:12;
+  return members.map(m=>{
+    let months=[]; try{ months=overdueMonths(m.name)||[]; }catch(e){}
+    const fee=months.length*monthFee(m.name);
+    let lt={total:0,cnt:0}; try{ lt=lateOwed(m.name)||lt; }catch(e){}
+    return {name:m.name,months,fee,late:lt.total,lateCnt:lt.cnt,total:fee+lt.total,dormant:!!m.dormant};
+  }).filter(x=>x.total>0).sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'ko'));
+}
+function monthsTxt(ms){
+  if(!ms.length) return '';
+  // 연속 구간은 묶어서: 1~3월, 5월
+  const out=[]; let st=ms[0], pv=ms[0];
+  for(let i=1;i<=ms.length;i++){ const v=ms[i]; if(v===pv+1){ pv=v; continue; } out.push(st===pv?`${st}월`:`${st}~${pv}월`); st=pv=v; }
+  return out.join(', ');
+}
+window.buildDuesText=function(){
+  const L=duesList(); const now=new Date(); const m=now.getMonth()+1;
+  const acct=(document.getElementById('dues-acct')?.value||'').trim();
+  const sum=L.reduce((a,x)=>a+x.total,0);
+  document.getElementById('dues-sum').innerHTML=L.length?`미납 <b style="color:#fff">${L.length}명</b> · 합계 <b style="color:#ff8a96">${sum.toLocaleString()}원</b>`:'미납자가 없습니다 🎉';
+  let t=`💰 [수촌 FC 회비 안내]\n${m}월 기준 미납 현황입니다.\n\n`;
+  if(!L.length) t+='모두 완납! 감사합니다 🙏\n';
+  L.forEach(x=>{
+    const parts=[];
+    if(x.months.length) parts.push(`회비 ${monthsTxt(x.months)}`);
+    if(x.late) parts.push(`지각 ${x.lateCnt}건`);
+    t+=`· ${x.name} — ${parts.join(' + ')} : ${x.total.toLocaleString()}원\n`;
+  });
+  t+=`\n월 회비 2만원 (GK·휴면 1만원)\n`;
+  if(acct) t+=`💳 ${acct}\n`;
+  t+=`\n입금 후 말씀 주시면 앱에 바로 반영할게요.\n앱 회비 탭에서도 확인 가능합니다 🙏`;
+  document.getElementById('dues-txt').value=t;
+};
+window.saveDuesAcct=function(){ try{ localStorage.setItem('suchon_dues_acct',document.getElementById('dues-acct').value); }catch(e){} };
+window.openDuesNotice=function(){
+  if(!isAdmin()){ toast('관리자만 사용할 수 있습니다'); return; }
+  const a=document.getElementById('dues-acct'); try{ a.value=localStorage.getItem('suchon_dues_acct')||''; }catch(e){}
+  buildDuesText(); document.getElementById('dues-modal').style.display='flex';
+};
+window.closeDuesNotice=function(){ document.getElementById('dues-modal').style.display='none'; };
+window.copyDuesText=async function(){
+  const ta=document.getElementById('dues-txt'); const t=ta.value;
+  try{ await navigator.clipboard.writeText(t); }catch(e){ ta.select(); try{ document.execCommand('copy'); }catch(_){} }
+  toast('복사했어요 · 단톡방에 붙여넣기 하세요');
+};
+window.shareDuesText=async function(){
+  const t=document.getElementById('dues-txt').value;
+  if(navigator.share){ try{ await navigator.share({text:t}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+  copyDuesText();
+};
 
 // ════════ 상대팀 정보 (관리자 전용) ════════
 let opponents={}; let opOpen=null; let opEdit=null;
