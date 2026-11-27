@@ -554,6 +554,14 @@ details.comment-wrap[open] .cm-sum{margin-bottom:10px}
 .pp:disabled{opacity:0.35}
 .pp.on{background:#fff;color:#000;border-color:#fff}
 .pp i{position:absolute;top:-7px;right:-5px;width:20px;height:20px;border-radius:50%;background:#e01d33;color:#fff;font:800 11px/20px 'Inter',sans-serif;font-style:normal}
+.op-hist{margin-top:12px;border-top:1px solid rgba(255,255,255,0.07);padding-top:10px}
+.op-hist-h{font-size:12px;color:#a3a5b0;margin-bottom:6px;font-weight:600}
+.op-hist-row{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;cursor:pointer}
+.op-hist-row:last-child{border-bottom:none}
+.op-hist-row .d{color:#8b8c96;font:600 12px 'Inter',var(--font-body);flex:0 0 58px}
+.op-hist-row b{flex:0 0 62px;font-weight:700}
+.op-hist-row .s{flex:1;min-width:0;color:#cfd0d6;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.op-hist-row .go{color:#55565e}
 .op-mini{background:#121318;border:1px solid rgba(111,128,255,0.25);border-radius:20px;padding:14px;margin-bottom:12px}
 .h-two>div:first-child{flex:1.4}
 .h-me-rec{font-size:11.5px;color:#a3a5b0;margin-top:3px}.h-me-rec b{color:#3ddc84}
@@ -1455,6 +1463,7 @@ function startListeners(){
       renderMembers(); // 경기 기록 변경 → 선수탭 스탯 자동 갱신
       renderStats();   // 통계 탭도 항상 갱신 (탭 보임 여부 무관)
       renderSchedule(); // 마감/마감취소 → 일정 카드 상태 즉시 반영
+      if(document.getElementById('s-opp')?.classList.contains('on')) renderOpp();   // 경기 기록 변경 → 상대팀 전적 즉시 반영
       // 경기 기록이 바뀌면 쿼터 탭(피치 골·어시 배지·출전 명단)도 즉시 반영
       if(document.getElementById('s-quarter')?.classList.contains('on')) renderQView();
       renderQGameSelect();
@@ -5214,7 +5223,26 @@ function opRecord(name){
   const k=opNorm(name); if(!k) return {w:0,d:0,l:0,list:[]};
   const list=games.filter(g=>{ const o=opNorm(g.opp); return o && (o===k || (k.length>=2 && (o.includes(k)||k.includes(o)))); });
   const w=list.filter(g=>(g.our||0)>(g.them||0)).length, d=list.filter(g=>(g.our||0)===(g.them||0)).length;
-  return {w,d,l:list.length-w-d,list};
+  const gf=list.reduce((a,g)=>a+(g.our||0),0), ga=list.reduce((a,g)=>a+(g.them||0),0);
+  return {w,d,l:list.length-w-d,list,gf,ga};
+}
+// 경기 기록에서 자동으로 뽑은 상대 전적 목록 (경기 탭 기록이 바뀌면 그대로 따라감)
+function opHistoryHtml(r){
+  if(!r.list.length) return '<div style="font-size:12.5px;color:#71727c;margin-top:10px">아직 맞붙은 경기 기록이 없어요</div>';
+  return `<div class="op-hist"><div class="op-hist-h">경기 기록 ${r.list.length}경기 · ${r.gf}득점 ${r.ga}실점</div>${r.list.map(g=>{
+    const o=g.our||0,t=g.them||0; const res=o>t?'승':o<t?'패':'무'; const cls=o>t?'c-w':o<t?'c-l':'c-d';
+    const sc=Object.entries(g.players||{}).filter(([n,p])=>p&&(p.goals||0)>0).sort((a,b)=>b[1].goals-a[1].goals).map(([n,p])=>n+(p.goals>1?' '+p.goals:'')).join(', ');
+    return `<div class="op-hist-row" onclick="goTab('match');selectGame('${g.id}')"><span class="d">${hEsc(String(g.date||'').slice(2).replace(/-/g,'.'))}</span><b class="${cls}">${o}:${t} ${res}</b><span class="s">${sc?'⚽ '+hEsc(sc):(g.field?hEsc(g.field):'')}</span><span class="go">›</span></div>`;
+  }).join('')}</div>`;
+}
+// 등록 안 됐지만 경기 기록에 있는 상대팀
+function opUnregistered(){
+  const reg=Object.values(opponents).map(o=>opNorm(o.name)).filter(Boolean);
+  const seen={};
+  games.forEach(g=>{ const k=opNorm(g.opp); if(!k||k==='미정') return;
+    if(reg.some(r=>r===k||(r.length>=2&&k.length>=2&&(r.includes(k)||k.includes(r))))) return;
+    if(!seen[k]) seen[k]=g.opp; });
+  return Object.entries(seen).map(([k,name])=>({k,name}));
 }
 function opPhone(p){ return String(p||'').replace(/[^0-9]/g,''); }
 const TIER={상:'background:rgba(255,70,89,.18);color:#ff8a96',중:'background:rgba(111,128,255,.2);color:#b4bdff',하:'background:rgba(61,220,132,.16);color:#7fe6aa'};
@@ -5239,18 +5267,29 @@ window.renderOpp=function(){
           ${ph?`<div style="font:600 20px Inter,var(--font-body);letter-spacing:.3px;margin:0 2px 10px">${hEsc(o.phone)}</div>
           <div class="op-call"><a href="tel:${ph}" style="background:#fff;color:#000">전화</a><a href="sms:${ph}" style="background:#1c1d24;color:#fff;border:1px solid rgba(255,255,255,.1)">문자</a></div>`:'<div style="color:#888;font-size:13px;margin-bottom:10px">연락처 없음</div>'}
           <div class="op-kv">
-            <span>상대전적</span><span>${games_?`${r.w}승 ${r.d}무 ${r.l}패${last?` · 최근 ${last.our||0}:${last.them||0} (${mdw(last.date)})`:''}`:'기록 없음'}</span>
+            <span>상대전적</span><span>${games_?`${r.w}승 ${r.d}무 ${r.l}패 · 승률 ${Math.round(r.w/games_*100)}%`:'기록 없음'}</span>
             <span>전력</span><span>${o.tier||'—'}</span>
             <span>구장</span><span>${hEsc(o.field)||'—'}</span>
             <span>유니폼</span><span>${hEsc(o.uniform)||'—'}</span>
             <span>메모</span><span style="white-space:pre-wrap">${hEsc(o.memo)||'—'}</span>
           </div>
+          ${opHistoryHtml(r)}
           <div style="display:flex;gap:8px;margin-top:12px"><button class="bsm" style="flex:1;padding:10px;background:#1c1d24;color:#fff;border:1px solid rgba(255,255,255,.1)" onclick="opStartEdit('${o.id}')">수정</button></div>
         </div>`;
       }
     }
-    return `<div class="op-item ${open?'open':''}"><div class="op-row" onclick="opToggle('${o.id}')"><div class="op-dot">${hEsc(opNorm(o.name).slice(0,1).toUpperCase()||'?')}</div><div class="nm">${hEsc(o.name)}${tier}</div><div class="rec">${games_?`${r.w}승 ${r.d}무 ${r.l}패`:''}</div></div>${body}</div>`;
+    return `<div class="op-item ${open?'open':''}"><div class="op-row" onclick="opToggle('${o.id}')"><div class="op-dot">${hEsc(opNorm(o.name).slice(0,1).toUpperCase()||'?')}</div><div class="nm">${hEsc(o.name)}${tier}</div><div class="rec">${games_?`${r.list[0]?mdw(r.list[0].date).replace(/ \(.\)/,'')+' · ':''}${r.w}승 ${r.d}무 ${r.l}패`:''}</div></div>${body}</div>`;
   }).join('');
+  // 경기 기록에는 있는데 아직 등록 안 된 팀 → 전적은 자동으로 보여주고 등록만 유도
+  const un=opUnregistered().filter(u=>!q||u.k.includes(q)).map(u=>({...u,r:opRecord(u.name)})).sort((a,b)=>String(b.r.list[0]?.date||'').localeCompare(String(a.r.list[0]?.date||'')));
+  if(un.length){
+    if(!arr.length) el.innerHTML='';
+    el.innerHTML+=`<div style="font-size:12px;color:#8b8c96;margin:16px 4px 8px">경기 기록에만 있는 팀 ${un.length} · 전적은 자동 집계</div>`+un.map(u=>{
+      const id='g:'+u.k; const open=opOpen===id; const r=u.r; const n=r.w+r.d+r.l;
+      return `<div class="op-item ${open?'open':''}" style="border-style:dashed"><div class="op-row" onclick="opToggle('${id}')"><div class="op-dot" style="color:#8b8c96">${hEsc(u.k.slice(0,1).toUpperCase())}</div><div class="nm">${hEsc(u.name)}</div><div class="rec">${r.list[0]?mdw(r.list[0].date).replace(/ \(.\)/,'')+' · ':''}${r.w}승 ${r.d}무 ${r.l}패</div></div>
+        ${open?`<div class="op-body">${opHistoryHtml(r)}<div style="display:flex;gap:8px;margin-top:12px"><button class="bsm" style="flex:1;padding:10px;background:#fff;color:#000" onclick="opGoNew('${escAttr(u.name).replace(/'/g,"\\'")}')">＋ 연락처·메모 등록</button></div></div>`:''}</div>`;
+    }).join('');
+  }
   const adm=document.getElementById('op-admin');
   adm.innerHTML=`<div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn btn-gold" style="margin:0;flex:1" onclick="opStartEdit('__new')">＋ 팀 추가</button>
