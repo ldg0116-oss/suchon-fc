@@ -1545,6 +1545,10 @@ function startListeners(){
     if(appReady&&currentRecordGid) renderGameDetail();
     if(appReady&&document.getElementById('s-opp')?.classList.contains('on')) renderOpp();
   });
+  onValue(ref(db,'suchon/oppHidden'),snap=>{
+    oppHidden=snap.val()||{};
+    if(appReady&&document.getElementById('s-opp')?.classList.contains('on')) renderOpp();
+  });
   onValue(ref(db,'suchon/rules'),snap=>{
     rulesData=snap.val()||{};
     if(appReady&&document.getElementById('s-rules')?.classList.contains('on')&&!rulesEditing) renderRules();
@@ -5219,9 +5223,11 @@ window.shareDuesText=async function(){
 // ════════ 상대팀 정보 (관리자 전용) ════════
 let opponents={}; let opOpen=null; let opEdit=null;
 function opNorm(n){ return String(n||'').toLowerCase().replace(/f\.?c\.?/g,'').replace(/[^0-9a-z가-힣]/g,''); }
+let oppHidden={};   // 상대팀 목록에서 지운 이름(정규화 키) — 경기 기록은 그대로 두고 목록에서만 숨김
+function opMatch(k,opp){ const o=opNorm(opp); return !!(k&&o&&(o===k||(k.length>=2&&o.length>=2&&(o.includes(k)||k.includes(o))))); }
 function opRecord(name){
   const k=opNorm(name); if(!k) return {w:0,d:0,l:0,list:[]};
-  const list=games.filter(g=>{ const o=opNorm(g.opp); return o && (o===k || (k.length>=2 && (o.includes(k)||k.includes(o)))); });
+  const list=games.filter(g=>opMatch(k,g.opp));
   const w=list.filter(g=>(g.our||0)>(g.them||0)).length, d=list.filter(g=>(g.our||0)===(g.them||0)).length;
   const gf=list.reduce((a,g)=>a+(g.our||0),0), ga=list.reduce((a,g)=>a+(g.them||0),0);
   return {w,d,l:list.length-w-d,list,gf,ga};
@@ -5239,7 +5245,7 @@ function opHistoryHtml(r){
 function opUnregistered(){
   const reg=Object.values(opponents).map(o=>opNorm(o.name)).filter(Boolean);
   const seen={};
-  games.forEach(g=>{ const k=opNorm(g.opp); if(!k||k==='미정') return;
+  games.forEach(g=>{ const k=opNorm(g.opp); if(!k||k==='미정'||oppHidden[k]) return;
     if(reg.some(r=>r===k||(r.length>=2&&k.length>=2&&(r.includes(k)||k.includes(r))))) return;
     if(!seen[k]) seen[k]=g.opp; });
   return Object.entries(seen).map(([k,name])=>({k,name}));
@@ -5274,7 +5280,7 @@ window.renderOpp=function(){
             <span>메모</span><span style="white-space:pre-wrap">${hEsc(o.memo)||'—'}</span>
           </div>
           ${opHistoryHtml(r)}
-          <div style="display:flex;gap:8px;margin-top:12px"><button class="bsm" style="flex:1;padding:10px;background:#1c1d24;color:#fff;border:1px solid rgba(255,255,255,.1)" onclick="opStartEdit('${o.id}')">수정</button></div>
+          <div style="display:flex;gap:8px;margin-top:12px"><button class="bsm" style="flex:3;padding:10px;background:#1c1d24;color:#fff;border:1px solid rgba(255,255,255,.1)" onclick="opStartEdit('${o.id}')">이름·정보 수정</button><button class="bsm" style="flex:1;padding:10px;background:rgba(255,70,89,.14);color:#ff8a96" onclick="opDelete('${o.id}')">삭제</button></div>
         </div>`;
       }
     }
@@ -5287,7 +5293,9 @@ window.renderOpp=function(){
     el.innerHTML+=`<div style="font-size:12px;color:#8b8c96;margin:16px 4px 8px">경기 기록에만 있는 팀 ${un.length} · 전적은 자동 집계</div>`+un.map(u=>{
       const id='g:'+u.k; const open=opOpen===id; const r=u.r; const n=r.w+r.d+r.l;
       return `<div class="op-item ${open?'open':''}" style="border-style:dashed"><div class="op-row" onclick="opToggle('${id}')"><div class="op-dot" style="color:#8b8c96">${hEsc(u.k.slice(0,1).toUpperCase())}</div><div class="nm">${hEsc(u.name)}</div><div class="rec">${r.list[0]?mdw(r.list[0].date).replace(/ \(.\)/,'')+' · ':''}${r.w}승 ${r.d}무 ${r.l}패</div></div>
-        ${open?`<div class="op-body">${opHistoryHtml(r)}<div style="display:flex;gap:8px;margin-top:12px"><button class="bsm" style="flex:1;padding:10px;background:#fff;color:#000" onclick="opGoNew('${escAttr(u.name).replace(/'/g,"\\'")}')">＋ 연락처·메모 등록</button></div></div>`:''}</div>`;
+        ${open?`<div class="op-body">${opRen===u.k?`<label>팀 이름 수정 <span style="font-weight:400;color:#8b8c96">(이미 있는 팀 이름으로 바꾸면 그 팀으로 합쳐져요)</span></label><input id="op-ren-in" value="${escAttr(u.name)}" list="opp-dl" autocomplete="off" onkeydown="if(event.key==='Enter')opRenSave('${u.k}')">
+          <div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-gold" style="margin:0;flex:2" onclick="opRenSave('${u.k}')">저장</button><button class="btn btn-outline" style="margin:0;flex:1" onclick="opRenCancel()">취소</button></div>`
+          :`${opHistoryHtml(r)}<div style="display:flex;gap:8px;margin-top:12px"><button class="bsm" style="flex:2;padding:10px;background:#fff;color:#000" onclick="opGoNew('${escAttr(u.name).replace(/'/g,"\\'")}')">＋ 연락처 등록</button><button class="bsm" style="flex:1.4;padding:10px;background:#1c1d24;color:#fff;border:1px solid rgba(255,255,255,.1)" onclick="opRenStart('${u.k}')">이름 수정</button><button class="bsm" style="flex:1;padding:10px;background:rgba(255,70,89,.14);color:#ff8a96" onclick="opHide('${u.k}','${escAttr(u.name).replace(/'/g,"\\'")}')">삭제</button></div>`}</div>`:''}</div>`;
     }).join('');
   }
   const adm=document.getElementById('op-admin');
@@ -5315,30 +5323,90 @@ function opFormHtml(o){
     <div class="r2"><div><label>팀 이름</label><input id="op-f-name" value="${v('name')}" placeholder="FC 수촌"></div><div><label>연락처</label><input id="op-f-phone" value="${v('phone')}" inputmode="tel" placeholder="010-0000-0000"></div></div>
     <div class="r3"><div><label>전력</label><select id="op-f-tier"><option value="">—</option>${['상','중','하'].map(t=>`<option ${o.tier===t?'selected':''}>${t}</option>`).join('')}</select></div><div><label>구장</label><input id="op-f-field" value="${v('field')}"></div><div><label>유니폼</label><input id="op-f-uniform" value="${v('uniform')}"></div></div>
     <label>메모</label><textarea id="op-f-memo" rows="3" placeholder="스타일, 매너, 연락 팁 등">${v('memo')}</textarea>
+    ${o.id!=='__new'?`<div style="font-size:11.5px;color:#8b8c96;margin-top:6px;line-height:1.5">이름을 바꾸면 경기 기록·일정의 상대팀 이름도 함께 바뀌고, 같은 이름의 팀이 이미 있으면 하나로 합쳐져요.</div>`:''}
     <div style="display:flex;gap:8px;margin-top:10px">
       <button class="btn btn-gold" style="margin:0;flex:2" onclick="opSave('${o.id}')">저장</button>
       <button class="btn btn-outline" style="margin:0;flex:1" onclick="opCancel()">취소</button>
       ${o.id!=='__new'?`<button class="btn" style="margin:0;flex:1;background:rgba(255,70,89,.14);color:#ff8a96" onclick="opDelete('${o.id}')">삭제</button>`:''}
     </div></div>`;
 }
+// 이름을 바꾸면 그 팀의 경기 기록·일정에 적힌 상대팀 이름도 함께 바꿈 → 경기·일정·홈 탭에 그대로 연동
+function opRenamePaths(oldKeyOrName,newName,exact){
+  const k=opNorm(oldKeyOrName); const up={}; let n=0;
+  const hit=opp=>exact?opNorm(opp)===k:opMatch(k,opp);
+  games.forEach(g=>{ if(g&&g.id&&hit(g.opp)&&g.opp!==newName){ up['games/'+g.id+'/opp']=newName; n++; } });
+  schedules.forEach(s=>{ if(s&&s.id&&hit(s.opp)&&s.opp!==newName){ up['schedules/'+s.id+'/opp']=newName; } });
+  return {up,n};
+}
 window.opSave=async function(id){
   if(!isAdmin()){toast('관리자만 가능합니다');return;}
   const g=k=>(document.getElementById('op-f-'+k)?.value||'').trim();
   const data={name:g('name'),phone:g('phone'),tier:g('tier'),field:g('field'),uniform:g('uniform'),memo:g('memo'),updatedAt:Date.now()};
   if(!data.name){toast('팀 이름을 입력하세요');return;}
+  const old=id!=='__new'?opponents[id]:null;
+  const renamed=!!(old&&old.name!==data.name);
   const dup=Object.entries(opponents).find(([k,o])=>k!==id&&opNorm(o.name)===opNorm(data.name));
-  if(dup){toast('이미 있는 팀입니다: '+dup[1].name);return;}
+  const up={};
+  if(dup){
+    // 같은 이름의 팀이 이미 있음 → 하나로 합침 (비어 있는 칸은 채우고, 번호가 다르면 메모에 남김)
+    const [dk,d]=dup;
+    if(!confirm(`'${d.name}' 팀이 이미 있습니다.\n두 팀을 하나로 합칠까요?\n(연락처·메모는 합치고, 경기 기록도 한 팀으로 모입니다)`)) return;
+    const m={...d,updatedAt:Date.now()};
+    ['tier','field','uniform'].forEach(f=>{ if(!m[f]&&data[f]) m[f]=data[f]; });
+    if(!m.phone&&data.phone) m.phone=data.phone;
+    else if(data.phone&&opPhone(m.phone)!==opPhone(data.phone)&&!String(m.memo||'').includes(data.phone)) m.memo=((m.memo||'')+(m.memo?'\n':'')+'다른 번호: '+data.phone).trim();
+    if(data.memo&&!String(m.memo||'').includes(data.memo)) m.memo=((m.memo||'')+(m.memo?'\n':'')+data.memo).trim();
+    up['opponents/'+dk]=m; if(id!=='__new') up['opponents/'+id]=null;
+    if(old) Object.assign(up,opRenamePaths(old.name,m.name).up);
+    opponents[dk]=m; if(id!=='__new') delete opponents[id];
+    opEdit=null; opOpen=dk; opPrefill='';
+    await update(ref(db,'suchon'),up);
+    renderOpp(); if(currentRecordGid) renderGameDetail();
+    toast(`'${m.name}' 팀으로 합쳤습니다`); return;
+  }
   const key=id==='__new'?('op'+Date.now()):id;
-  opponents[key]=data; opEdit=null; opOpen=key; opPrefill=''; renderOpp(); if(currentRecordGid) renderGameDetail();
-  await set(ref(db,'suchon/opponents/'+key),data);
-  toast('저장했습니다');
+  up['opponents/'+key]=data;
+  let n=0;
+  if(renamed){ const r=opRenamePaths(old.name,data.name); Object.assign(up,r.up); n=r.n; }
+  const hk=opNorm(data.name); if(oppHidden[hk]) up['oppHidden/'+hk]=null;      // 다시 등록하면 숨김 해제
+  opponents[key]=data; opEdit=null; opOpen=key; opPrefill='';
+  await update(ref(db,'suchon'),up);
+  renderOpp(); if(currentRecordGid) renderGameDetail();
+  toast(renamed?`이름 변경 완료${n?` · 경기 기록 ${n}건도 함께 변경`:''}`:'저장했습니다');
 };
 window.opDelete=async function(id){
   if(!isAdmin())return; const o=opponents[id]; if(!o) return;
-  if(!confirm(o.name+' 팀 정보를 삭제할까요?')) return;
-  delete opponents[id]; opEdit=null; opOpen=null; renderOpp();
-  await remove(ref(db,'suchon/opponents/'+id));
+  const r=opRecord(o.name);
+  if(!confirm(`${o.name} 팀을 상대팀 목록에서 삭제할까요?\n연락처·메모가 지워집니다.${r.list.length?`\n(경기 기록 ${r.list.length}건은 경기 탭에 그대로 남습니다)`:''}`)) return;
+  const up={['opponents/'+id]:null};
+  [o.name,...r.list.map(g=>g.opp)].forEach(nm=>{ const k=opNorm(nm); if(k&&r.list.length) up['oppHidden/'+k]=true; });   // 경기 기록 때문에 목록에 다시 뜨지 않게
+  delete opponents[id]; opEdit=null; opOpen=null;
+  await update(ref(db,'suchon'),up);
+  renderOpp();
   toast('삭제했습니다');
+};
+// 경기 기록에만 있는 팀: 이름 수정(→ 같은 이름이면 그 팀으로 합쳐짐) · 목록에서 삭제
+let opRen=null;
+window.opRenStart=function(k){ opRen=k; renderOpp(); setTimeout(()=>{ const i=document.getElementById('op-ren-in'); if(i){ i.focus(); i.select(); } },50); };
+window.opRenCancel=function(){ opRen=null; renderOpp(); };
+window.opRenSave=async function(k){
+  if(!isAdmin()){toast('관리자만 가능합니다');return;}
+  const v=(document.getElementById('op-ren-in')?.value||'').trim();
+  if(!v){ toast('팀 이름을 입력하세요'); return; }
+  const {up,n}=opRenamePaths(k,v,true);
+  if(!Object.keys(up).length){ opRen=null; renderOpp(); return; }
+  const reg=Object.entries(opponents).find(([id,o])=>opMatch(opNorm(o.name),v));
+  opRen=null; opOpen=reg?reg[0]:'g:'+opNorm(v);
+  await update(ref(db,'suchon'),up);
+  renderOpp(); if(currentRecordGid) renderGameDetail();
+  toast(reg?`'${reg[1].name}' 팀으로 합쳐졌습니다 · 경기 ${n}건`:`이름 변경 완료 · 경기 ${n}건`);
+};
+window.opHide=async function(k,name){
+  if(!isAdmin())return;
+  if(!confirm(`${name} 팀을 상대팀 목록에서 삭제할까요?\n(경기 기록은 경기 탭에 그대로 남습니다)`)) return;
+  oppHidden[k]=true; opOpen=null; renderOpp();
+  await update(ref(db,'suchon/oppHidden'),{[k]:true});
+  toast('목록에서 삭제했습니다');
 };
 window.opImport=async function(){
   if(!isAdmin()){toast('관리자만 가능합니다');return;}
