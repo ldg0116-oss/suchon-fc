@@ -196,6 +196,8 @@ select option,select optgroup{background-color:#16171c;color:#f4f7ff}
 .fb{width:100%;aspect-ratio:1;min-height:24px;border-radius:5px;border:1px solid rgba(160,176,202,0.2);background:rgba(0,0,0,0.3);color:var(--cl-silver);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;font-family:var(--font-body);padding:0}
 .fb.paid{background:var(--grad-gold);color:var(--cl-navy);border-color:var(--cl-gold);box-shadow:0 0 10px rgba(124,140,255,0.35)}
 .fb.exempt{background:rgba(124,140,255,0.14);color:#a9b5ff;border-color:rgba(124,140,255,0.45);border-style:dashed;box-shadow:none}
+.fb.dorm{border:1.5px dashed #ff8a2a;color:#ffb070}
+.fb.dorm.paid{color:#000;border-style:solid;box-shadow:inset 0 0 0 2px #ff8a2a}
 .fb:disabled{cursor:default;opacity:0.85}
 .fb:disabled:hover{filter:none}
 
@@ -516,6 +518,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--lb2);box-shadow:0 0 0
 .sg .sb .sbl{color:rgba(255,255,255,.75)}
 .vbtn b{font-family:'Inter',var(--font-body);font-weight:800;margin-left:4px}
 .vote-sum{font-size:13px;color:#a3a5b0;margin:2px 0 10px}.vote-sum b{color:#fff}
+.vote-dl{font-size:11.5px;color:#8b8c96;margin:-4px 0 10px;text-align:center}.vote-dl b{color:#cfd3ff}
+.vote-lock{font-size:12.5px;color:#cfd0d6;background:#1a1b21;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.vote-lock.hold{border-color:rgba(111,128,255,0.4);color:#dfe3ff}.vote-lock b{color:#fff}
 .vote-noresp{font-size:11.5px;color:#71727c;margin-top:8px;line-height:1.5}
 .cm-sum{font-size:12px;color:#a3a5b0;cursor:pointer;list-style:none;font-weight:600}
 .cm-sum::-webkit-details-marker{display:none}
@@ -533,6 +538,14 @@ details.comment-wrap[open] .cm-sum{margin-bottom:10px}
 .h-my-row b{display:block;font:700 18px 'Inter',var(--font-body);color:#000}
 .h-my-row span{font-size:11px;color:#555}
 .h-my-cheer{margin-top:12px;font-size:14px;font-weight:700;color:#000}
+.seg-y{display:flex;gap:4px;padding:4px;background:#1a1b21;border-radius:14px;margin-bottom:12px}
+.seg-y button{flex:1;border:none;background:transparent;color:#8b8c96;font:600 13px var(--font-body);padding:9px 0;border-radius:10px;cursor:pointer}
+.seg-y button.on{background:#fff;color:#000}
+.dm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.dm{padding:13px 0;border-radius:14px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:#fff;font:700 14px var(--font-body);cursor:pointer}
+.dm.on{background:#ff8a2a;border-color:#ff8a2a;color:#000}
+.dm-all{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;color:#e8e9ee;text-transform:none;letter-spacing:0}
+.dm-all input{width:18px;height:18px;padding:0;accent-color:#ff8a2a;-webkit-appearance:auto;appearance:auto}
 .pp-pitch{background:radial-gradient(70% 60% at 50% 40%,#13284a 0,#0a1428 70%,#060b18 100%);border:1px solid rgba(111,128,255,0.25);border-radius:20px;padding:12px 10px;display:flex;flex-direction:column;gap:10px}
 .pp-row{display:flex;gap:8px;justify-content:center}
 .pp{position:relative;flex:1;max-width:96px;padding:13px 0;border-radius:14px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.06);color:#fff;font:700 14px 'Inter',var(--font-body);cursor:pointer}
@@ -585,6 +598,7 @@ details.comment-wrap[open] .cm-sum{margin-bottom:10px}
 .rn-tag{font:800 10.5px 'Inter',sans-serif;background:#fff;color:#000;border-radius:6px;padding:2px 7px;margin-right:4px}
 .rn-flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0;color:#71727c}
 .rn-flow span{background:#1c1d24;color:#fff;border-radius:10px;padding:7px 11px;font-size:12.5px;font-weight:700}
+.rn-new{display:inline-block;font:800 9.5px 'Inter',sans-serif;letter-spacing:.5px;background:#e01d33;color:#fff;border-radius:5px;padding:1px 5px;margin-left:4px;vertical-align:1px}
 .rn-foot{text-align:center;font-size:11.5px;color:#71727c;margin:14px 0 4px}
 .c-w{color:#3ddc84}.c-l{color:#ff5c6c}.c-d{color:#cfcfd4}
 /* 상대팀 · 회칙 */
@@ -839,6 +853,16 @@ textarea{width:100%;padding:12px;font:14px/1.6 var(--font-body);color:#fff;resiz
   </div>
 </div>
 
+<!-- 휴면 달 설정 -->
+<div id="dorm-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);z-index:999;align-items:flex-end;justify-content:center">
+  <div class="edit-sheet" style="padding-bottom:30px">
+    <div class="edit-sheet-title"><span id="dorm-title">휴면 설정</span><button onclick="closeDormEdit()" class="bsm" style="background:#1c1d24;color:#a3a5b0">닫기</button></div>
+    <div style="font-size:13px;color:#a3a5b0;line-height:1.6;margin:-6px 0 12px">휴면할 달을 눌러 고르세요. 고른 달은 <b style="color:#fff">투표 명단에서 빠지고 · 회비 1만 원</b>으로 계산돼요.</div>
+    <div id="dorm-body"></div>
+    <button class="btn btn-gold" onclick="saveDormEdit()">저장</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- APP -->
@@ -947,7 +971,7 @@ textarea{width:100%;padding:12px;font:14px/1.6 var(--font-body);color:#fff;resiz
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="ct" style="margin-bottom:0">회비 현황</div>
-        <div style="font-size:10px;color:var(--cl-silver);letter-spacing:1px;text-align:right">필드 월 20,000원 · GK 월 10,000원</div>
+        <div style="font-size:10px;color:var(--cl-silver);letter-spacing:1px;text-align:right">필드 월 20,000원 · GK·휴면 달 10,000원</div>
       </div>
       <button id="dues-notice-btn" class="btn btn-gold" style="display:none;margin:0 0 14px" onclick="openDuesNotice()">📢 미납자 카톡 공지 만들기</button>
       <div id="fee-list"></div>
@@ -958,26 +982,35 @@ textarea{width:100%;padding:12px;font:14px/1.6 var(--font-body);color:#fff;resiz
   <div id="s-late" class="sec">
     <div style="background:linear-gradient(135deg,rgba(214,69,69,0.1),rgba(214,69,69,0.02));border:1px solid rgba(214,69,69,0.3);border-radius:4px;padding:11px 16px;font-size:10px;color:#ff8080;margin-bottom:12px;display:flex;align-items:center;gap:9px;letter-spacing:1.5px;font-weight:700">
       <div style="width:7px;height:7px;border-radius:50%;background:#e74c3c;animation:pulse 2s infinite;box-shadow:0 0 8px rgba(231,76,60,0.8)"></div>
-      지각 벌금 5,000원 · 경기 당일 미납 시 하루당 +1,000원
+      벌금 5,000원 (무단 불참 20,000원) · 위반 당일부터 하루당 +1,000원
     </div>
 
     <!-- 관리자: 지각 등록 -->
     <div id="late-admin-form" style="display:none">
       <div class="card">
-        <div class="ct">지각 등록</div>
+        <div class="ct">벌금 등록</div>
+        <label>사유</label>
+        <select id="lt-type">
+          <option value="late">지각 · 5,000원</option>
+          <option value="vote">투표 미참여 · 5,000원</option>
+          <option value="hold">보류 미확정 · 5,000원</option>
+          <option value="gear">준비물 미지참 · 5,000원</option>
+          <option value="fee">회비 미납 · 5,000원</option>
+          <option value="noshow">무단 불참 · 20,000원</option>
+        </select>
         <div class="r2">
-          <div><label>경기 날짜</label><input id="lt-date" type="date"></div>
-          <div><label>지각 회원</label><input id="lt-name" list="member-list-dl2" placeholder="이름 선택..." autocomplete="off"></div>
+          <div><label>위반 날짜</label><input id="lt-date" type="date"></div>
+          <div><label>회원</label><input id="lt-name" list="member-list-dl2" placeholder="이름 선택..." autocomplete="off"></div>
         </div>
         <datalist id="member-list-dl2"></datalist>
-        <button class="btn btn-gold" onclick="addLate()">지각 추가</button>
+        <button class="btn btn-gold" onclick="addLate()">벌금 추가</button>
       </div>
     </div>
 
     <div class="sg" id="late-sum"></div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div class="ct" style="margin-bottom:0">지각 벌금</div>
+        <div class="ct" style="margin-bottom:0">벌금 내역</div>
         <div style="font-size:10px;color:var(--cl-silver);letter-spacing:1px">미납 우선 정렬</div>
       </div>
       <div id="late-list"></div>
@@ -1350,15 +1383,19 @@ let lates={}; // 지각 벌금 기록 {id:{date,name,paid,paidDate,ts}}
 let memberQuery=''; // 선수 검색어
 let overdueShown=false; // 로그인 후 미납 팝업 1회 노출 가드
 const MONTH_FEE=20000;        // 월 회비
-const LATE_BASE=5000;         // 지각 기본 벌금
+const SEASON=2026;            // 현재 시즌 연도 (회비 1~12월 기준)
+const LATE_BASE=5000;         // 기본 벌금
+const FINE_TYPES={late:{label:'지각',base:5000},vote:{label:'투표 미참여',base:5000},hold:{label:'보류 미확정',base:5000},gear:{label:'준비물 미지참',base:5000},fee:{label:'회비 미납',base:5000},noshow:{label:'무단 불참',base:20000}};
+function fineType(r){ return FINE_TYPES[r&&r.type]||FINE_TYPES.late; }
 const LATE_PER_DAY=1000;      // 미납 시 하루당 증액
 let currentRecordGid=null; // 현재 경기 기록 화면에서 열려있는 게임 id
 const REC_QC=4; // 경기 기록 쿼터 수
 let sortCol='goals',sortAsc=false;
 let commentsData={};
+const _ld={};   // 실시간 데이터 최초 도착 여부 (자동 처리 전 확인용)
 let myName = localStorage.getItem('suchon_myname')||'';
-const ADMINS = ['이동근'];
-const COACHES = ['이동근']; // 포메이션 수정 권한
+const ADMINS = ['이동근','유재완'];
+const COACHES = ['이동근','유재완']; // 포메이션 수정 권한
 const ADMIN_PW = '1208';                                  // 관리자(admin) 계정 비밀번호
 let adminUnlocked = localStorage.getItem('suchon_admin')==='1'; // admin 로그인 여부
 // 이름 앞뒤 공백/보이지 않는 문자 제거 후 비교 (저장된 값 문제 방지)
@@ -1402,6 +1439,7 @@ function startListeners(){
   onValue(ref(db,'suchon/members'),snap=>{
     const v=snap.val()||{};
     members=Object.values(v).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+    _ld.members=true; scheduleAuto();
     if(appReady){
       renderMembers();renderQSel();fillNameSelect();updateNameBanner();
       renderFee();   // 포지션(GK) 변경 → 회비 금액 자동 반영
@@ -1411,6 +1449,7 @@ function startListeners(){
   onValue(ref(db,'suchon/games'),snap=>{
     const v=snap.val()||{};
     games=Object.values(v).sort((a,b)=>b.date.localeCompare(a.date));
+    _ld.games=true; scheduleAuto();
     if(appReady){
       renderGames();
       renderMembers(); // 경기 기록 변경 → 선수탭 스탯 자동 갱신
@@ -1448,6 +1487,7 @@ function startListeners(){
   });
   onValue(ref(db,'suchon/lates'),snap=>{
     lates=snap.val()||{};
+    _ld.lates=true; scheduleAuto();
     if(appReady){
       if(document.getElementById('s-late').classList.contains('on')) renderLate();
       renderMembers(); // 지각 벌금 변경 → 선수탭 배지 갱신
@@ -1458,6 +1498,7 @@ function startListeners(){
   onValue(ref(db,'suchon/schedules'),snap=>{
     const v=snap.val()||{};
     schedules=Object.values(v).sort((a,b)=>a.date.localeCompare(b.date));
+    _ld.schedules=true; scheduleAuto();
     if(appReady){
       renderSchedule();
       // 투표 관리 모달이 열려있으면 같이 갱신
@@ -1472,6 +1513,7 @@ function startListeners(){
   });
   onValue(ref(db,'suchon/comments'),snap=>{
     commentsData=snap.val()||{};
+    _ld.comments=true; scheduleAuto();
     if(appReady) renderSchedule();
   });
   onValue(ref(db,'suchon/statOverrides'),snap=>{
@@ -1484,6 +1526,7 @@ function startListeners(){
   });
   onValue(ref(db,'suchon/qFormation'),snap=>{
     qFormation=snap.val()||{};
+    _ld.qf=true;
     if(appReady&&document.getElementById('s-quarter').classList.contains('on')) renderQView();
     if(appReady&&currentRecordGid) renderGameDetail();   // 라인업 바뀌면 경기 상세의 라인업 요약도 갱신
   });
@@ -1812,14 +1855,43 @@ window.deleteMember=async function(id){
   }
   toast(m.name+' 선수 및 관련 데이터 삭제 완료');
 };
-// 휴면회원 토글: 투표 대상 제외 + 회비 월 1만원 자동 적용
-window.toggleDormant=async function(id){
-  if(!isSuperAdmin()){toast('이동근만 변경할 수 있습니다');return;}
+// 휴면 설정: 달을 골라 그 달만 휴면 (투표 명단 제외 + 회비 1만원 + 벌금 대상 제외)
+let dormEdit={id:null,year:SEASON,months:{},all:false};
+window.openDormEdit=function(id){
+  if(!isSuperAdmin()){toast('관리자만 변경할 수 있습니다');return;}
   const m=members.find(x=>x.id===id); if(!m) return;
-  const nx=!m.dormant;
-  if(nx && !confirm(m.name+' 님을 휴면회원으로 전환할까요?\n· 일정 투표 대상에서 제외됩니다\n· 회비가 월 10,000원으로 적용됩니다'))return;
-  await update(ref(db,'suchon/members/'+id),{dormant:nx});
-  toast(m.name+(nx?' 휴면회원 처리 완료':' 휴면 해제 완료'));
+  const now=todayKST();
+  dormEdit={id,year:Math.max(SEASON,+now.slice(0,4)),months:{...(m.dormMonths||{})},all:!!m.dormant};
+  document.getElementById('dorm-title').textContent=m.name+' · 휴면 설정';
+  renderDormEdit(); document.getElementById('dorm-modal').style.display='flex';
+};
+window.closeDormEdit=function(){ document.getElementById('dorm-modal').style.display='none'; };
+function renderDormEdit(){
+  const y=dormEdit.year; const el=document.getElementById('dorm-body'); if(!el) return;
+  const cnt=Object.keys(dormEdit.months).filter(k=>dormEdit.months[k]).length;
+  el.innerHTML=`<div class="seg-y">${[SEASON,SEASON+1].map(v=>`<button class="${v===y?'on':''}" onclick="dormYear(${v})">${v}년</button>`).join('')}</div>
+    <div class="dm-grid" style="${dormEdit.all?'opacity:.35;pointer-events:none':''}">${Array.from({length:12},(_,i)=>{ const k=dormKey(y,i+1); return `<button class="dm ${dormEdit.months[k]?'on':''}" onclick="dormTap('${k}')">${i+1}월</button>`; }).join('')}</div>
+    <label class="dm-all"><input type="checkbox" ${dormEdit.all?'checked':''} onchange="dormAll(this.checked)"> 기간 없이 계속 휴면 (모든 달)</label>
+    <div style="font-size:12.5px;color:#a3a5b0;margin-top:10px;text-align:center">${dormEdit.all?'복귀할 때까지 모든 달 휴면':(cnt?`휴면 ${cnt}개월 선택됨`:'선택한 달 없음 (휴면 아님)')}</div>`;
+}
+window.dormYear=function(v){ dormEdit.year=v; renderDormEdit(); };
+window.dormTap=function(k){ if(dormEdit.months[k]) delete dormEdit.months[k]; else dormEdit.months[k]=true; renderDormEdit(); };
+window.dormAll=function(on){ dormEdit.all=!!on; renderDormEdit(); };
+window.saveDormEdit=async function(){
+  if(!isSuperAdmin()){toast('관리자만 변경할 수 있습니다');return;}
+  const m=members.find(x=>x.id===dormEdit.id); if(!m) return;
+  const months={}; Object.keys(dormEdit.months).forEach(k=>{ if(dormEdit.months[k]) months[k]=true; });
+  const has=Object.keys(months).length>0;
+  m.dormant=dormEdit.all; m.dormMonths=has?months:null;
+  closeDormEdit();
+  await update(ref(db,'suchon/members/'+m.id),{dormant:dormEdit.all,dormMonths:has?months:null});
+  // 휴면인 달의 '다가오는 · 아직 마감 전' 일정에 남아 있는 투표는 지움 (명단에서 빠지도록)
+  const today=todayKST(); const up={}; const nk=nameKey(m.name);
+  schedules.forEach(s=>{ if(!s||!s.id||(s.date||'')<today) return; if(games.some(g=>g.scheduleId===s.id)) return;
+    if(isDormantOn(m.name,s.date)&&s.votes&&s.votes[nk]) up['schedules/'+s.id+'/votes/'+nk]=null; });
+  if(Object.keys(up).length) await update(ref(db,'suchon'),up);
+  renderMembers(); renderSchedule(); if(document.getElementById('s-fee')?.classList.contains('on')) renderFee();
+  toast(m.name+(dormEdit.all?' · 계속 휴면':has?` · 휴면 ${Object.keys(months).length}개월 저장`:' · 휴면 해제'));
 };
 window.filterMembers=function(){
   const el=document.getElementById('member-search');
@@ -1840,10 +1912,11 @@ function renderMembers(){
     const [bg,tc]=PC[lineOf(m.pos)]||['#2e2e2e','#aaa'];
     const fs=feeStat(m.name);
     const lo=lateOwed(m.name);
-    return`<div class="pi" style="${m.dormant?'opacity:0.55':''}">
+    const dl=dormLabel(m), dnow=isDormant(m.name);
+    return`<div class="pi" style="${dnow?'opacity:0.55':''}">
       <div class="av" style="background:${bg};color:${tc}">${m.name[0]}</div>
       <div class="pn">
-        <div class="pname">${m.num?'#'+m.num+' ':''}&nbsp;${m.name}${m.dormant?'<span class="badge bgy" style="margin-left:6px;font-size:9px">💤 휴면</span>':''}</div>
+        <div class="pname">${m.num?'#'+m.num+' ':''}&nbsp;${m.name}${dl?`<span class="badge bgy" style="margin-left:6px;font-size:9px">💤 ${dl}</span>`:''}</div>
         <div class="pst">
           <span class="badge ${posB(m.pos)}">${m.pos?posLabel(m.pos):'포지션 선택 전'}${m.pos2?`<span style="opacity:0.7;font-weight:400"> · ${posLabel(m.pos2)}</span>`:''}</span>
           <span class="badge bgy">출전${s.played}</span>
@@ -1853,7 +1926,7 @@ function renderMembers(){
         </div>
       </div>
       ${isSuperAdmin()?`<div style="display:flex;gap:5px;flex-shrink:0">
-        <button class="bsm" style="background:${m.dormant?'rgba(46,204,113,0.12)':'rgba(160,176,202,0.12)'};color:${m.dormant?'#4cd983':'var(--cl-silver)'};border:1px solid ${m.dormant?'rgba(46,204,113,0.35)':'rgba(160,176,202,0.3)'};font-size:11px" onclick="toggleDormant('${m.id}')">${m.dormant?'복귀':'휴면'}</button>
+        <button class="bsm" style="background:${dl?'rgba(255,138,42,0.14)':'rgba(160,176,202,0.12)'};color:${dl?'#ffb070':'var(--cl-silver)'};border:1px solid ${dl?'rgba(255,138,42,0.4)':'rgba(160,176,202,0.3)'};font-size:11px" onclick="openDormEdit('${m.id}')">휴면</button>
         <button class="bsm" style="background:rgba(124,140,255,0.12);color:#a9b5ff;border:1px solid rgba(124,140,255,0.35);font-size:11px" onclick="openMemberEdit('${m.id}','${m.name}',${m.num},'${m.pos}')">수정</button>
         <button class="bsm" style="background:rgba(214,69,69,0.12);color:#ff6b6b;border:1px solid rgba(214,69,69,0.35);font-size:11px" onclick="deleteMember('${m.id}')">삭제</button>
       </div>`:''}
@@ -1864,23 +1937,41 @@ function renderMembers(){
 // ── 회비 (12개월 기준) ──
 // 포지션별 월 회비: 골키퍼(GK) 10,000원 · 그 외 20,000원
 function isGK(pos){ return pos==='GK' || /골키퍼|goalkeeper/i.test(pos||''); }
-function monthFee(name){
+function monthFee(name){                    // 기본 월 회비
   const m=members.find(x=>x.name===name);
-  if(m&&m.dormant) return 10000;          // 휴면회원 월 1만원
+  if(m&&m.dormant) return 10000;          // 전체 휴면회원 월 1만원
   return isGK(m&&m.pos) ? 10000 : 20000;  // 골키퍼 월 1만원
 }
+// ── 달별 휴면: members/{id}/dormMonths = {'2026-12':true,…} · dormant:true 는 '모든 달 휴면'
+function dormKey(y,m){ return y+'-'+String(m).padStart(2,'0'); }
+function isDormantOn(name,dateStr){          // 그 날짜가 속한 달에 휴면인지
+  const m=members.find(x=>x.name===name); if(!m) return false;
+  if(m.dormant) return true;
+  const k=String(dateStr||todayKST()).slice(0,7);
+  return !!(m.dormMonths&&m.dormMonths[k]);
+}
+function isDormantMonth(name,mon){ return isDormantOn(name,dormKey(SEASON,mon)+'-01'); }   // 이번 시즌 n월
+function monthFeeAt(name,mon){ return isDormantMonth(name,mon)?10000:monthFee(name); }       // 휴면인 달은 1만원
+function feeSum(name,months){ return (months||[]).reduce((a,i)=>a+monthFeeAt(name,i),0); }
+function dormLabel(m){                       // 선수 목록 배지용: "12월·27년 1월"
+  if(!m) return ''; if(m.dormant) return '휴면';
+  const ks=Object.keys(m.dormMonths||{}).filter(k=>m.dormMonths[k]&&k>=todayKST().slice(0,7)).sort();
+  if(!ks.length) return '';
+  return ks.slice(0,4).map(k=>{ const [y,mm]=k.split('-'); return (+y===SEASON?'':String(y).slice(2)+'년 ')+(+mm)+'월'; }).join('·')+(ks.length>4?' 외':'')+' 휴면';
+}
 // 투표 대상 회원(휴면 제외)
-function isDormant(name){ const m=members.find(x=>x.name===name); return !!(m&&m.dormant); }
+function isDormant(name){ return isDormantOn(name,todayKST()); }   // 오늘 기준(이번 달) 휴면 여부
 // 월 상태값: true=납부, false/미설정=미납, 'x'=납입 불필요(면제)
 // 신규 가입 회원은 가입 전 달을 '불필요'로 표시 → 미납/합계에서 제외
 function feeStat(name){
   const f=fees[name]||{};
   let paid=0,exempt=0;
-  for(let i=1;i<=12;i++){ const v=f[i]; if(v===true) paid++; else if(v==='x') exempt++; }
+  const paidM=[];
+  for(let i=1;i<=12;i++){ const v=f[i]; if(v===true){ paid++; paidM.push(i); } else if(v==='x') exempt++; }
   const required=12-exempt;          // 실제 납부 대상 개월 수
   const allPaid=(paid===required);   // 미납(=false)이 하나도 없음
   const mf=monthFee(name);
-  const amount=Math.min(paid,11)*mf; // 12개월 중 1개월 무료(기존 규칙) → GK도 동일 비율
+  const amount=feeSum(name,paidM)-(paid>=12?mf:0); // 12개월 완납 시 1개월 무료(기존 규칙) · 휴면인 달은 1만원으로 합산
   const full=11*mf;                  // 완납 금액 (필드 220,000 · GK 110,000)
   return {paid,exempt,required,allPaid,amount,mf,full};
 }
@@ -1920,14 +2011,16 @@ function renderFee(){
     <span style="display:flex;align-items:center;gap:4px"><span class="fb" style="width:16px;height:16px;font-size:0"></span>미납</span>
     <span style="display:flex;align-items:center;gap:4px"><span class="fb paid" style="width:16px;height:16px;font-size:0"></span>납부</span>
     <span style="display:flex;align-items:center;gap:4px"><span class="fb exempt" style="width:16px;height:16px;font-size:0"></span>납입 불필요</span>
+    <span style="display:flex;align-items:center;gap:4px"><span class="fb dorm" style="width:16px;height:16px;font-size:0"></span>휴면 달(1만 원)</span>
     ${isSuperAdmin()?'<span style="color:rgba(160,176,202,0.6)">· 월 클릭 시 미납→납부→불필요 순환</span>':''}
   </div>`+sorted.map(m=>{
     const paid=fees[m.name]||{};
     const fs=feeStat(m.name);
     const ms=Array.from({length:12},(_,i)=>{
       const v=paid[i+1];
-      const cls=v===true?' paid':(v==='x'?' exempt':'');
-      const title=v==='x'?'납입 불필요':(v===true?'납부 완료':'미납');
+      const dm=isDormantMonth(m.name,i+1);
+      const cls=(v===true?' paid':(v==='x'?' exempt':''))+(dm?' dorm':'');
+      const title=(v==='x'?'납입 불필요':(v===true?'납부 완료':'미납'))+(dm?' · 휴면(1만원)':'');
       return`<button class="fb${cls}" title="${title}" ${isSuperAdmin()?'':'disabled'} onclick="toggleFee('${m.name}',${i+1})">${i+1}</button>`;
     }).join('');
     const amt=fs.amount.toLocaleString();
@@ -1965,7 +2058,7 @@ function daysBetween(from,to){
 function lateFine(rec){
   const end = (rec.paid && rec.paidDate) ? rec.paidDate : todayStr();
   const days = Math.max(0, daysBetween(rec.date, end));
-  return { fine: LATE_BASE + days*LATE_PER_DAY, days };
+  return { fine: fineType(rec).base + days*LATE_PER_DAY, days };
 }
 // 특정 회원의 미납 지각 합계
 function lateOwed(name){
@@ -1980,13 +2073,14 @@ window.addLate=async function(){
   if(!isAdmin()){toast('관리자만 등록할 수 있습니다');return;}
   const date=document.getElementById('lt-date').value;
   const name=document.getElementById('lt-name').value.trim();
-  if(!date){toast('경기 날짜를 선택해주세요');return;}
-  if(!name){toast('지각 회원을 선택해주세요');return;}
+  const type=document.getElementById('lt-type')?.value||'late';
+  if(!date){toast('위반 날짜를 선택해주세요');return;}
+  if(!name){toast('회원을 선택해주세요');return;}
   if(!members.some(m=>m.name===name)){toast('등록된 선수 중에서 선택해주세요');return;}
   const id='L'+Date.now()+Math.floor(Math.random()*1000);
-  await set(ref(db,'suchon/lates/'+id),{date,name,paid:false,paidDate:'',ts:Date.now()});
+  await set(ref(db,'suchon/lates/'+id),{date,name,type,paid:false,paidDate:'',ts:Date.now()});
   document.getElementById('lt-name').value='';
-  toast(name+' 지각 등록 완료');
+  toast(`${name} · ${fineType({type}).label} 벌금 등록`);
 };
 window.toggleLatePaid=async function(id){
   if(!isAdmin()){toast('관리자만 처리할 수 있습니다');return;}
@@ -2026,7 +2120,7 @@ function renderLate(){
       <div class="sb"><div class="sbv">${unpaid.length}</div><div class="sbl">미납 건수</div></div>`;
   }
   if(!items.length){
-    list.innerHTML='<div style="font-size:12px;color:rgba(160,176,202,0.4);text-align:center;padding:20px;letter-spacing:0.5px">등록된 지각 기록이 없습니다</div>';
+    list.innerHTML='<div style="font-size:12px;color:rgba(160,176,202,0.4);text-align:center;padding:20px;letter-spacing:0.5px">등록된 벌금이 없습니다</div>';
     return;
   }
   // 미납 우선 → 그다음 날짜 최신순
@@ -2040,12 +2134,12 @@ function renderLate(){
     const penalty=days*LATE_PER_DAY;
     const dayTxt=paid
       ? `납부일 ${r.paidDate||'-'}`
-      : (days>0?`경기 후 ${days}일 경과 · 패널티 +${penalty.toLocaleString()}원`:`경기 당일`);
+      : (days>0?`${days}일 경과 · +${penalty.toLocaleString()}원`:`위반 당일`);
     return `<div class="fi" style="flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:10px;width:100%">
         <span class="fn" style="min-width:56px">${r.name}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:11px;color:var(--cl-silver);letter-spacing:0.3px">${formatDate(r.date)}</div>
+          <div style="font-size:11px;color:var(--cl-silver);letter-spacing:0.3px"><span class="badge ${r.type==='noshow'?'bgr':'bgb'}" style="font-size:10px;margin-right:5px">${fineType(r).label}</span>${formatDate(r.date)}${r.auto?' · 자동':''}</div>
           <div style="font-size:10px;color:${paid?'#4cd983':'#ff8080'};margin-top:2px">${dayTxt}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;min-width:74px">
@@ -2084,7 +2178,7 @@ function runOverdueCheck(){
   if(!members.some(m=>m.name===myName)) return;   // admin 등 비회원은 팝업 없음
   overdueShown=true;
   const months=overdueMonths(myName);
-  const feeAmt=months.length*monthFee(myName);
+  const feeAmt=feeSum(myName,months);
   const late=lateOwed(myName);
   if(feeAmt===0 && late.total===0) return; // 미납 없음 → 팝업 생략
   showOverdue(myName, months, feeAmt, late);
@@ -2107,7 +2201,7 @@ function showOverdue(name, months, feeAmt, late){
   }
   if(late.total>0){
     html+=`<div style="background:rgba(214,69,69,0.06);border:1px solid rgba(214,69,69,0.25);border-radius:6px;padding:12px 13px;margin-bottom:10px">
-      <div style="font-size:10px;color:var(--cl-gold);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">▸ 지각 벌금 미납</div>
+      <div style="font-size:10px;color:var(--cl-gold);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">▸  벌금 미납</div>
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
         <span style="color:var(--cl-silver)">미납 ${late.cnt}건 (당일 미납 시 하루당 +${LATE_PER_DAY.toLocaleString()}원)</span>
         <span style="font-family:var(--font-display);font-size:20px;color:#ff8080;letter-spacing:1px">${late.total.toLocaleString()}원</span>
@@ -2657,7 +2751,7 @@ function r1(x){ return Math.round(x*10)/10; } // 소수 1자리 표시용
 function posAverages(){
   const avg={};
   ['DF','MF','FW','GK'].forEach(pk=>{
-    const list=members.filter(m=>!m.dormant && posCat(m.name)===pk);
+    const list=members.filter(m=>!isDormant(m.name) && posCat(m.name)===pk);
     avg[pk]= list.length ? Math.round(list.reduce((a,m)=>a+contribScoreWith(m.name,pk),0)/list.length) : 0;
   });
   return avg;
@@ -2701,7 +2795,7 @@ function renderWeightGrid(){
   }).join('');
   const formula=`<div style="font-size:10px;color:var(--cl-gold);background:rgba(124,140,255,0.06);border:1px solid var(--cl-border2);border-radius:4px;padding:8px 10px;margin-bottom:10px;line-height:1.6">기여도 = 참석수×참석 + 골×골 + 어시×어시 + <b style="color:#b4bdff">참석수×포지션</b><br><span style="color:var(--cl-silver)">골·어시는 소수 가중(편차↓). FW=어시↑·MF=골↑, 수비(DF)는 골·어시 최대값 자동 → 수비가 넣으면 최대 보상.</span></div>`;
   // 관리자용 전체 통계 + 선수별 편집(산정 포지션 · 참석 보너스)
-  const rowsData=members.filter(m=>!m.dormant).map(m=>({m,b:contribBreak(m.name,scorePos(m.name))}))
+  const rowsData=members.filter(m=>!isDormant(m.name)).map(m=>({m,b:contribBreak(m.name,scorePos(m.name))}))
     .sort((a,b)=>b.b.total-a.b.total);
   const posOpt=(sel)=>['DF','MF','FW','GK'].map(k=>`<option value="${k}" ${k===sel?'selected':''}>${k}</option>`).join('');
   const table=`<div style="margin-top:6px;border-top:1px solid var(--cl-border2);padding-top:10px">
@@ -2780,7 +2874,7 @@ window.autoBalanceWeights=function(){
   const target=0.85;
   const topAvg=Math.max(posAverages().MF, posAverages().FW)||0;
   ['DF','GK'].forEach(pk=>{
-    const list=members.filter(m=>!m.dormant && posCat(m.name)===pk);
+    const list=members.filter(m=>!isDormant(m.name) && posCat(m.name)===pk);
     if(!list.length) return;
     const avgPlayed=list.reduce((a,m)=>a+getStats(m.name).played,0)/list.length;
     if(avgPlayed<=0) return;
@@ -2955,7 +3049,7 @@ function getAttendeePool(){
   }
   const va=voteAttendees();
   let names=va.names, fromVote=names.length>0;
-  if(!names.length){ names=members.filter(m=>!m.dormant).map(m=>m.name); }
+  if(!names.length){ names=members.filter(m=>!isDormant(m.name)).map(m=>m.name); }
   names=[...new Set(names)].sort((a,b)=>a.localeCompare(b,'ko'));
   return {names,fromVote,custom:false,ref:va.ref};
 }
@@ -2970,7 +3064,7 @@ window.openRosterEdit=function(){
 };
 window.closeRosterEdit=function(){ document.getElementById('roster-modal').style.display='none'; };
 function renderRosterList(){
-  const memberNames=members.filter(m=>!m.dormant).map(m=>m.name);
+  const memberNames=members.filter(m=>!isDormant(m.name)).map(m=>m.name);
   const mercs=[...rosterDraft].filter(n=>!memberNames.includes(n)); // 용병(비회원)
   const prio=Array.isArray(qFormation.priority)?qFormation.priority:[];
   // 기여도 점수 및 순위 (명단 내)
@@ -3578,7 +3672,7 @@ function renderGameDetail(){
   html+=parts.length?parts.map(n=>conCard(n,g,admin)).join(''):`<div style="font-size:11px;color:rgba(160,176,202,0.5);padding:10px;text-align:center">출전 선수가 없습니다</div>`;
   // 출전 명단 관리 (관리자) — 이 경기의 유일한 출전 명단, 쿼터 탭 명단과 동일
   if(admin){
-    const memberNames=members.filter(m=>!m.dormant).map(m=>m.name);
+    const memberNames=members.filter(m=>!isDormant(m.name)).map(m=>m.name);
     const extras=Object.keys(g.players||{}).filter(n=>!memberNames.includes(n));
     const all=[...memberNames,...extras].sort((a,b)=>a.localeCompare(b,'ko'));
     const chips=all.map(n=>{ const on=!!((g.players||{})[n]||{}).played;
@@ -4323,7 +4417,7 @@ function renderComments(sid, comments){
       <div class="comment-body">
         <div class="comment-meta">
           <span class="comment-name">${c.name}</span>
-          <span class="comment-time">${formatTime(c.ts)}</span>
+          <span class="comment-time">${commentTime(c.ts)}</span>
           ${(myName===c.name||isAdmin())?`<button class="comment-del" onclick="deleteComment('${sid}','${cid}')">삭제</button>`:''}
         </div>
         <div class="comment-text">${escHtml(c.text)}</div>
@@ -4333,6 +4427,11 @@ function renderComments(sid, comments){
 
 function escHtml(t){
   return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function commentTime(ts){   // "12.04(금) 21:35" — 마감 전후 확인용으로 정확한 시각 표시 (KST)
+  if(!ts) return '';
+  const k=new Date(ts+9*3600000); const p=n=>String(n).padStart(2,'0');
+  return `${k.getUTCMonth()+1}.${p(k.getUTCDate())}(${'일월화수목금토'[k.getUTCDay()]}) ${p(k.getUTCHours())}:${p(k.getUTCMinutes())}`;
 }
 function formatTime(ts){
   if(!ts) return '';
@@ -4483,6 +4582,8 @@ window.unfinalizeVote=async function(sid){
   if(!confirm(msg))return;
   if(qFormation.gameId===g.id) await linkQGame('');  // 쿼터탭 연결 해제(서버 저장)
   if(currentRecordGid===g.id){ currentRecordGid=null; const rw=document.getElementById('record-wrap'); if(rw) rw.style.display='none'; }
+  const _s=schedules.find(x=>x.id===sid);
+  if(_s&&voteState(_s)!=='open') await update(ref(db,'suchon/schedules/'+sid),{noAutoClose:true});   // 자동으로 다시 만들어지지 않게
   await remove(ref(db,'suchon/games/'+g.id));
   toast('투표 마감 취소됨 — 다시 투표할 수 있습니다');
   renderSchedule();
@@ -4601,25 +4702,118 @@ window.addSchedule=async function(){
     time:document.getElementById('sc-time').value.trim(),
     uniform:document.getElementById('sc-uni').value.trim(),
     mgr:document.getElementById('sc-mgr').value.trim(),
-    note:'',votes:{}
+    note:'',votes:{},
+    ...(Date.now()>=voteDeadlineMs({date})?{noAutoClose:true}:{})   // 마감 시각(목 23:59)이 이미 지난 급한 일정 → 자동 마감 없이 열어둠
   });
-  toast('일정 추가 완료');
+  toast(Date.now()>=voteDeadlineMs({date})?'일정 추가 완료 · 마감 시각이 지나 자동 마감은 꺼둠':'일정 추가 완료');
 };
 window.deleteSchedule=async function(id){
   if(!isAdmin()){toast('관리자만 삭제할 수 있습니다');return;}
   if(!confirm('일정 삭제?'))return;
   await remove(ref(db,'suchon/schedules/'+id));
 };
+
+// ════════ 투표 자동 마감 ════════
+// 경기 주 목요일 23:59(금요일 0시)에 자동 마감 · 이후 변경은 관리자만
+const DAY_MS=86400000;
+function voteDeadlineMs(s){
+  if(!s||!s.date) return Infinity;
+  const [y,m,d]=s.date.split('-').map(Number); if(!y||!m||!d) return Infinity;
+  const dow=new Date(Date.UTC(y,m-1,d)).getUTCDay();           // 0=일 … 4=목
+  const back=((dow-4+7)%7)||7;                                  // 경기일 이전 가장 가까운 목요일까지 일수
+  return Date.parse(s.date+'T00:00:00+09:00')-(back-1)*DAY_MS;  // 그 다음날(금) 0시 KST
+}
+// 'open' 투표 가능 · 'closed' 자동 마감(일반 회원 변경 불가 · 보류자 등은 관리자가 '투표 관리'에서 직접 변경)
+function voteState(s){
+  if(!s||s.noAutoClose) return 'open';
+  return Date.now()<voteDeadlineMs(s)?'open':'closed';
+}
+function deadlineLabel(ms){   // "11.26(목) 23:59"
+  if(!isFinite(ms)) return '';
+  const k=new Date(ms-60000+9*3600000);   // 1분 전(=전날 23:59)을 KST로
+  return `${k.getUTCMonth()+1}.${String(k.getUTCDate()).padStart(2,'0')}(${'일월화수목금토'[k.getUTCDay()]}) 23:59`;
+}
+window.toggleAutoClose=async function(sid){
+  if(!isAdmin()){ toast('관리자만 가능합니다'); return; }
+  const s=schedules.find(x=>x.id===sid); if(!s) return;
+  const off=!s.noAutoClose;
+  await update(ref(db,'suchon/schedules/'+sid),{noAutoClose:off?true:null});
+  toast(off?'이 일정은 자동 마감을 껐습니다 · 투표 다시 열림':'자동 마감을 다시 켰습니다');
+};
+// 마감 시각이 지나면 열려 있는 화면도 자동 갱신
+let _voteTick=null;
+function armVoteTick(){
+  if(_voteTick) clearTimeout(_voteTick);
+  const now=Date.now(); let next=Infinity;
+  schedules.forEach(s=>{ if(s.noAutoClose) return; const t=voteDeadlineMs(s); if(t>now&&t<next) next=t; });
+  if(isFinite(next)) _voteTick=setTimeout(()=>{ try{ renderSchedule(); }catch(e){} scheduleAuto(); armVoteTick(); }, Math.min(next-now+500, 2147000000));
+}
+
+// ════════ 자동 처리: 마감 시 경기 기록 생성 · 마감 후 투표 변경 → 출전 명단 반영 ════════
+// 서버가 따로 없어서, 마감 시각 이후 '처음 앱을 연 사람'의 화면에서 한 번 실행됨 (중복 방지 처리)
+let _autoBusy=false,_autoTimer=null;
+function scheduleAuto(){ if(_autoTimer) clearTimeout(_autoTimer); _autoTimer=setTimeout(()=>{ runAuto().catch(()=>{}); },1500); }
+async function runAuto(){
+  if(_autoBusy||!appReady||!_ld.members||!_ld.games||!_ld.schedules) return;
+  _autoBusy=true;
+  try{
+    const today=todayKST();
+    for(const s of schedules){
+      if(!s||!s.id||!s.date||s.noAutoClose||s.date<today) continue;   // 지난 일정·자동 마감 끈 일정은 건드리지 않음
+      const st=voteState(s); if(st==='open') continue;
+      // 1) 목 23:59 마감 → 참석자로 경기 기록 자동 생성
+      if(!games.some(g=>g.scheduleId===s.id)){
+        const attend=Object.values(s.votes||{}).filter(v=>v&&v.vote==='o').map(v=>v.name);
+        if(attend.length){
+          const gid='ga_'+s.id;
+          const snap=await get(ref(db,'suchon/games/'+gid));
+          if(!(snap&&snap.exists&&snap.exists())){
+            const players={}; attend.forEach(n=>{ players[n]={played:true,goals:0,assists:0}; });
+            await set(ref(db,'suchon/games/'+gid),{id:gid,scheduleId:s.id,auto:true,date:s.date,opp:s.opp||'미정',field:s.field||'',time:s.time||'',uniform:s.uniform||'',mgr:s.mgr||'',our:0,them:0,players});
+          }
+        }
+      }
+    }
+    maybeAutoLink();
+  }finally{ _autoBusy=false; }
+}
+// 관리자 기기: 새로 생긴 다가오는 경기를 쿼터 라인업에 1회 자동 연결
+function maybeAutoLink(){
+  try{
+    if(!isCoach()||!_ld.qf) return;
+    const today=todayKST();
+    const cur=qFormation.gameId&&games.find(g=>g.id===qFormation.gameId);
+    if(cur&&(cur.date||'')>=today) return;
+    const next=games.filter(g=>g.scheduleId&&(g.date||'')>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
+    if(!next||next.id===qFormation.gameId) return;
+    const k='suchon_autolink_'+next.id; if(localStorage.getItem(k)) return; localStorage.setItem(k,'1');
+    linkQGame(next.id);
+  }catch(e){}
+}
+// 마감 뒤 투표가 바뀌면(보류→참석, 관리자 수정 등) 그 경기 출전 명단에 바로 반영 · 다가오는 경기만
+async function syncVoteToGame(sid,name,vote){
+  const s=schedules.find(x=>x.id===sid); if(!s||(s.date||'')<todayKST()) return;
+  const g=games.find(x=>x.scheduleId===sid); if(!g) return;
+  const p=(g.players||{})[name];
+  if(vote==='o'){
+    if(!p) await set(ref(db,'suchon/games/'+g.id+'/players/'+name),{played:true,goals:0,assists:0});
+    else if(!p.played) await update(ref(db,'suchon/games/'+g.id+'/players/'+name),{played:true});
+  } else if(p&&p.played){
+    const hasRec=(p.goals||0)||(p.assists||0)||(Array.isArray(p.qd)&&p.qd.some(d=>d&&(d.g||d.a)));
+    if(!hasRec) await update(ref(db,'suchon/games/'+g.id+'/players/'+name),{played:false});
+  }
+}
+
 window.castVote=async function(sid,vote){
   if(!myName){toast('먼저 내 이름을 선택해주세요');return;}
-  if(isDormant(myName)){toast('휴면회원은 투표 대상에서 제외됩니다');return;}
-  // 투표 마감(경기 기록 생성)된 일정은 투표 수정 불가
-  if(games.some(g=>g.scheduleId===sid)){
-    toast('투표가 마감되어 수정할 수 없습니다');return;
-  }
   const nk=nameKey(myName);
-  const cur=(schedules.find(s=>s.id===sid)?.votes||{})[nk];
+  const sch=schedules.find(s=>s.id===sid);
+  if(isDormantOn(myName,sch&&sch.date)){toast('휴면인 달의 일정은 투표 대상에서 제외됩니다');return;}
+  const cur=(sch?.votes||{})[nk];
   const curVote=cur&&typeof cur==='object'?cur.vote:cur;
+  // 자동 마감: 목 23:59 이후엔 '보류'였던 사람만 금 23:59까지 참석/불참 확정 가능
+  // 자동 마감(목 23:59) 또는 경기 기록 생성 이후엔 일반 회원은 변경 불가 → 관리자가 '투표 관리'에서 변경
+  if(games.some(g=>g.scheduleId===sid) || voteState(sch)==='closed'){ toast('투표가 마감되었습니다 · 변경은 관리자에게 말씀해주세요'); return; }
   const newVote=curVote===vote?null:vote;
   if(newVote===null){
     await remove(ref(db,'suchon/schedules/'+sid+'/votes/'+nk));
@@ -4653,7 +4847,7 @@ function renderVoteAdminList(){
   const isClosed=games.some(g=>g.scheduleId===sid);
   const c=document.getElementById('vote-admin-list');
   const closedNote=isClosed?`<div style="background:rgba(124,140,255,0.08);border:1px solid var(--cl-border2);border-radius:4px;padding:9px 11px;margin-bottom:12px;font-size:10px;color:var(--cl-gold);letter-spacing:0.3px;line-height:1.5">🔒 이미 마감된 경기입니다 · 관리자는 투표를 수정할 수 있어요<br><span style="color:var(--cl-silver)">※ 이미 생성된 경기 기록의 출전 명단은 자동 변경되지 않습니다</span></div>`:'';
-  c.innerHTML=closedNote+members.filter(m=>!m.dormant).map(m=>{
+  c.innerHTML=closedNote+members.filter(m=>!isDormantOn(m.name,s.date)).map(m=>{
     const nk=nameKey(m.name);
     const cur=votes[nk]?.vote||null;
     const btn=(v,label,activeColor,activeBg)=>{
@@ -4664,7 +4858,7 @@ function renderVoteAdminList(){
       <div style="flex:0 0 70px;font-size:13px;font-weight:700;color:var(--cl-white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div>
       <div style="flex:1;display:flex;gap:5px">
         ${btn('o','참석','#4cd983','rgba(46,204,113,0.2)')}
-        ${btn('?','미정','#7c8cff','rgba(124,140,255,0.2)')}
+        ${btn('?','보류','#7c8cff','rgba(124,140,255,0.2)')}
         ${btn('x','불참','#ff6b6b','rgba(214,69,69,0.2)')}
         ${btn('null','미응답','#a0b0ca','rgba(160,176,202,0.15)')}
       </div>
@@ -4683,6 +4877,7 @@ window.adminSetVote=async function(sid,name,vote){
     if(vote==='o'){ rec.ts=(prev&&prev.vote==='o'&&prev.ts)?prev.ts:Date.now(); }
     await update(ref(db,'suchon/schedules/'+sid+'/votes'),{[nk]:rec});
   }
+  await syncVoteToGame(sid,name,vote==='null'?null:vote);   // 마감 후 변경 → 출전 명단 자동 반영
   // Firebase 리스너가 자동 갱신해주지만, 모달은 즉시 새로고침
   setTimeout(renderVoteAdminList,150);
 };
@@ -4703,11 +4898,12 @@ function renderSchedule(){
     const myVote=myName?votes[nameKey(myName)]?.vote:null;
     const linked=games.find(g=>g.scheduleId===s.id);
     const isClosed=!!linked; // 투표 마감 (경기 기록 생성) 여부
+    const vst=voteState(s);  // 자동 마감 상태: open / closed
     // 휴면회원은 투표 대상에서 제외
-    const voters=members.filter(m=>!m.dormant);
+    const voters=members.filter(m=>!isDormantOn(m.name,s.date));
     const votedKeys=new Set(Object.keys(votes));
     const noResp=voters.filter(m=>!votedKeys.has(nameKey(m.name)));
-    const myDormant=myName?isDormant(myName):false;
+    const myDormant=myName?isDormantOn(myName,s.date):false;
     return`<div class="vote-card" style="${isPast?'opacity:0.6':(isClosed?'border-color:rgba(255,255,255,0.08);opacity:0.85':'')}"><div style="${isClosed?'position:absolute;top:0;left:0;right:0;height:2px;background:rgba(138,155,181,0.3)':''}"></div>
       <div class="vote-header">
         <div>
@@ -4740,13 +4936,18 @@ function renderSchedule(){
           </div>
         </div>`:''}
       </div>
-      ${!isPast&&!isClosed?(myDormant
-        ?`<div style="padding:10px 12px;margin-bottom:12px;background:rgba(160,176,202,0.06);border:1px solid rgba(160,176,202,0.2);border-radius:3px;font-size:11px;color:var(--cl-silver);text-align:center;letter-spacing:0.5px">💤 휴면회원은 투표 대상에서 제외됩니다</div>`
-        :`<div class="vote-btns">
+      ${(()=>{
+        const sumLine=`<div class="vote-sum">참석 <b style="color:#3ddc84">${attend.length}</b> · 보류 <b>${maybe.length}</b> · 불참 <b style="color:#ff6b7a">${absent.length}</b>${isPast?'':` · 미응답 <b>${noResp.length}</b>`}</div>`;
+        if(isPast) return sumLine;
+        if(isClosed) return (vst!=='open'?`<div class="vote-lock">🔒 투표 자동 마감 (${deadlineLabel(voteDeadlineMs(s))})${myName&&!myVote&&!myDormant?' · 미투표':''}</div>`:'')+sumLine;
+        if(myDormant) return `<div style="padding:10px 12px;margin-bottom:12px;background:rgba(160,176,202,0.06);border:1px solid rgba(160,176,202,0.2);border-radius:12px;font-size:11px;color:var(--cl-silver);text-align:center">💤 이 달은 휴면이라 투표 대상에서 제외됩니다</div>`;
+        if(vst==='open') return `<div class="vote-btns">
         <button class="vbtn attend ${myVote==='o'?'active':''}" onclick="castVote('${s.id}','o')">참석 <b>${attend.length}</b></button>
-        <button class="vbtn maybe ${myVote==='?'?'active':''}" onclick="castVote('${s.id}','?')">미정 <b>${maybe.length}</b></button>
+        <button class="vbtn maybe ${myVote==='?'?'active':''}" onclick="castVote('${s.id}','?')">보류 <b>${maybe.length}</b></button>
         <button class="vbtn absent ${myVote==='x'?'active':''}" onclick="castVote('${s.id}','x')">불참 <b>${absent.length}</b></button>
-      </div>`):`<div class="vote-sum">참석 <b style="color:#3ddc84">${attend.length}</b> · 미정 <b>${maybe.length}</b> · 불참 <b style="color:#ff6b7a">${absent.length}</b>${isPast?'':` · 미응답 <b>${noResp.length}</b>`}</div>`}
+      </div>${s.noAutoClose?'':`<div class="vote-dl">⏰ 투표 마감 <b>${deadlineLabel(voteDeadlineMs(s))}</b> · 이후 자동 마감</div>`}`;
+        return `<div class="vote-lock">🔒 투표 자동 마감 (${deadlineLabel(voteDeadlineMs(s))})${myName&&!myVote?' · 미투표':''}</div>${sumLine}`;
+      })()}
       ${isPast?'':(()=>{
         if(vList.length===0 && noResp.length===0) return '<div style="font-size:12px;color:#666">아직 투표한 팀원이 없습니다</div>';
         return `<div class="vote-members">
@@ -4754,7 +4955,7 @@ function renderSchedule(){
           ${maybe.map(v=>`<span class="vm-chip vm-q">${v.name}</span>`).join('')}
           ${absent.map(v=>`<span class="vm-chip vm-x">${v.name}</span>`).join('')}
         </div>
-        ${noResp.length?`<div class="vote-noresp">미응답 ${noResp.length}명 · ${noResp.map(m=>m.name).join(', ')}</div>`:''}`;
+        ${noResp.length?`<div class="vote-noresp">${vst!=='open'&&!isClosed?'⚠ 미투표(벌금 대상)':'미응답'} ${noResp.length}명 · ${noResp.map(m=>m.name).join(', ')}</div>`:''}`;
       })()}
       ${isPast&&isAdmin()?`<div style="margin-top:10px">
         ${linked
@@ -4767,7 +4968,7 @@ function renderSchedule(){
         ${linked
           ?`<button onclick="goToGame('${linked.id}')" style="width:100%;padding:11px;background:linear-gradient(135deg,rgba(124,140,255,0.12),rgba(124,140,255,0.04));border:1px solid rgba(124,140,255,0.35);border-radius:3px;color:#a9b5ff;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase">📋 생성된 경기 기록 보기</button>
              <button onclick="unfinalizeVote('${s.id}')" style="width:100%;margin-top:6px;padding:9px;background:rgba(214,69,69,0.1);border:1px solid rgba(214,69,69,0.35);border-radius:3px;color:#ff8080;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px">🔓 투표 마감취소 (경기 기록 삭제)</button>`
-          :`<button onclick="finalizeVoteAndCreateGame('${s.id}')" style="width:100%;padding:12px;background:var(--grad-gold);border:none;border-radius:3px;color:var(--cl-navy);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase;box-shadow:0 4px 14px rgba(124,140,255,0.3)">🏁 투표 마감 · 경기 기록 생성 (참석자 ${attend.length}명)</button>`
+          :`${isFinite(voteDeadlineMs(s))?`<button onclick="toggleAutoClose('${s.id}')" style="width:100%;margin-bottom:6px;padding:9px;background:#1a1b21;border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#a3a5b0;font-size:11.5px;font-weight:600;cursor:pointer">${s.noAutoClose?'⏰ 자동 마감 다시 켜기':(vst==='open'?'자동 마감 끄기 (이 일정만)':'🔓 투표 다시 열기 (자동 마감 끄기)')}</button>`:''}<button onclick="finalizeVoteAndCreateGame('${s.id}')" style="width:100%;padding:12px;background:var(--grad-gold);border:none;border-radius:3px;color:var(--cl-navy);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:2px;text-transform:uppercase;box-shadow:0 4px 14px rgba(124,140,255,0.3)">🏁 투표 마감 · 경기 기록 생성 (참석자 ${attend.length}명)</button>`
         }
       </div>`:''}
       ${!isPast?`<details class="comment-wrap" ${Object.keys(s.comments||{}).length?'open':''}>
@@ -4804,6 +5005,7 @@ function renderSchedule(){
   if(!schedules.length) html='<div style="color:#666;text-align:center;padding:30px;font-size:14px">등록된 일정이 없습니다</div>';
   c.innerHTML=html;
   renderHomeHero();
+  armVoteTick();
 }
 
 // ════════ 2027 홈 화면 ════════
@@ -4873,7 +5075,7 @@ function cheerMsg(st,rk,n,lowAtt){
 }
 function myStatCard(){
   const m=myName&&members.find(x=>x.name===myName); if(!m) return '';
-  const pool=members.filter(x=>!x.dormant||x.name===myName);
+  const pool=members.filter(x=>!isDormant(x.name)||x.name===myName);
   const all=pool.map(x=>({n:x.name,s:getStats(x.name),c:contribScoreReg(x.name)}));
   const me=all.find(x=>x.n===myName)||{s:getStats(myName),c:contribScoreReg(myName)};
   const rk={c:rankOf(me.c,all.map(x=>x.c)),g:rankOf(me.s.goals,all.map(x=>x.s.goals)),a:rankOf(me.s.assists,all.map(x=>x.s.assists)),p:rankOf(me.s.played,all.map(x=>x.s.played))};
@@ -4882,7 +5084,7 @@ function myStatCard(){
   const lowAtt=games.length>=3 && me.s.played/games.length<0.5;
   const ns=nextSchedule(); const mv=ns&&(ns.votes||{})[nameKey(myName)];
   const nsOpen=ns&&!games.find(g=>g.scheduleId===ns.id);
-  const nudge=(lowAtt||!me.s.played)&&nsOpen&&(!mv||mv.vote!=='o')&&!m.dormant?`<div class="h-my-nudge" onclick="scrollToSchedules()">${mdw(ns.date)} vs ${hEsc(ns.opp||'미정')} 참석하기 →</div>`:'';
+  const nudge=(lowAtt||!me.s.played)&&nsOpen&&voteState(ns)==='open'&&(!mv||mv.vote!=='o')&&!isDormantOn(myName,ns.date)?`<div class="h-my-nudge" onclick="scrollToSchedules()">${mdw(ns.date)} vs ${hEsc(ns.opp||'미정')} 참석하기 →</div>`:'';
   const posTxt=m.pos?(posLabel(m.pos)+(m.pos2?' · '+posLabel(m.pos2):'')):'포지션 선택';
   const r1_=v=>Math.round(v*10)/10;
   return `<div class="h-my">
@@ -4957,7 +5159,7 @@ function duesList(){
   const now=new Date(); const curM=now.getFullYear()===2026?now.getMonth()+1:12;
   return members.map(m=>{
     let months=[]; try{ months=overdueMonths(m.name)||[]; }catch(e){}
-    const fee=months.length*monthFee(m.name);
+    const fee=feeSum(m.name,months);
     let lt={total:0,cnt:0}; try{ lt=lateOwed(m.name)||lt; }catch(e){}
     return {name:m.name,months,fee,late:lt.total,lateCnt:lt.cnt,total:fee+lt.total,dormant:!!m.dormant};
   }).filter(x=>x.total>0).sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'ko'));
@@ -4979,7 +5181,7 @@ window.buildDuesText=function(){
   L.forEach(x=>{
     const parts=[];
     if(x.months.length) parts.push(`회비 ${monthsTxt(x.months)}`);
-    if(x.late) parts.push(`지각 ${x.lateCnt}건`);
+    if(x.late) parts.push(`벌금 ${x.lateCnt}건`);
     t+=`· ${x.name} — ${parts.join(' + ')} : ${x.total.toLocaleString()}원\n`;
   });
   t+=`\n월 회비 2만원 (GK·휴면 1만원)\n`;
@@ -5137,14 +5339,31 @@ const RN_SECTIONS=[
 <li>쿼터 탭에서 경기를 연결하면 <b>그 경기의 참석자</b>로 명단이 자동 연계됩니다.</li>
 <li><b>투표를 수정하면</b> 쿼터·경기 화면에 <em>실시간 반영</em>됩니다. 저장된 라인업은 유지되고, 쿼터 탭의 <span class="rn-pill g">🔄 최신 투표 반영</span>을 누르면 최신 참석자로 명단을 되돌립니다.</li>
 <li><b>출전 명단 편집</b>에서 용병 추가, 부상·불참 제외, 당일 포지션 지정이 가능합니다.</li>
-<li>휴면 회원은 투표·명단에서 제외됩니다.</li>
-</ul>`],
+<li>휴면 회원은 투표·명단에서 제외됩니다. 휴면은 <b>달별로</b> 설정하며, 휴면인 달은 회비 <em>1만 원</em>입니다. <span class="rn-new">NEW</span></li>
+<li><b>투표 마감</b> — 매주 <em>목요일 23:59</em> (금요일 0시). 앱이 <b>자동으로 마감</b>하고 참석자로 경기 기록을 만듭니다. <span class="rn-new">NEW</span></li>
+<li><b>투표 항목</b> — <span class="rn-pill g">참석</span> <span class="rn-pill b">보류</span> <span class="rn-pill r">불참</span> <span class="rn-new">NEW</span></li>
+<li><b>보류자 추가 기한</b> — 목요일 마감 때 '보류'인 인원은 <em>토요일 자정까지</em> 참석/불참 의사를 알려주세요. 마감 후에는 앱에서 직접 바꿀 수 없고 <b>관리자가 변경</b>하며, 참석으로 바뀌면 출전 명단에 자동 추가됩니다. 그때까지 의사 표시가 없으면 <em>벌금</em> <span class="rn-new">NEW</span></li>
+<li><b>팀 행사 투표</b> — 공식 투표이므로 기한 내 미참여 시 벌금 (단, <b>블루체크 수요조사는 제외</b>) <span class="rn-new">NEW</span></li>
+</ul>
+<div class="rn-call">📅 <b>야유회 사전 고지</b> — 2027년 <em>10월 16일 또는 23일</em> 중 사전 확정 예정 · 많은 참여 부탁드립니다! <span class="rn-new">NEW</span></div>`],
 ['회비','포지션·상태에 따라 월 회비가 자동 적용됩니다.',`
 <table class="rn-tb"><thead><tr><th>구분</th><th>월 회비</th></tr></thead><tbody>
 <tr><td>일반 선수</td><td><em>20,000원</em></td></tr><tr><td>골키퍼 (GK)</td><td><em>10,000원</em></td></tr><tr><td>휴면 회원</td><td><em>10,000원</em></td></tr></tbody></table>
-<p class="rn-small">※ 관리자가 포지션을 GK로 지정하면 회비가 자동으로 1만원으로 반영됩니다.</p>`],
+<p class="rn-small">※ 관리자가 포지션을 GK로 지정하면 회비가 자동으로 1만원으로 반영됩니다.</p>
+<p style="margin-top:12px"><b>납부 방식</b> <span class="rn-new">NEW</span></p>
+<table class="rn-tb"><thead><tr><th>구분</th><th>1년 납부</th><th>분기 납부</th></tr></thead><tbody>
+<tr><td>일반 회원</td><td><em>22만 원</em></td><td><em>6만 원</em></td></tr>
+<tr><td>골키퍼</td><td><em>12만 원</em></td><td><em>3만 원</em></td></tr></tbody></table>
+<ul class="rn-list">
+<li><b>입회비 없음</b> (유니폼 홈/어웨이는 별도 구매) <span class="rn-new">NEW</span></li>
+<li><b>1년 납부</b>는 <em>1월 말일까지</em>, <b>분기 납부</b>는 분기 첫 달(<em>1·4·7·10월</em>) 안에 <span class="rn-new">NEW</span></li>
+<li><b>골키퍼 페이백</b> — 1년 기준 키퍼 참석률 <em>2/3 이상</em>이면 <em>전액 페이백</em>. 단, 참석률 <em>30% 미만</em>이면 다음 해 <b>1년 18만 원 / 분기 4만 5천 원</b> <span class="rn-new">NEW</span></li>
+</ul>`],
 ['벌금 (지각)','지각 시 기본 벌금이 부과되고, 미납이 길어지면 증액됩니다.',`
-<ul class="rn-list"><li>지각 기본 벌금 <em>5,000원</em></li><li>경기 당일까지 미납 시 <em>하루당 +1,000원</em> 증액</li></ul>`],
+<ul class="rn-list"><li>지각 기본 벌금 <em>5,000원</em></li><li>경기 당일까지 미납 시 <em>하루당 +1,000원</em> 증액</li>
+<li><b>당일 무단 불참</b> <em>2만 원</em> (장례식장·사고·입원 등 불가항력적인 사유 제외) <span class="rn-new">NEW</span></li>
+<li><b>회비 미납 · 투표 · 준비물 미지참</b>도 <em>5천 원</em>, 위반 당일부터 하루당 +1천 원<br><span class="rn-small">예) 참석 투표 벌금을 토요일에 내면 6천 원</span> <span class="rn-new">NEW</span></li>
+<li><b>지각 기준</b> — 해당 경기장 <em>인조잔디 그라운드에 들어오는 시간</em> <span class="rn-new">NEW</span></li></ul>`],
 ['기여도 산정','참석·골·어시·포지션을 합산해 기여도 점수를 계산합니다. 자동배치의 핵심 기준이며 모든 탭에서 같은 값으로 표시됩니다.',`
 <div class="rn-eq">기여도 = 참석 + 포지션 + 골 + 어시</div>
 <ul class="rn-list">
@@ -5206,6 +5425,19 @@ const RN_SECTIONS=[
 <li>경기별 라인업은 <b>경기별로 따로 저장</b>되어, 그 경기를 다시 선택하면 그대로 복원됩니다.</li>
 <li>상대팀 연락처·전력·메모는 <b>경기 탭 → 상대팀</b>(관리자 전용)에서 관리합니다.</li>
 </ul>`]
+,['용병 운영 <span class="rn-new">NEW</span>','',`
+<ul class="rn-list">
+<li>용병은 참석 인원이 <em>13명 이하</em>일 때 초청</li>
+<li>용병 초청으로 총 인원이 <em>17명 이상</em>이 되면 추가 참여 불가</li>
+</ul>`],
+['시상 및 혜택 <span class="rn-new">NEW</span>','',`
+<ul class="rn-list">
+<li><b>연말 시상</b> — 임원 4명이 연말 회식 때 <em>각자 1명씩</em> 선정해 시상</li>
+<li><b>임원진 혜택</b> — 2028년부터 팀 재정 안정화 달성 시 임원진 회비 <em>점진적 면제</em></li>
+</ul>`],
+['탈퇴 · 제명 <span class="rn-new">NEW</span>','',`
+<ul class="rn-list"><li>탈퇴 또는 제명 시 이미 낸 회비는 <em>환불 불가</em></li></ul>
+<div class="rn-warn">🚫 <b>제명 기준</b><br>· 회비 <b>3달 이상</b> 미납<br>· 무단 불참 <b>1년 3회</b> (1년마다 리셋)<br>· 팀 내 갈등 유발 및 폭행</div>`]
 ];
 function rulesNoticeHtml(){
   return `<div class="rn-head"><div class="rn-k">SUCHON FC · 운영 규칙</div><div class="rn-t">수촌 FC 운영 규칙</div><div class="rn-s">관리자 공지 · 최신판</div></div>
